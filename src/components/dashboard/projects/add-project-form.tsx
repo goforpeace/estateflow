@@ -64,6 +64,7 @@ const projectFormSchema = z.object({
       z.object({
         flatNumber: z.string().min(1, { message: 'Cannot be empty.' }),
         ownership: z.enum(['Developer', 'Landowner']),
+        flatSize: z.coerce.number().min(1, { message: 'Must be > 0.' }),
       })
     )
     .min(1, { message: 'You must add at least one flat.' }),
@@ -86,7 +87,7 @@ export function AddProjectForm({ setDialogOpen }: AddProjectFormProps) {
       developerShare: 50,
       landownerShare: 50,
       status: 'Planning',
-      flats: [{ flatNumber: '', ownership: 'Developer' }],
+      flats: [{ flatNumber: '', ownership: 'Developer', flatSize: 0 }],
     },
   });
 
@@ -127,6 +128,7 @@ export function AddProjectForm({ setDialogOpen }: AddProjectFormProps) {
           projectId: newProjectRef.id,
           flatNumber: flatData.flatNumber,
           ownership: flatData.ownership,
+          flatSize: flatData.flatSize,
           status: 'Available', // Default status for new flats
         });
       });
@@ -285,7 +287,7 @@ export function AddProjectForm({ setDialogOpen }: AddProjectFormProps) {
           </FormDescription>
           <div className="space-y-4 mt-2">
             {fields.map((field, index) => (
-              <div key={field.id} className="grid grid-cols-[1fr_auto_auto] items-end gap-2 p-3 border rounded-lg">
+              <div key={field.id} className="grid grid-cols-[1fr_1fr_auto_auto] items-end gap-2 p-3 border rounded-lg">
                 <FormField
                   control={form.control}
                   name={`flats.${index}.flatNumber`}
@@ -296,6 +298,21 @@ export function AddProjectForm({ setDialogOpen }: AddProjectFormProps) {
                       </FormLabel>
                       <FormControl>
                         <Input {...field} placeholder={`E.g., A-${101 + index}`} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                 <FormField
+                  control={form.control}
+                  name={`flats.${index}.flatSize`}
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className={cn(index !== 0 && "sr-only")}>
+                        Flat Size (SFT)
+                      </FormLabel>
+                      <FormControl>
+                        <Input type="number" {...field} placeholder="E.g., 1200" />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -353,7 +370,7 @@ export function AddProjectForm({ setDialogOpen }: AddProjectFormProps) {
             variant="outline"
             size="sm"
             className="mt-2"
-            onClick={() => append({ flatNumber: '', ownership: 'Developer' })}
+            onClick={() => append({ flatNumber: '', ownership: 'Developer', flatSize: 0 })}
           >
             <PlusCircle className="mr-2 h-4 w-4" />
             Add Another Flat

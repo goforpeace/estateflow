@@ -29,6 +29,7 @@ export interface Flat {
   id: string;
   projectId: string;
   flatNumber: string;
+  flatSize: number;
   ownership: FlatOwnership;
   salePrice?: number;
   status: FlatStatus;

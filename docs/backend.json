@@ -116,6 +116,10 @@
         "status": {
           "type": "string",
           "description": "Status of the flat (Available, Sold, Reserved)."
+        },
+        "flatSize": {
+          "type": "number",
+          "description": "Size of the flat in square feet."
         }
       },
       "required": [
@@ -123,7 +127,8 @@
         "projectId",
         "flatNumber",
         "ownership",
-        "status"
+        "status",
+        "flatSize"
       ]
     },
     "Customer": {
