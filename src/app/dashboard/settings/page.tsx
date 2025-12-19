@@ -1,8 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useAuth, useFirestore, useUser, useMemoFirebase } from '@/firebase';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { useAuth, useFirestore, useUser, useMemoFirebase, setDocumentNonBlocking } from '@/firebase';
+import { doc, getDoc } from 'firebase/firestore';
 import { updateProfile } from 'firebase/auth';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import type { User } from '@/lib/types';
-import { setDocumentNonBlocking } from '@/firebase';
+
 
 export default function SettingsPage() {
   const { user, isUserLoading } = useUser();
