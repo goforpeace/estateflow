@@ -1,12 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import {
-  useFirestore,
-  useCollection,
-  useMemoFirebase,
-} from '@/firebase';
-import { doc, collection, query, where, getDocs } from 'firebase/firestore';
+import { useFirestore } from '@/firebase';
+import { doc, collection, query, where, getDocs, getDoc } from 'firebase/firestore';
 import type { Project, Flat, Sale, Customer } from '@/lib/types';
 import {
   Card,
@@ -35,19 +31,18 @@ type EnrichedFlat = Flat & {
   };
 };
 
-function StatCardSmall({title, value}: {title: string, value: string}) {
-    return (
-        <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">{title}</CardTitle>
-            </CardHeader>
-            <CardContent>
-                <div className="text-2xl font-bold">{value}</div>
-            </CardContent>
-        </Card>
-    )
+function StatCardSmall({ title, value }: { title: string; value: string }) {
+  return (
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+        <CardTitle className="text-sm font-medium">{title}</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="text-2xl font-bold">{value}</div>
+      </CardContent>
+    </Card>
+  );
 }
-
 
 export default function ProjectDetailPage({
   params,
@@ -58,111 +53,122 @@ export default function ProjectDetailPage({
   const router = useRouter();
   const { projectId } = params;
 
+  const [project, setProject] = useState<Project | null>(null);
   const [enrichedFlats, setEnrichedFlats] = useState<EnrichedFlat[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  
-  const projectQuery = useMemoFirebase(
-    () => (projectId ? query(collection(firestore, 'projects'), where('id', '==', projectId)) : null),
-    [firestore, projectId]
-  );
-  const { data: projects, isLoading: projectLoading, error: projectError } = useCollection<Project>(projectQuery);
-  const project = projects?.[0];
-
-  const flatsQuery = useMemoFirebase(
-    () => (projectId ? collection(firestore, 'projects', projectId, 'flats') : null),
-    [firestore, projectId]
-  );
-  const { data: flats, isLoading: flatsLoading, error: flatsError } = useCollection<Flat>(flatsQuery);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const enrichFlatData = async () => {
+    if (!projectId) return;
+
+    const fetchData = async () => {
       setIsLoading(true);
+      setError(null);
+      try {
+        // 1. Fetch Project
+        const projectRef = doc(firestore, 'projects', projectId);
+        const projectSnap = await getDoc(projectRef);
 
-      if (!flats) { 
-        if (!flatsLoading) {
-           setEnrichedFlats([]);
-           setIsLoading(false);
+        if (!projectSnap.exists()) {
+          setError("Project not found");
+          setIsLoading(false);
+          return;
         }
-        return;
-      }
-      if (flats.length === 0) {
-        setEnrichedFlats([]);
-        setIsLoading(false);
-        return;
-      };
+        const projectData = projectSnap.data() as Project;
+        setProject(projectData);
 
+        // 2. Fetch Flats for the project
+        const flatsQuery = collection(firestore, 'projects', projectId, 'flats');
+        const flatsSnap = await getDocs(flatsQuery);
+        const flats = flatsSnap.docs.map(d => ({ ...d.data() } as Flat));
 
-      const soldFlats = flats.filter(f => f.status === 'Sold');
-      const soldFlatIds = soldFlats.map(f => f.id);
+        if (flats.length === 0) {
+          setEnrichedFlats([]);
+          setIsLoading(false);
+          return;
+        }
 
-      let salesMap = new Map<string, Sale>();
-      if (soldFlatIds.length > 0) {
-        const salesQuery = query(
-          collection(firestore, 'sales'),
-          where('flatId', 'in', soldFlatIds),
-          where('projectId', '==', projectId)
-        );
-        const salesSnap = await getDocs(salesQuery);
-        salesSnap.forEach(doc => {
-          const sale = doc.data() as Sale;
-          salesMap.set(sale.flatId, sale);
-        });
-      }
-
-      const customerIds = [...new Set(Array.from(salesMap.values()).map(s => s.customerId))];
-      let customersMap = new Map<string, Customer>();
-      if (customerIds.length > 0) {
-        const customerPromises = [];
-        for (let i = 0; i < customerIds.length; i += 30) {
-            const chunk = customerIds.slice(i, i + 30);
-            if(chunk.length > 0) {
-                const customersQuery = query(
-                    collection(firestore, 'customers'),
-                    where('id', 'in', chunk)
-                );
-                customerPromises.push(getDocs(customersQuery));
-            }
+        // 3. Find which flats are sold to get sales info
+        const soldFlats = flats.filter(f => f.status === 'Sold');
+        const soldFlatIds = soldFlats.map(f => f.id);
+        const salesMap = new Map<string, Sale>();
+        
+        if (soldFlatIds.length > 0) {
+          const salesQuery = query(
+            collection(firestore, 'sales'),
+            where('projectId', '==', projectId),
+            where('flatId', 'in', soldFlatIds)
+          );
+          const salesSnap = await getDocs(salesQuery);
+          salesSnap.forEach(doc => {
+            const sale = doc.data() as Sale;
+            salesMap.set(sale.flatId, sale);
+          });
         }
         
-        const customerSnapshots = await Promise.all(customerPromises);
-        customerSnapshots.forEach(snap => {
-            snap.forEach(doc => {
-                customersMap.set(doc.id, doc.data() as Customer);
-            });
-        });
-      }
+        // 4. Get unique customer IDs from the sales
+        const customerIds = [...new Set(Array.from(salesMap.values()).map(s => s.customerId))];
+        const customersMap = new Map<string, Customer>();
 
-      const enrichedData = flats.map(flat => {
-        if (flat.status === 'Sold') {
-          const sale = salesMap.get(flat.id);
-          if (sale) {
+        if (customerIds.length > 0) {
+            // Firestore 'in' query is limited to 30 elements. Chunk if necessary.
+            const customerChunks = [];
+            for (let i = 0; i < customerIds.length; i += 30) {
+                customerChunks.push(customerIds.slice(i, i + 30));
+            }
+            
+            const customerPromises = customerChunks.map(chunk => 
+                getDocs(query(collection(firestore, 'customers'), where('id', 'in', chunk)))
+            );
+
+            const customerSnapshots = await Promise.all(customerPromises);
+            customerSnapshots.forEach(snap => {
+                snap.forEach(doc => {
+                    customersMap.set(doc.id, doc.data() as Customer);
+                });
+            });
+        }
+
+        // 5. Enrich the flat data with customer info
+        const enrichedData = flats.map(flat => {
+          if (flat.status === 'Sold' && salesMap.has(flat.id)) {
+            const sale = salesMap.get(flat.id)!;
             const customer = customersMap.get(sale.customerId);
             return {
               ...flat,
-              customer: customer
-                ? { fullName: customer.fullName, mobile: customer.mobile }
-                : undefined,
+              customer: customer ? { fullName: customer.fullName, mobile: customer.mobile } : undefined,
             };
           }
-        }
-        return flat;
-      });
+          return flat;
+        });
 
-      setEnrichedFlats(enrichedData.sort((a,b) => a.flatNumber.localeCompare(b.flatNumber)));
-      setIsLoading(false);
+        setEnrichedFlats(enrichedData.sort((a, b) => a.flatNumber.localeCompare(b.flatNumber)));
+      } catch (e: any) {
+        console.error("Failed to fetch project details:", e);
+        setError("Could not load project data. Please try again.");
+      } finally {
+        setIsLoading(false);
+      }
     };
 
-    enrichFlatData();
-    
-  }, [flats, firestore, projectId, flatsLoading]);
-  
-  if (projectError || flatsError) {
-    console.error("Error fetching project data:", projectError || flatsError);
-    return <div>Error loading project. Please try again.</div>;
+    fetchData();
+  }, [projectId, firestore]);
+
+  if (isLoading) {
+    return (
+        <div className="flex justify-center items-center h-screen">
+            <p>Loading project details...</p>
+        </div>
+    );
   }
 
-  if (!projectLoading && !project) {
-      notFound();
+  if (error) {
+    // If project was not found during fetch, trigger Next.js not found page
+    notFound();
+  }
+
+  if (!project) {
+    return null; // Should be covered by loading/error state
   }
 
   const formatCurrency = (value: number) => {
@@ -176,43 +182,37 @@ export default function ProjectDetailPage({
     return `৳${value.toLocaleString('en-IN')}`;
   };
 
-  const soldCount = flats?.filter(f => f.status === 'Sold').length || 0;
-  const availableCount = flats?.filter(f => f.status === 'Available').length || 0;
-  const reservedCount = flats?.filter(f => f.status === 'Reserved').length || 0;
+  const soldCount = enrichedFlats.filter(f => f.status === 'Sold').length;
+  const availableCount = enrichedFlats.filter(f => f.status === 'Available').length;
+  const reservedCount = enrichedFlats.filter(f => f.status === 'Reserved').length;
 
   return (
-    <div className="space-y-6">
-       <div className="flex items-center gap-4">
-            <Button variant="outline" size="icon" onClick={() => router.back()}>
-                <ArrowLeft className="h-4 w-4" />
-                <span className="sr-only">Back</span>
-            </Button>
-            <h1 className="flex-1 shrink-0 whitespace-nowrap text-xl font-semibold tracking-tight sm:grow-0">
-                {project?.projectName || 'Loading Project...'}
-            </h1>
-         </div>
+    <div className="space-y-6 container mx-auto py-6">
+      <div className="flex items-center gap-4">
+        <Button variant="outline" size="icon" onClick={() => router.back()}>
+          <ArrowLeft className="h-4 w-4" />
+          <span className="sr-only">Back</span>
+        </Button>
+        <h1 className="flex-1 shrink-0 whitespace-nowrap text-xl font-semibold tracking-tight sm:grow-0">
+          {project.projectName}
+        </h1>
+      </div>
       <Card>
         <CardHeader>
           <CardTitle>Project Overview</CardTitle>
           <CardDescription>
-            Details and flat status for {project?.projectName || '...'}
+            Details and flat status for {project.projectName}
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {projectLoading ? (
-            <p>Loading project details...</p>
-          ) : project ? (
-            <div className="grid md:grid-cols-3 gap-6 text-sm">
-                <div><strong>Project Name:</strong> {project.projectName}</div>
-                <div><strong>Location:</strong> {project.location}</div>
-                <div><strong>Start Date:</strong> {new Date(project.startDate).toLocaleDateString()}</div>
-                <div><strong>Status:</strong> <Badge variant={project.status === 'Ongoing' ? 'default' : 'secondary'}>{project.status}</Badge></div>
-                <div><strong>Total Flats:</strong> {project.totalFlats}</div>
-                <div><strong>Target Sell:</strong> {formatCurrency(project.targetSell)}</div>
-            </div>
-          ) : (
-            <p>Project not found.</p>
-          )}
+          <div className="grid md:grid-cols-3 gap-6 text-sm">
+            <div><strong>Project Name:</strong> {project.projectName}</div>
+            <div><strong>Location:</strong> {project.location}</div>
+            <div><strong>Start Date:</strong> {new Date(project.startDate).toLocaleDateString()}</div>
+            <div><strong>Status:</strong> <Badge variant={project.status === 'Ongoing' ? 'default' : 'secondary'}>{project.status}</Badge></div>
+            <div><strong>Total Flats:</strong> {project.totalFlats}</div>
+            <div><strong>Target Sell:</strong> {formatCurrency(project.targetSell)}</div>
+          </div>
         </CardContent>
       </Card>
       
@@ -226,11 +226,9 @@ export default function ProjectDetailPage({
         <CardHeader>
           <CardTitle>Flats</CardTitle>
           <CardDescription>List of all flats in this project.</CardDescription>
-        </CardHeader>
+        </-CardHeader>
         <CardContent>
-          {isLoading ? (
-            <p className="text-center p-8">Loading flat information...</p>
-          ) : enrichedFlats.length > 0 ? (
+          {enrichedFlats.length > 0 ? (
             <Table>
               <TableHeader>
                 <TableRow>
