@@ -22,11 +22,11 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useFirestore, useCollection, useMemoFirebase, addDocumentNonBlocking } from '@/firebase';
-import { collection, query, where, getDocs } from 'firebase/firestore';
+import { collection, query, where, getDocs, doc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import type { Project, Customer, Sale, Flat, PaymentMode } from '@/lib/types';
+import type { Project, Customer, Sale, Flat } from '@/lib/types';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 
@@ -48,8 +48,6 @@ export default function AddPaymentPage() {
   const { toast } = useToast();
   const router = useRouter();
 
-  const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
-  const [soldFlats, setSoldFlats] = useState<Flat[]>([]);
   const [projectsForCustomer, setProjectsForCustomer] = useState<Project[]>([]);
   const [flatsForProject, setFlatsForProject] = useState<Flat[]>([]);
 
@@ -76,24 +74,30 @@ export default function AddPaymentPage() {
 
   useEffect(() => {
     async function fetchCustomerData() {
+      // Clear dependent fields when customer changes
+      setProjectsForCustomer([]);
+      setFlatsForProject([]);
+      form.setValue('projectId', '');
+      form.setValue('flatId', '');
+
       if (customerId) {
+        // Find all sales for the selected customer
         const salesQuery = query(collection(firestore, 'sales'), where('customerId', '==', customerId));
         const salesSnap = await getDocs(salesQuery);
         const sales = salesSnap.docs.map(doc => doc.data() as Sale);
         
+        // Get unique project IDs from the sales
         const projectIds = [...new Set(sales.map(s => s.projectId))];
 
         if (projectIds.length > 0) {
-            const projectsQuery = query(collection(firestore, 'projects'), where('id', 'in', projectIds));
-            const projectsSnap = await getDocs(projectsQuery);
-            setProjectsForCustomer(projectsSnap.docs.map(doc => doc.data() as Project));
-        } else {
-            setProjectsForCustomer([]);
+            const projectsData: Project[] = [];
+            // Fetch project details for each unique project ID
+            for (const pId of projectIds) {
+                const projectDoc = await getDocs(query(collection(firestore, 'projects'), where('id', '==', pId)));
+                projectDoc.forEach(doc => projectsData.push(doc.data() as Project));
+            }
+            setProjectsForCustomer(projectsData);
         }
-        form.setValue('projectId', '');
-        form.setValue('flatId', '');
-      } else {
-        setProjectsForCustomer([]);
       }
     }
     fetchCustomerData();
@@ -101,25 +105,31 @@ export default function AddPaymentPage() {
 
   useEffect(() => {
     async function fetchProjectData() {
+        // Clear flat field when project changes
+        setFlatsForProject([]);
+        form.setValue('flatId', '');
+
         if (customerId && projectId) {
+            // Find sales for the specific customer and project
             const salesQuery = query(collection(firestore, 'sales'), where('customerId', '==', customerId), where('projectId', '==', projectId));
             const salesSnap = await getDocs(salesQuery);
             const flatIds = salesSnap.docs.map(doc => (doc.data() as Sale).flatId);
             
             if (flatIds.length > 0) {
                 const flatsData: Flat[] = [];
+                // Fetch flat details for each flat ID found
                 for(const flatId of flatIds) {
                     const flatQuery = query(collection(firestore, 'projects', projectId, 'flats'), where('id', '==', flatId));
                     const flatSnap = await getDocs(flatQuery);
                     flatSnap.forEach(doc => flatsData.push(doc.data() as Flat));
                 }
                 setFlatsForProject(flatsData);
-            } else {
-                setFlatsForProject([]);
+
+                // If there's only one flat, auto-select it
+                if (flatsData.length === 1) {
+                    form.setValue('flatId', flatsData[0].id);
+                }
             }
-             form.setValue('flatId', '');
-        } else {
-            setFlatsForProject([]);
         }
     }
     fetchProjectData();
@@ -138,7 +148,7 @@ export default function AddPaymentPage() {
             paymentType: 'Installment', // Assuming payments added here are installments
         };
 
-        addDocumentNonBlocking(inflowCollection, newPayment);
+        await addDoc(inflowCollection, newPayment);
 
       toast({
         title: 'Payment Recorded',
@@ -175,7 +185,7 @@ export default function AddPaymentPage() {
                       <FormLabel>Customer</FormLabel>
                       <Select
                         onValueChange={field.onChange}
-                        defaultValue={field.value}
+                        value={field.value}
                         disabled={customersLoading}
                       >
                         <FormControl>
@@ -203,7 +213,7 @@ export default function AddPaymentPage() {
                       <FormLabel>Project</FormLabel>
                       <Select
                         onValueChange={field.onChange}
-                        defaultValue={field.value}
+                        value={field.value}
                         disabled={!customerId || projectsForCustomer.length === 0}
                       >
                         <FormControl>
@@ -232,7 +242,7 @@ export default function AddPaymentPage() {
                       <FormLabel>Flat</FormLabel>
                       <Select
                         onValueChange={field.onChange}
-                        defaultValue={field.value}
+                        value={field.value}
                         disabled={!projectId || flatsForProject.length === 0}
                       >
                         <FormControl>
