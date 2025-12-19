@@ -313,6 +313,75 @@
         "allocationAmount",
         "allocationMonth"
       ]
+    },
+    "Sale": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Sale",
+      "type": "object",
+      "description": "Represents a sale of a flat.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the sale transaction."
+        },
+        "projectId": {
+          "type": "string",
+          "description": "Reference to Project."
+        },
+        "flatId": {
+          "type": "string",
+          "description": "Reference to Flat."
+        },
+        "customerId": {
+          "type": "string",
+          "description": "Reference to Customer."
+        },
+        "totalPrice": {
+          "type": "number",
+          "description": "Total sale price of the flat."
+        },
+        "perSftPrice": {
+          "type": "number",
+          "description": "Price per square foot."
+        },
+        "parkingCharge": {
+          "type": "number",
+          "description": "Cost for parking."
+        },
+        "utilityCharge": {
+          "type": "number",
+          "description": "Cost for utilities."
+        },
+        "downpayment": {
+          "type": "number",
+          "description": "Initial downpayment amount."
+        },
+        "monthlyInstallment": {
+          "type": "number",
+          "description": "Amount for each monthly installment."
+        },
+        "saleDate": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Date of the sale."
+        },
+        "note": {
+          "type": "string",
+          "description": "Additional notes for the sale."
+        },
+        "deedLink": {
+          "type": "string",
+          "description": "Link to the uploaded deed document."
+        }
+      },
+      "required": [
+        "id",
+        "projectId",
+        "flatId",
+        "customerId",
+        "totalPrice",
+        "saleDate"
+      ]
     }
   },
   "auth": {
@@ -387,6 +456,22 @@
             {
               "name": "customerId",
               "description": "The unique identifier for the customer."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/sales/{saleId}",
+        "definition": {
+          "entityName": "Sale",
+          "schema": {
+            "$ref": "#/backend/entities/Sale"
+          },
+          "description": "Stores flat sale transaction details.",
+          "params": [
+            {
+              "name": "saleId",
+              "description": "The unique identifier for the sale."
             }
           ]
         }
@@ -468,8 +553,6 @@
         }
       }
     ],
-    "reasoning": "The Firestore data structure is designed to ensure authorization independence, clarity, and scalability for the EstateFlow application. Key strategies include denormalization, structural segregation, and consistent access modeling.\n\n**Authorization Independence:**\nAuthorization independence is achieved by denormalizing authorization-related data. For instance, access to `flats` is determined by the project's attributes. If there were project-level access controls (e.g., project admins), this information would be denormalized into each flat document.\n\n**Structural Segregation:**\nData with different access requirements are stored in separate collections. User profiles are stored in `/users/{userId}`, ensuring that only the user (and admins) can access their data. Project-related data (flats, inflow transactions, outflow transactions, and office cost allocations) are organized under `/projects/{projectId}`, enabling project-level access control.\n\n**Access Modeling:**\n-   **User Data:** User profiles are stored under `/users/{userId}`, ensuring path-based ownership.\n-   **Project Data:** Project-related data is organized under `/projects/{projectId}`, with subcollections for flats, inflow transactions, outflow transactions and office cost allocations.\n\n**QAPs (Rules are not Filters):**\nThe structure supports secure `list` operations by avoiding hierarchical authorization dependencies.  For example, listing flats within a project does not require fetching parent project data to validate access.\n\nIn summary, this structure promotes clear, maintainable security rules and supports the core features of the EstateFlow application while adhering to best practices for Firestore data modeling."
+    "reasoning": "The Firestore data structure is designed to ensure authorization independence, clarity, and scalability for the EstateFlow application. Key strategies include denormalization, structural segregation, and consistent access modeling.\n\n**Authorization Independence:**\nAuthorization independence is achieved by denormalizing authorization-related data. For instance, access to `flats` is determined by the project's attributes. If there were project-level access controls (e.g., project admins), this information would be denormalized into each flat document.\n\n**Structural Segregation:**\nData with different access requirements are stored in separate collections. User profiles are stored in `/users/{userId}`, ensuring that only the user (and admins) can access their data. Project-related data (flats, inflow transactions, outflow transactions, and office cost allocations) are organized under `/projects/{projectId}`, enabling project-level access control. Sales are stored in a top-level `/sales` collection for easier querying across all projects.\n\n**Access Modeling:**\n-   **User Data:** User profiles are stored under `/users/{userId}`, ensuring path-based ownership.\n-   **Project Data:** Project-related data is organized under `/projects/{projectId}`, with subcollections for flats, inflow transactions, outflow transactions and office cost allocations.\n-   **Sales Data:** Stored in a top-level `/sales` collection to allow for app-wide queries on sales data.\n\n**QAPs (Rules are not Filters):**\nThe structure supports secure `list` operations by avoiding hierarchical authorization dependencies.  For example, listing flats within a project does not require fetching parent project data to validate access.\n\nIn summary, this structure promotes clear, maintainable security rules and supports the core features of the EstateFlow application while adhering to best practices for Firestore data modeling."
   }
 }
-
-    

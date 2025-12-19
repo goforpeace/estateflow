@@ -6,7 +6,7 @@
  *
  * Data Structure:
  * The data is organized into several top-level collections: /users, /projects,
- * /customers, and /officeExpenses. Project-specific data, such as /flats and
+ * /customers, /officeExpenses and /sales. Project-specific data, such as /flats and
  * various transaction types, are nested as subcollections under /projects/{projectId}.
  *
  * Key Security Decisions:
@@ -168,6 +168,15 @@ service cloud.firestore {
      * @principle Enforces authenticated access for all business data.
      */
     match /customers/{customerId} {
+      allow read, write: if canAccessBusinessData();
+    }
+    
+    /**
+     * @description Manages sales data. Access is granted to any authenticated user.
+     * @path /sales/{saleId}
+     * @principle Enforces authenticated access for all business data.
+     */
+    match /sales/{saleId} {
       allow read, write: if canAccessBusinessData();
     }
 

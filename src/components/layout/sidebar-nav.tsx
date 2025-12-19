@@ -10,6 +10,7 @@ import {
   BrainCircuit,
   Settings,
   Users,
+  ShoppingCart,
 } from 'lucide-react';
 import { Logo } from '../icons';
 import { cn } from '@/lib/utils';
@@ -20,6 +21,7 @@ const navItems = [
   { href: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
   { href: '/dashboard/projects', icon: Briefcase, label: 'Projects' },
   { href: '/dashboard/customers', icon: Users, label: 'Customers' },
+  { href: '/dashboard/sales', icon: ShoppingCart, label: 'Sales' },
   { href: '/dashboard/transactions', icon: ArrowRightLeft, label: 'Transactions' },
   { href: '/dashboard/office-costs', icon: Building, label: 'Office Costs' },
   { href: '/dashboard/forecasting', icon: BrainCircuit, label: 'Forecasting', isNew: true },
@@ -45,7 +47,7 @@ export function SidebarNav() {
                 href={item.href}
                 className={cn(
                   'flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary',
-                  pathname === item.href && 'bg-muted text-primary'
+                  pathname.startsWith(item.href) && 'bg-muted text-primary'
                 )}
               >
                 <item.icon className="h-4 w-4" />
@@ -77,5 +79,3 @@ export function SidebarNav() {
     </div>
   );
 }
-
-    

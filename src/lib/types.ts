@@ -61,7 +61,18 @@ export interface OutflowTransaction {
   date: string;
 }
 
-    
-    
-
-    
+export interface Sale {
+  id: string;
+  projectId: string;
+  flatId: string;
+  customerId: string;
+  totalPrice: number;
+  perSftPrice?: number;
+  parkingCharge?: number;
+  utilityCharge?: number;
+  downpayment?: number;
+  monthlyInstallment?: number;
+  saleDate: string;
+  note?: string;
+  deedLink?: string;
+}
