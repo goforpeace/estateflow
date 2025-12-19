@@ -175,7 +175,7 @@ export function AddProjectForm({ setDialogOpen }: AddProjectFormProps) {
                 <FormItem>
                   <FormLabel>Location</FormLabel>
                   <FormControl>
-                    <Input placeholder="E.g., Bangalore" {...field} />
+                    <Input placeholder="E.g., Dhaka" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
