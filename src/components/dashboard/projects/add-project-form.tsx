@@ -1,12 +1,13 @@
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useForm } from 'react-hook-form';
+import { useFieldArray, useForm } from 'react-hook-form';
 import * as z from 'zod';
 import { Button } from '@/components/ui/button';
 import {
   Form,
   FormControl,
+  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -20,15 +21,24 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { CalendarIcon } from 'lucide-react';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
+import { CalendarIcon, PlusCircle, Trash2 } from 'lucide-react';
 import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
-import { useFirestore, addDocumentNonBlocking } from '@/firebase';
-import { collection } from 'firebase/firestore';
+import {
+  useFirestore,
+  addDocumentNonBlocking,
+  setDocumentNonBlocking,
+} from '@/firebase';
+import { collection, doc, writeBatch } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
-import { doc } from 'firebase/firestore';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Separator } from '@/components/ui/separator';
 
 const projectFormSchema = z.object({
   projectName: z.string().min(2, {
@@ -37,7 +47,6 @@ const projectFormSchema = z.object({
   location: z.string().min(2, {
     message: 'Location must be at least 2 characters.',
   }),
-  totalFlats: z.coerce.number().min(1, { message: 'Must be at least 1.' }),
   developerShare: z.coerce
     .number()
     .min(0, { message: 'Cannot be negative.' })
@@ -50,9 +59,14 @@ const projectFormSchema = z.object({
     required_error: 'A start date is required.',
   }),
   status: z.enum(['Planning', 'Ongoing', 'Completed']),
-}).refine(data => data.developerShare + data.landownerShare === 100, {
-    message: "Developer and Landowner shares must add up to 100%.",
-    path: ["landownerShare"],
+  flats: z
+    .array(
+      z.object({
+        flatNumber: z.string().min(1, { message: 'Cannot be empty.' }),
+        ownership: z.enum(['Developer', 'Landowner']),
+      })
+    )
+    .min(1, { message: 'You must add at least one flat.' }),
 });
 
 type ProjectFormValues = z.infer<typeof projectFormSchema>;
@@ -69,30 +83,60 @@ export function AddProjectForm({ setDialogOpen }: AddProjectFormProps) {
     defaultValues: {
       projectName: '',
       location: '',
-      totalFlats: 1,
       developerShare: 50,
       landownerShare: 50,
       status: 'Planning',
+      flats: [{ flatNumber: '', ownership: 'Developer' }],
     },
+  });
+
+  const { fields, append, remove } = useFieldArray({
+    control: form.control,
+    name: 'flats',
   });
 
   async function onSubmit(data: ProjectFormValues) {
     try {
       const projectsCollection = collection(firestore, 'projects');
-      const newDocRef = doc(projectsCollection);
-      
+      const newProjectRef = doc(projectsCollection);
+
       const newProject = {
-        ...data,
-        id: newDocRef.id,
+        id: newProjectRef.id,
+        projectName: data.projectName,
+        location: data.location,
+        totalFlats: data.flats.length,
+        developerShare: data.developerShare,
+        landownerShare: data.landownerShare,
         startDate: data.startDate.toISOString(),
+        status: data.status,
       };
-      
-      // Using non-blocking add
-      addDocumentNonBlocking(projectsCollection, newProject);
+
+      // Create a batch to write all documents atomically
+      const batch = writeBatch(firestore);
+
+      // 1. Set the main project document
+      batch.set(newProjectRef, newProject);
+
+      // 2. Set each flat document in the subcollection
+      data.flats.forEach(flatData => {
+        const flatRef = doc(
+          collection(firestore, 'projects', newProjectRef.id, 'flats')
+        );
+        batch.set(flatRef, {
+          id: flatRef.id,
+          projectId: newProjectRef.id,
+          flatNumber: flatData.flatNumber,
+          ownership: flatData.ownership,
+          status: 'Available', // Default status for new flats
+        });
+      });
+
+      // Commit the batch
+      await batch.commit();
 
       toast({
         title: 'Project Added',
-        description: `${data.projectName} has been successfully created.`,
+        description: `${data.projectName} has been successfully created with ${data.flats.length} flats.`,
       });
       form.reset();
       setDialogOpen(false);
@@ -138,13 +182,69 @@ export function AddProjectForm({ setDialogOpen }: AddProjectFormProps) {
         <div className="grid grid-cols-2 gap-4">
           <FormField
             control={form.control}
-            name="totalFlats"
+            name="developerShare"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Total Flats</FormLabel>
+                <FormLabel>Developer Share (%)</FormLabel>
                 <FormControl>
                   <Input type="number" {...field} />
                 </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="landownerShare"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Landowner Share (%)</FormLabel>
+                <FormControl>
+                  <Input type="number" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
+        <div className="grid grid-cols-2 gap-4">
+          <FormField
+            control={form.control}
+            name="startDate"
+            render={({ field }) => (
+              <FormItem className="flex flex-col">
+                <FormLabel>Start Date</FormLabel>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <FormControl>
+                      <Button
+                        variant={'outline'}
+                        className={cn(
+                          'w-full pl-3 text-left font-normal',
+                          !field.value && 'text-muted-foreground'
+                        )}
+                      >
+                        {field.value ? (
+                          format(field.value, 'PPP')
+                        ) : (
+                          <span>Pick a date</span>
+                        )}
+                        <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                      </Button>
+                    </FormControl>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={field.value}
+                      onSelect={field.onChange}
+                      disabled={date =>
+                        date > new Date() || date < new Date('1900-01-01')
+                      }
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
                 <FormMessage />
               </FormItem>
             )}
@@ -175,75 +275,91 @@ export function AddProjectForm({ setDialogOpen }: AddProjectFormProps) {
             )}
           />
         </div>
-        <div className="grid grid-cols-2 gap-4">
-          <FormField
-            control={form.control}
-            name="developerShare"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Developer Share (%)</FormLabel>
-                <FormControl>
-                  <Input type="number" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <FormField
-            control={form.control}
-            name="landownerShare"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Landowner Share (%)</FormLabel>
-                <FormControl>
-                  <Input type="number" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        </div>
-        <FormField
-          control={form.control}
-          name="startDate"
-          render={({ field }) => (
-            <FormItem className="flex flex-col">
-              <FormLabel>Start Date</FormLabel>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <FormControl>
-                    <Button
-                      variant={'outline'}
-                      className={cn(
-                        'w-full pl-3 text-left font-normal',
-                        !field.value && 'text-muted-foreground'
-                      )}
-                    >
-                      {field.value ? (
-                        format(field.value, 'PPP')
-                      ) : (
-                        <span>Pick a date</span>
-                      )}
-                      <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                    </Button>
-                  </FormControl>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={field.value}
-                    onSelect={field.onChange}
-                    disabled={(date) =>
-                      date > new Date() || date < new Date('1900-01-01')
-                    }
-                    initialFocus
+        
+        <Separator />
+
+        <div>
+          <FormLabel>Available Flats</FormLabel>
+          <FormDescription>
+            Add the flat numbers and their ownership.
+          </FormDescription>
+          <div className="space-y-4 mt-2">
+            {fields.map((field, index) => (
+              <div key={field.id} className="grid grid-cols-[1fr_auto_auto] items-end gap-2 p-3 border rounded-lg">
+                <FormField
+                  control={form.control}
+                  name={`flats.${index}.flatNumber`}
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className={cn(index !== 0 && "sr-only")}>
+                        Flat Number
+                      </FormLabel>
+                      <FormControl>
+                        <Input {...field} placeholder={`E.g., A-${101 + index}`} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                 <FormField
+                    control={form.control}
+                    name={`flats.${index}.ownership`}
+                    render={({ field }) => (
+                      <FormItem className="space-y-3">
+                         <FormLabel className={cn(index !== 0 && "sr-only")}>
+                            Ownership
+                        </FormLabel>
+                        <FormControl>
+                          <RadioGroup
+                            onValueChange={field.onChange}
+                            defaultValue={field.value}
+                            className="flex items-center space-x-2"
+                          >
+                            <FormItem className="flex items-center space-x-1 space-y-0">
+                              <FormControl>
+                                <RadioGroupItem value="Developer" />
+                              </FormControl>
+                              <FormLabel className="font-normal">Dev</FormLabel>
+                            </FormItem>
+                            <FormItem className="flex items-center space-x-1 space-y-0">
+                              <FormControl>
+                                <RadioGroupItem value="Landowner" />
+                              </FormControl>
+                              <FormLabel className="font-normal">Owner</FormLabel>
+                            </FormItem>
+                          </RadioGroup>
+                        </FormControl>
+                      </FormItem>
+                    )}
                   />
-                </PopoverContent>
-              </Popover>
-              <FormMessage />
-            </FormItem>
+                <Button
+                  type="button"
+                  variant="destructive"
+                  size="icon"
+                  onClick={() => remove(index)}
+                  disabled={fields.length <= 1}
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </div>
+            ))}
+          </div>
+          {form.formState.errors.flats && !form.formState.errors.flats.root && (
+             <p className="text-sm font-medium text-destructive mt-2">{form.formState.errors.flats.message}</p>
           )}
-        />
+
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="mt-2"
+            onClick={() => append({ flatNumber: '', ownership: 'Developer' })}
+          >
+            <PlusCircle className="mr-2 h-4 w-4" />
+            Add Another Flat
+          </Button>
+        </div>
+        
         <div className="flex justify-end pt-4">
           <Button type="submit" disabled={form.formState.isSubmitting}>
             {form.formState.isSubmitting ? 'Adding...' : 'Add Project'}
