@@ -9,6 +9,7 @@ import {
   Building,
   BrainCircuit,
   Settings,
+  Users,
 } from 'lucide-react';
 import { Logo } from '../icons';
 import { cn } from '@/lib/utils';
@@ -18,6 +19,7 @@ import { Badge } from '@/components/ui/badge';
 const navItems = [
   { href: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
   { href: '/dashboard/projects', icon: Briefcase, label: 'Projects' },
+  { href: '/dashboard/customers', icon: Users, label: 'Customers' },
   { href: '/dashboard/transactions', icon: ArrowRightLeft, label: 'Transactions' },
   { href: '/dashboard/office-costs', icon: Building, label: 'Office Costs' },
   { href: '/dashboard/forecasting', icon: BrainCircuit, label: 'Forecasting', isNew: true },
@@ -75,3 +77,5 @@ export function SidebarNav() {
     </div>
   );
 }
+
+    

@@ -36,10 +36,10 @@ export interface Flat {
 
 export interface Customer {
   id: string;
-  firstName: string;
-  lastName: string;
-  email: string;
-  phone: string;
+  fullName: string;
+  mobile: string;
+  address: string;
+  nidNumber: string;
 }
 
 export interface InflowTransaction {
@@ -62,4 +62,6 @@ export interface OutflowTransaction {
 }
 
     
+    
+
     
