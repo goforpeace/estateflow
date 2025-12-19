@@ -1,17 +1,13 @@
-"use client"
+'use client';
 
 import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip, Legend } from "recharts"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { ChartTooltipContent, ChartContainer } from "@/components/ui/chart"
-
-const data = [
-  { month: "Jan", inflow: 186000, outflow: 80000 },
-  { month: "Feb", inflow: 305000, outflow: 200000 },
-  { month: "Mar", inflow: 237000, outflow: 120000 },
-  { month: "Apr", inflow: 73000, outflow: 190000 },
-  { month: "May", inflow: 209000, outflow: 130000 },
-  { month: "Jun", inflow: 214000, outflow: 140000 },
-]
+import { useFirestore } from "@/firebase"
+import { collectionGroup, getDocs, query } from "firebase/firestore"
+import { useEffect, useState } from "react"
+import { format, subMonths } from "date-fns"
+import type { InflowTransaction, OutflowTransaction } from "@/lib/types"
 
 const chartConfig = {
   inflow: {
@@ -25,16 +21,76 @@ const chartConfig = {
 }
 
 export function CashflowChart() {
+  const firestore = useFirestore();
+  const [chartData, setChartData] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchChartData = async () => {
+      setIsLoading(true);
+      try {
+        const inflowsQuery = query(collectionGroup(firestore, 'inflowTransactions'));
+        const outflowsQuery = query(collectionGroup(firestore, 'outflowTransactions'));
+
+        const [inflowSnap, outflowSnap] = await Promise.all([
+          getDocs(inflowsQuery),
+          getDocs(outflowsQuery)
+        ]);
+
+        const monthlyData: { [key: string]: { inflow: number; outflow: number } } = {};
+        const last6Months = Array.from({ length: 6 }, (_, i) => format(subMonths(new Date(), i), 'MMM'));
+        last6Months.reverse().forEach(month => {
+            monthlyData[month] = { inflow: 0, outflow: 0 };
+        });
+
+        inflowSnap.forEach(doc => {
+            const data = doc.data() as InflowTransaction;
+            const month = format(new Date(data.date), 'MMM');
+            if (monthlyData[month]) {
+                monthlyData[month].inflow += data.amount;
+            }
+        });
+
+        outflowSnap.forEach(doc => {
+            const data = doc.data() as OutflowTransaction;
+            const month = format(new Date(data.date), 'MMM');
+            if (monthlyData[month]) {
+                monthlyData[month].outflow += data.amount;
+            }
+        });
+
+        const formattedData = Object.entries(monthlyData).map(([month, values]) => ({
+            month,
+            ...values,
+        }));
+        
+        setChartData(formattedData);
+
+      } catch (error) {
+        console.error("Error fetching chart data: ", error);
+      }
+      setIsLoading(false);
+    };
+
+    fetchChartData();
+  }, [firestore]);
+
+
   return (
     <Card>
       <CardHeader>
         <CardTitle>Cash Flow Overview</CardTitle>
-        <CardDescription>Monthly Inflow vs. Outflow</CardDescription>
+        <CardDescription>Monthly Inflow vs. Outflow (Last 6 Months)</CardDescription>
       </CardHeader>
       <CardContent>
+      {isLoading ? (
+          <div className="flex justify-center items-center h-[350px]">
+            <p>Loading chart data...</p>
+          </div>
+        ) : (
         <ChartContainer config={chartConfig} className="min-h-[200px] w-full">
             <ResponsiveContainer width="100%" height={350}>
-            <BarChart data={data}>
+            <BarChart data={chartData}>
                 <XAxis
                 dataKey="month"
                 stroke="#888888"
@@ -56,6 +112,7 @@ export function CashflowChart() {
             </BarChart>
             </ResponsiveContainer>
         </ChartContainer>
+        )}
       </CardContent>
     </Card>
   )

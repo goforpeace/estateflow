@@ -6,48 +6,57 @@ export type TransactionType = 'Inflow' | 'Outflow';
 export type InflowType = 'Booking' | 'Installment';
 export type OutflowCategory = 'Material' | 'Labor' | 'Utility' | 'Office';
 
-export type User = {
+export interface User {
   id: string;
-  name: string;
   email: string;
-  avatarUrl: string;
+  firstName: string;
+  lastName: string;
   role: 'Admin' | 'Accountant' | 'Viewer';
-};
+}
 
-export type Project = {
+export interface Project {
   id: string;
-  name: string;
+  projectName: string;
   location: string;
   totalFlats: number;
   developerShare: number;
   landownerShare: number;
   startDate: string;
   status: ProjectStatus;
-};
+}
 
-export type Flat = {
+export interface Flat {
   id: string;
   projectId: string;
   flatNumber: string;
   ownership: FlatOwnership;
-  salePrice: number | null;
+  salePrice?: number;
   status: FlatStatus;
-  customerId?: string | null;
-};
+}
 
-export type Customer = {
+export interface Customer {
   id: string;
-  name: string;
+  firstName: string;
+  lastName: string;
+  email: string;
   phone: string;
-};
+}
 
-export type Transaction = {
+export interface InflowTransaction {
   id: string;
   projectId: string;
-  type: TransactionType;
-  category: InflowType | OutflowCategory;
+  flatId: string;
+  customerId: string;
+  paymentType: InflowType;
   date: string;
   amount: number;
-  flatId?: string;
-  customerId?: string;
-};
+}
+
+export interface OutflowTransaction {
+  id: string;
+  projectId?: string;
+  expenseCategory: OutflowCategory;
+  supplierVendor: string;
+  amount: number;
+  date: string;
+}

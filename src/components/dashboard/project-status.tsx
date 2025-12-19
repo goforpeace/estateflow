@@ -1,3 +1,5 @@
+'use client'
+
 import {
   Card,
   CardContent,
@@ -15,15 +17,18 @@ import {
 } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { ArrowUpRight } from "lucide-react"
+import { ArrowUpRight, Ban } from "lucide-react"
 import Link from "next/link"
-import { mockProjects } from "@/lib/data"
+import { useCollection, useFirestore, useMemoFirebase } from "@/firebase"
+import { collection, limit, query, where } from "firebase/firestore"
+import type { Project } from "@/lib/types"
 
-
-// Simple logic to find projects with negative cash flow for demo
-const projectsNeedingSupport = mockProjects.filter(p => p.status === 'Ongoing').slice(0, 2);
 
 export function ProjectStatus() {
+  const firestore = useFirestore();
+  const projectsQuery = useMemoFirebase(() => query(collection(firestore, "projects"), limit(3)), [firestore]);
+  const { data: projects, isLoading } = useCollection<Project>(projectsQuery);
+
   return (
     <Card>
       <CardHeader className="flex flex-row items-center">
@@ -41,47 +46,51 @@ export function ProjectStatus() {
         </Button>
       </CardHeader>
       <CardContent>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Project</TableHead>
-              <TableHead className="text-right">Net Cash Flow</TableHead>
-              <TableHead className="text-right">Status</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {projectsNeedingSupport.map((project) => (
-              <TableRow key={project.id}>
-                <TableCell>
-                  <div className="font-medium">{project.name}</div>
-                  <div className="hidden text-sm text-muted-foreground md:inline">
-                    {project.location}
-                  </div>
-                </TableCell>
-                <TableCell className="text-right text-red-500">-₹1,50,000</TableCell>
-                <TableCell className="text-right">
-                   <Badge variant={project.status === 'Ongoing' ? 'default' : 'secondary'} className={project.status === 'Completed' ? 'bg-green-500/20 text-green-700' : 'bg-blue-500/20 text-blue-700'}>
-                    {project.status}
-                    </Badge>
-                </TableCell>
+        {isLoading && (
+          <div className="flex justify-center items-center h-40">
+            <p>Loading projects...</p>
+          </div>
+        )}
+        {!isLoading && !projects?.length && (
+            <div className="flex flex-col items-center justify-center h-40 text-center text-muted-foreground">
+                <Ban className="h-10 w-10 mb-2" />
+                <p>No projects found.</p>
+                <p className="text-sm">Add a new project to get started.</p>
+            </div>
+        )}
+        {!isLoading && projects && projects.length > 0 && (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Project</TableHead>
+                <TableHead className="text-right">Status</TableHead>
               </TableRow>
-            ))}
-             <TableRow>
-                <TableCell>
-                  <div className="font-medium">Metropolis Tower</div>
-                  <div className="hidden text-sm text-muted-foreground md:inline">
-                    Financial District
-                  </div>
-                </TableCell>
-                <TableCell className="text-right text-green-500">+₹25,30,000</TableCell>
-                <TableCell className="text-right">
-                   <Badge variant='secondary' className='bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-400'>
-                    Completed
-                    </Badge>
-                </TableCell>
-              </TableRow>
-          </TableBody>
-        </Table>
+            </TableHeader>
+            <TableBody>
+              {projects.map((project) => (
+                <TableRow key={project.id}>
+                  <TableCell>
+                    <div className="font-medium">{project.projectName}</div>
+                    <div className="hidden text-sm text-muted-foreground md:inline">
+                      {project.location}
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <Badge 
+                      variant={project.status === 'Ongoing' ? 'default' : 'secondary'} 
+                      className={
+                        project.status === 'Completed' ? 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-400' :
+                        project.status === 'Ongoing' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-400' :
+                        'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/50 dark:text-yellow-400'
+                      }>
+                      {project.status}
+                      </Badge>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
       </CardContent>
     </Card>
   )
