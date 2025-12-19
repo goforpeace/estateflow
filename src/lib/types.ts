@@ -19,8 +19,6 @@ export interface Project {
   projectName: string;
   location: string;
   totalFlats: number;
-  developerShare: number;
-  landownerShare: number;
   startDate: string;
   status: ProjectStatus;
 }

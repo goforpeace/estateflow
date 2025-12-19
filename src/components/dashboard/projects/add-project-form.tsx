@@ -47,14 +47,6 @@ const projectFormSchema = z.object({
   location: z.string().min(2, {
     message: 'Location must be at least 2 characters.',
   }),
-  developerShare: z.coerce
-    .number()
-    .min(0, { message: 'Cannot be negative.' })
-    .max(100, { message: 'Cannot exceed 100.' }),
-  landownerShare: z.coerce
-    .number()
-    .min(0, { message: 'Cannot be negative.' })
-    .max(100, { message: 'Cannot exceed 100.' }),
   startDate: z.date({
     required_error: 'A start date is required.',
   }),
@@ -84,8 +76,6 @@ export function AddProjectForm({ setDialogOpen }: AddProjectFormProps) {
     defaultValues: {
       projectName: '',
       location: '',
-      developerShare: 50,
-      landownerShare: 50,
       status: 'Planning',
       flats: [{ flatNumber: '', ownership: 'Developer', flatSize: 0 }],
     },
@@ -106,8 +96,6 @@ export function AddProjectForm({ setDialogOpen }: AddProjectFormProps) {
         projectName: data.projectName,
         location: data.location,
         totalFlats: data.flats.length,
-        developerShare: data.developerShare,
-        landownerShare: data.landownerShare,
         startDate: data.startDate.toISOString(),
         status: data.status,
       };
@@ -181,34 +169,6 @@ export function AddProjectForm({ setDialogOpen }: AddProjectFormProps) {
             </FormItem>
           )}
         />
-        <div className="grid grid-cols-2 gap-4">
-          <FormField
-            control={form.control}
-            name="developerShare"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Developer Share (%)</FormLabel>
-                <FormControl>
-                  <Input type="number" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <FormField
-            control={form.control}
-            name="landownerShare"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Landowner Share (%)</FormLabel>
-                <FormControl>
-                  <Input type="number" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        </div>
         <div className="grid grid-cols-2 gap-4">
           <FormField
             control={form.control}
