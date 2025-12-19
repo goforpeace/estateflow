@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react';
 import {
   useFirestore,
-  useDoc,
   useCollection,
   useMemoFirebase,
 } from '@/firebase';
@@ -59,13 +58,14 @@ export default function ProjectDetailPage({
 
   const [enrichedFlats, setEnrichedFlats] = useState<EnrichedFlat[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-
-  // Fetch project details
-  const projectRef = useMemoFirebase(
-    () => (projectId ? doc(firestore, 'projects', projectId) : null),
+  
+  // Fetch project details using a query
+  const projectQuery = useMemoFirebase(
+    () => (projectId ? query(collection(firestore, 'projects'), where('id', '==', projectId)) : null),
     [firestore, projectId]
   );
-  const { data: project, isLoading: projectLoading, error: projectError } = useDoc<Project>(projectRef);
+  const { data: projects, isLoading: projectLoading, error: projectError } = useCollection<Project>(projectQuery);
+  const project = projects?.[0];
 
   // Fetch flats for the project
   const flatsQuery = useMemoFirebase(
@@ -104,6 +104,7 @@ export default function ProjectDetailPage({
       const customerIds = Array.from(salesMap.values()).map(s => s.customerId);
       let customersMap = new Map<string, Customer>();
       if (customerIds.length > 0) {
+        // Firestore 'in' query is limited to 10 items. We need to chunk.
         const customerPromises = [];
         for (let i = 0; i < customerIds.length; i += 10) {
             const chunk = customerIds.slice(i, i + 10);
