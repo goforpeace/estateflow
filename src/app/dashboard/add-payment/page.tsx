@@ -22,7 +22,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useFirestore, useCollection, useMemoFirebase, addDocumentNonBlocking } from '@/firebase';
-import { collection, query, where, getDocs, doc } from 'firebase/firestore';
+import { collection, query, where, getDocs, doc, addDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
@@ -136,33 +136,25 @@ export default function AddPaymentPage() {
   }, [customerId, projectId, firestore, form]);
 
 
-  async function onSubmit(data: AddPaymentFormValues) {
-    try {
-        const inflowCollection = collection(firestore, 'projects', data.projectId, 'inflowTransactions');
-        const newInflowRef = doc(inflowCollection);
+  function onSubmit(data: AddPaymentFormValues) {
+    const inflowCollection = collection(firestore, 'projects', data.projectId, 'inflowTransactions');
+    const newInflowRef = doc(inflowCollection);
 
-        const newPayment = {
-            id: newInflowRef.id,
-            ...data,
-            date: new Date(data.date).toISOString(),
-            paymentType: 'Installment', // Assuming payments added here are installments
-        };
+    const newPayment = {
+        id: newInflowRef.id,
+        ...data,
+        date: new Date(data.date).toISOString(),
+        paymentType: 'Installment', // Assuming payments added here are installments
+    };
 
-        await addDoc(inflowCollection, newPayment);
+    // Use non-blocking update
+    addDocumentNonBlocking(inflowCollection, newPayment);
 
-      toast({
-        title: 'Payment Recorded',
-        description: `Payment of ৳${data.amount} has been successfully recorded.`,
-      });
-      router.push('/dashboard');
-    } catch (error: any) {
-      console.error('Error recording payment: ', error);
-      toast({
-        variant: 'destructive',
-        title: 'Uh oh! Something went wrong.',
-        description: 'Could not record the payment. ' + error.message,
-      });
-    }
+    toast({
+      title: 'Payment Recorded',
+      description: `Payment of ৳${data.amount} has been successfully recorded.`,
+    });
+    router.push('/dashboard');
   }
 
   return (
