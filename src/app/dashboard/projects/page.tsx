@@ -40,6 +40,17 @@ export default function ProjectsPage() {
   const { data: projects, isLoading } = useCollection<Project>(projectsQuery);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
 
+  const formatCurrency = (value: number) => {
+    if (!value) return 'N/A';
+    if (Math.abs(value) >= 10000000) {
+      return `৳${(value / 10000000).toFixed(2)} Cr`;
+    }
+    if (Math.abs(value) >= 100000) {
+      return `৳${(value / 100000).toFixed(2)} Lacs`;
+    }
+    return `৳${value.toLocaleString('en-IN')}`;
+  };
+
   return (
     <div className="space-y-6">
       <Card>
@@ -88,6 +99,7 @@ export default function ProjectsPage() {
                 <TableRow>
                   <TableHead>Project Name</TableHead>
                   <TableHead>Location</TableHead>
+                  <TableHead>Budget</TableHead>
                   <TableHead>Total Flats</TableHead>
                   <TableHead>Status</TableHead>
                 </TableRow>
@@ -99,6 +111,7 @@ export default function ProjectsPage() {
                       {project.projectName}
                     </TableCell>
                     <TableCell>{project.location}</TableCell>
+                    <TableCell>{formatCurrency(project.estimatedBudget)}</TableCell>
                     <TableCell>{project.totalFlats}</TableCell>
                     <TableCell>
                       <Badge
@@ -126,3 +139,5 @@ export default function ProjectsPage() {
     </div>
   );
 }
+
+    

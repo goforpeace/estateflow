@@ -47,6 +47,9 @@ const projectFormSchema = z.object({
   location: z.string().min(2, {
     message: 'Location must be at least 2 characters.',
   }),
+  estimatedBudget: z.coerce
+    .number()
+    .min(1, { message: 'Estimated budget must be greater than 0.' }),
   startDate: z.date({
     required_error: 'A start date is required.',
   }),
@@ -76,6 +79,7 @@ export function AddProjectForm({ setDialogOpen }: AddProjectFormProps) {
     defaultValues: {
       projectName: '',
       location: '',
+      estimatedBudget: 0,
       status: 'Planning',
       flats: [{ flatNumber: '', ownership: 'Developer', flatSize: 0 }],
     },
@@ -98,6 +102,7 @@ export function AddProjectForm({ setDialogOpen }: AddProjectFormProps) {
         totalFlats: data.flats.length,
         startDate: data.startDate.toISOString(),
         status: data.status,
+        estimatedBudget: data.estimatedBudget,
       };
 
       // Create a batch to write all documents atomically
@@ -156,19 +161,39 @@ export function AddProjectForm({ setDialogOpen }: AddProjectFormProps) {
             </FormItem>
           )}
         />
-        <FormField
-          control={form.control}
-          name="location"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Location</FormLabel>
-              <FormControl>
-                <Input placeholder="E.g., Bangalore" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+        <div className="grid grid-cols-2 gap-4">
+          <FormField
+            control={form.control}
+            name="location"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Location</FormLabel>
+                <FormControl>
+                  <Input placeholder="E.g., Bangalore" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="estimatedBudget"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Estimated Budget (৳)</FormLabel>
+                <FormControl>
+                  <Input
+                    type="number"
+                    placeholder="E.g., 50000000"
+                    {...field}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
+
         <div className="grid grid-cols-2 gap-4">
           <FormField
             control={form.control}
@@ -237,7 +262,7 @@ export function AddProjectForm({ setDialogOpen }: AddProjectFormProps) {
             )}
           />
         </div>
-        
+
         <Separator />
 
         <div>
@@ -247,68 +272,80 @@ export function AddProjectForm({ setDialogOpen }: AddProjectFormProps) {
           </FormDescription>
           <div className="space-y-4 mt-2">
             {fields.map((field, index) => (
-              <div key={field.id} className="grid grid-cols-[1fr_1fr_auto_auto] items-end gap-2 p-3 border rounded-lg">
+              <div
+                key={field.id}
+                className="grid grid-cols-[1fr_1fr_auto_auto] items-end gap-2 p-3 border rounded-lg"
+              >
                 <FormField
                   control={form.control}
                   name={`flats.${index}.flatNumber`}
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className={cn(index !== 0 && "sr-only")}>
+                      <FormLabel className={cn(index !== 0 && 'sr-only')}>
                         Flat Number
                       </FormLabel>
                       <FormControl>
-                        <Input {...field} placeholder={`E.g., A-${101 + index}`} />
+                        <Input
+                          {...field}
+                          placeholder={`E.g., A-${101 + index}`}
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
-                 <FormField
+                <FormField
                   control={form.control}
                   name={`flats.${index}.flatSize`}
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className={cn(index !== 0 && "sr-only")}>
+                      <FormLabel className={cn(index !== 0 && 'sr-only')}>
                         Flat Size (SFT)
                       </FormLabel>
                       <FormControl>
-                        <Input type="number" {...field} placeholder="E.g., 1200" />
+                        <Input
+                          type="number"
+                          {...field}
+                          placeholder="E.g., 1200"
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
-                 <FormField
-                    control={form.control}
-                    name={`flats.${index}.ownership`}
-                    render={({ field }) => (
-                      <FormItem className="space-y-3">
-                         <FormLabel className={cn(index !== 0 && "sr-only")}>
-                            Ownership
-                        </FormLabel>
-                        <FormControl>
-                          <RadioGroup
-                            onValueChange={field.onChange}
-                            defaultValue={field.value}
-                            className="flex items-center space-x-2"
-                          >
-                            <FormItem className="flex items-center space-x-1 space-y-0">
-                              <FormControl>
-                                <RadioGroupItem value="Developer" />
-                              </FormControl>
-                              <FormLabel className="font-normal">Dev</FormLabel>
-                            </FormItem>
-                            <FormItem className="flex items-center space-x-1 space-y-0">
-                              <FormControl>
-                                <RadioGroupItem value="Landowner" />
-                              </FormControl>
-                              <FormLabel className="font-normal">Owner</FormLabel>
-                            </FormItem>
-                          </RadioGroup>
-                        </FormControl>
-                      </FormItem>
-                    )}
-                  />
+                <FormField
+                  control={form.control}
+                  name={`flats.${index}.ownership`}
+                  render={({ field }) => (
+                    <FormItem className="space-y-3">
+                      <FormLabel className={cn(index !== 0 && 'sr-only')}>
+                        Ownership
+                      </FormLabel>
+                      <FormControl>
+                        <RadioGroup
+                          onValueChange={field.onChange}
+                          defaultValue={field.value}
+                          className="flex items-center space-x-2"
+                        >
+                          <FormItem className="flex items-center space-x-1 space-y-0">
+                            <FormControl>
+                              <RadioGroupItem value="Developer" />
+                            </FormControl>
+                            <FormLabel className="font-normal">Dev</FormLabel>
+                          </FormItem>
+                          <FormItem className="flex items-center space-x-1 space-y-0">
+                            <FormControl>
+                              <RadioGroupItem value="Landowner" />
+                            </FormControl>
+                            <FormLabel className="font-normal">
+                              Owner
+                            </FormLabel>
+                          </FormItem>
+                        </RadioGroup>
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
                 <Button
                   type="button"
                   variant="destructive"
@@ -321,22 +358,27 @@ export function AddProjectForm({ setDialogOpen }: AddProjectFormProps) {
               </div>
             ))}
           </div>
-          {form.formState.errors.flats && !form.formState.errors.flats.root && (
-             <p className="text-sm font-medium text-destructive mt-2">{form.formState.errors.flats.message}</p>
-          )}
+          {form.formState.errors.flats &&
+            !form.formState.errors.flats.root && (
+              <p className="text-sm font-medium text-destructive mt-2">
+                {form.formState.errors.flats.message}
+              </p>
+            )}
 
           <Button
             type="button"
             variant="outline"
             size="sm"
             className="mt-2"
-            onClick={() => append({ flatNumber: '', ownership: 'Developer', flatSize: 0 })}
+            onClick={() =>
+              append({ flatNumber: '', ownership: 'Developer', flatSize: 0 })
+            }
           >
             <PlusCircle className="mr-2 h-4 w-4" />
             Add Another Flat
           </Button>
         </div>
-        
+
         <div className="flex justify-end pt-4">
           <Button type="submit" disabled={form.formState.isSubmitting}>
             {form.formState.isSubmitting ? 'Adding...' : 'Add Project'}
@@ -346,3 +388,5 @@ export function AddProjectForm({ setDialogOpen }: AddProjectFormProps) {
     </Form>
   );
 }
+
+    

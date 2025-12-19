@@ -21,6 +21,7 @@ export interface Project {
   totalFlats: number;
   startDate: string;
   status: ProjectStatus;
+  estimatedBudget: number;
 }
 
 export interface Flat {
@@ -59,3 +60,5 @@ export interface OutflowTransaction {
   amount: number;
   date: string;
 }
+
+    
