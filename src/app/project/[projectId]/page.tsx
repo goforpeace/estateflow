@@ -80,7 +80,6 @@ export default function ProjectDetailPage({
 
       if (!flats) { 
         if (!flatsLoading) {
-           // If not loading and flats is null/undefined, there might be no flats.
            setEnrichedFlats([]);
            setIsLoading(false);
         }
@@ -153,10 +152,9 @@ export default function ProjectDetailPage({
       setIsLoading(false);
     };
 
-    // This is the critical change: depend on `flats` directly.
     enrichFlatData();
     
-  }, [flats, firestore, projectId]);
+  }, [flats, firestore, projectId, flatsLoading]);
   
   if (projectError || flatsError) {
     console.error("Error fetching project data:", projectError || flatsError);
