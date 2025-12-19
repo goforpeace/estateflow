@@ -1,6 +1,7 @@
 'use client';
 
-import { Ban, PlusCircle, Pencil } from 'lucide-react';
+import { Ban, PlusCircle, Pencil, ArrowUpRight } from 'lucide-react';
+import Link from 'next/link';
 import {
   Card,
   CardContent,
@@ -138,7 +139,13 @@ export default function ProjectsPage() {
                         {project.status}
                       </Badge>
                     </TableCell>
-                    <TableCell className="text-right">
+                    <TableCell className="text-right space-x-2">
+                       <Button variant="outline" size="sm" asChild>
+                         <Link href={`/dashboard/projects/${project.id}`}>
+                            <ArrowUpRight className="mr-2 h-4 w-4" />
+                            View
+                         </Link>
+                      </Button>
                       <Button variant="outline" size="sm" onClick={() => handleEditClick(project)}>
                         <Pencil className="mr-2 h-4 w-4" />
                         Edit
@@ -164,5 +171,3 @@ export default function ProjectsPage() {
     </div>
   );
 }
-
-    
