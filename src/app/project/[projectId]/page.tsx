@@ -76,8 +76,14 @@ export default function ProjectDetailPage({
 
   useEffect(() => {
     const enrichFlatData = async () => {
-      if (!flats) { // Wait for flats to be loaded
-        setIsLoading(flatsLoading);
+      setIsLoading(true);
+
+      if (!flats) { 
+        if (!flatsLoading) {
+           // If not loading and flats is null/undefined, there might be no flats.
+           setEnrichedFlats([]);
+           setIsLoading(false);
+        }
         return;
       }
       if (flats.length === 0) {
@@ -86,7 +92,6 @@ export default function ProjectDetailPage({
         return;
       };
 
-      setIsLoading(true);
 
       const soldFlats = flats.filter(f => f.status === 'Sold');
       const soldFlatIds = soldFlats.map(f => f.id);
@@ -108,7 +113,6 @@ export default function ProjectDetailPage({
       const customerIds = [...new Set(Array.from(salesMap.values()).map(s => s.customerId))];
       let customersMap = new Map<string, Customer>();
       if (customerIds.length > 0) {
-        // Firestore 'in' query can handle up to 30 items. We need to chunk.
         const customerPromises = [];
         for (let i = 0; i < customerIds.length; i += 30) {
             const chunk = customerIds.slice(i, i + 30);
@@ -149,10 +153,10 @@ export default function ProjectDetailPage({
       setIsLoading(false);
     };
 
-    if(!flatsLoading){
-      enrichFlatData();
-    }
-  }, [flats, firestore, flatsLoading, projectId]);
+    // This is the critical change: depend on `flats` directly.
+    enrichFlatData();
+    
+  }, [flats, firestore, projectId]);
   
   if (projectError || flatsError) {
     console.error("Error fetching project data:", projectError || flatsError);
