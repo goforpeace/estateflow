@@ -24,11 +24,9 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Building, Phone, User as UserIcon } from 'lucide-react';
+import { Building, Phone, User as UserIcon, ArrowLeft } from 'lucide-react';
 import { notFound, useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft } from 'lucide-react';
-
 
 type EnrichedFlat = Flat & {
   customer?: {
@@ -78,7 +76,11 @@ export default function ProjectDetailPage({
 
   useEffect(() => {
     const enrichFlatData = async () => {
-      if (!flats || flats.length === 0) {
+      if (!flats) { // Wait for flats to be loaded
+        setIsLoading(flatsLoading);
+        return;
+      }
+      if (flats.length === 0) {
         setEnrichedFlats([]);
         setIsLoading(false);
         return;
@@ -103,17 +105,20 @@ export default function ProjectDetailPage({
         });
       }
 
-      const customerIds = Array.from(salesMap.values()).map(s => s.customerId);
+      const customerIds = [...new Set(Array.from(salesMap.values()).map(s => s.customerId))];
       let customersMap = new Map<string, Customer>();
       if (customerIds.length > 0) {
+        // Firestore 'in' query can handle up to 30 items. We need to chunk.
         const customerPromises = [];
-        for (let i = 0; i < customerIds.length; i += 30) { // Firestore 'in' query can now handle up to 30 items
+        for (let i = 0; i < customerIds.length; i += 30) {
             const chunk = customerIds.slice(i, i + 30);
-            const customersQuery = query(
-                collection(firestore, 'customers'),
-                where('id', 'in', chunk)
-            );
-            customerPromises.push(getDocs(customersQuery));
+            if(chunk.length > 0) {
+                const customersQuery = query(
+                    collection(firestore, 'customers'),
+                    where('id', 'in', chunk)
+                );
+                customerPromises.push(getDocs(customersQuery));
+            }
         }
         
         const customerSnapshots = await Promise.all(customerPromises);
@@ -175,7 +180,7 @@ export default function ProjectDetailPage({
 
   return (
     <div className="space-y-6">
-         <div className="flex items-center gap-4">
+       <div className="flex items-center gap-4">
             <Button variant="outline" size="icon" onClick={() => router.back()}>
                 <ArrowLeft className="h-4 w-4" />
                 <span className="sr-only">Back</span>
