@@ -53,12 +53,12 @@ export default function DashboardPage() {
   
   const formatCurrency = (value: number) => {
     if (Math.abs(value) >= 10000000) {
-      return `₹${(value / 10000000).toFixed(2)} Cr`;
+      return `৳${(value / 10000000).toFixed(2)} Cr`;
     }
     if (Math.abs(value) >= 100000) {
-      return `₹${(value / 100000).toFixed(2)} Lacs`;
+      return `৳${(value / 100000).toFixed(2)} Lacs`;
     }
-    return `₹${value.toLocaleString('en-IN')}`;
+    return `৳${value.toLocaleString('en-IN')}`;
   };
 
   const activeProjects = projects?.filter(p => p.status === 'Ongoing').length || 0;

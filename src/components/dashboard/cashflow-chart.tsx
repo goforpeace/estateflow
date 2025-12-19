@@ -103,7 +103,7 @@ export function CashflowChart() {
                 fontSize={12}
                 tickLine={false}
                 axisLine={false}
-                tickFormatter={(value) => `₹${value / 100000}L`}
+                tickFormatter={(value) => `৳${value / 100000}L`}
                 />
                 <Tooltip cursor={{fill: 'hsl(var(--muted))'}} content={<ChartTooltipContent />} />
                 <Legend />

@@ -136,7 +136,7 @@ export function RecentTransactions() {
                       </Badge>
                     </TableCell>
                     <TableCell className={`text-right font-semibold ${tx.type === "Inflow" ? "text-green-600" : "text-red-600"}`}>
-                      {tx.type === "Inflow" ? '+' : '-'}₹{tx.amount.toLocaleString('en-IN')}
+                      {tx.type === "Inflow" ? '+' : '-'}৳{tx.amount.toLocaleString('en-IN')}
                     </TableCell>
                   </TableRow>
               ))}
