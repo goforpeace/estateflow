@@ -25,8 +25,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Separator } from '@/components/ui/separator';
-import { Building, Phone, User as UserIcon, Ban } from 'lucide-react';
+import { Building, Phone, User as UserIcon } from 'lucide-react';
 import { notFound } from 'next/navigation';
 
 type EnrichedFlat = Flat & {
@@ -35,6 +34,20 @@ type EnrichedFlat = Flat & {
     mobile: string;
   };
 };
+
+function StatCardSmall({title, value}: {title: string, value: string}) {
+    return (
+        <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">{title}</CardTitle>
+            </CardHeader>
+            <CardContent>
+                <div className="text-2xl font-bold">{value}</div>
+            </CardContent>
+        </Card>
+    )
+}
+
 
 export default function ProjectDetailPage({
   params,
@@ -52,19 +65,20 @@ export default function ProjectDetailPage({
     () => (projectId ? doc(firestore, 'projects', projectId) : null),
     [firestore, projectId]
   );
-  const { data: project, isLoading: projectLoading } = useDoc<Project>(projectRef);
+  const { data: project, isLoading: projectLoading, error: projectError } = useDoc<Project>(projectRef);
 
   // Fetch flats for the project
   const flatsQuery = useMemoFirebase(
     () => (projectId ? collection(firestore, 'projects', projectId, 'flats') : null),
     [firestore, projectId]
   );
-  const { data: flats, isLoading: flatsLoading } = useCollection<Flat>(flatsQuery);
+  const { data: flats, isLoading: flatsLoading, error: flatsError } = useCollection<Flat>(flatsQuery);
 
   useEffect(() => {
     const enrichFlatData = async () => {
-      if (!flats) {
-        if (!flatsLoading) setIsLoading(false);
+      if (!flats || flats.length === 0) {
+        setEnrichedFlats([]);
+        setIsLoading(false);
         return;
       };
 
@@ -90,7 +104,6 @@ export default function ProjectDetailPage({
       const customerIds = Array.from(salesMap.values()).map(s => s.customerId);
       let customersMap = new Map<string, Customer>();
       if (customerIds.length > 0) {
-        // To avoid firestore limitation of 10 items in 'in' query.
         const customerPromises = [];
         for (let i = 0; i < customerIds.length; i += 10) {
             const chunk = customerIds.slice(i, i + 10);
@@ -134,7 +147,14 @@ export default function ProjectDetailPage({
     }
   }, [flats, firestore, flatsLoading, projectId]);
   
-  if (!project && !projectLoading) {
+  if (projectError || flatsError) {
+    // You might want to show a specific error component here
+    console.error("Error fetching project data:", projectError || flatsError);
+    return <div>Error loading project. Please try again.</div>;
+  }
+
+  // Only call notFound if loading is complete and there's no project data
+  if (!projectLoading && !project) {
       notFound();
   }
 
@@ -251,17 +271,4 @@ export default function ProjectDetailPage({
       </Card>
     </div>
   );
-}
-
-function StatCardSmall({title, value}: {title: string, value: string}) {
-    return (
-        <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">{title}</CardTitle>
-            </CardHeader>
-            <CardContent>
-                <div className="text-2xl font-bold">{value}</div>
-            </CardContent>
-        </Card>
-    )
 }
