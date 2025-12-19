@@ -226,7 +226,7 @@ export default function ProjectDetailPage({
         <CardHeader>
           <CardTitle>Flats</CardTitle>
           <CardDescription>List of all flats in this project.</CardDescription>
-        </-CardHeader>
+        </CardHeader>
         <CardContent>
           {enrichedFlats.length > 0 ? (
             <Table>
