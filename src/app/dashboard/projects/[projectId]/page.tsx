@@ -77,7 +77,8 @@ export default function ProjectDetailPage({
       if (soldFlatIds.length > 0) {
         const salesQuery = query(
           collection(firestore, 'sales'),
-          where('flatId', 'in', soldFlatIds)
+          where('flatId', 'in', soldFlatIds),
+          where('projectId', '==', projectId)
         );
         const salesSnap = await getDocs(salesQuery);
         salesSnap.forEach(doc => {
@@ -89,13 +90,22 @@ export default function ProjectDetailPage({
       const customerIds = Array.from(salesMap.values()).map(s => s.customerId);
       let customersMap = new Map<string, Customer>();
       if (customerIds.length > 0) {
-        const customersQuery = query(
-          collection(firestore, 'customers'),
-          where('id', 'in', customerIds)
-        );
-        const customersSnap = await getDocs(customersQuery);
-        customersSnap.forEach(doc => {
-          customersMap.set(doc.id, doc.data() as Customer);
+        // To avoid firestore limitation of 10 items in 'in' query.
+        const customerPromises = [];
+        for (let i = 0; i < customerIds.length; i += 10) {
+            const chunk = customerIds.slice(i, i + 10);
+            const customersQuery = query(
+                collection(firestore, 'customers'),
+                where('id', 'in', chunk)
+            );
+            customerPromises.push(getDocs(customersQuery));
+        }
+        
+        const customerSnapshots = await Promise.all(customerPromises);
+        customerSnapshots.forEach(snap => {
+            snap.forEach(doc => {
+                customersMap.set(doc.id, doc.data() as Customer);
+            });
         });
       }
 
@@ -114,12 +124,15 @@ export default function ProjectDetailPage({
         }
         return flat;
       });
-      setEnrichedFlats(enrichedData);
+
+      setEnrichedFlats(enrichedData.sort((a,b) => a.flatNumber.localeCompare(b.flatNumber)));
       setIsLoading(false);
     };
 
-    enrichFlatData();
-  }, [flats, firestore, flatsLoading]);
+    if(!flatsLoading){
+      enrichFlatData();
+    }
+  }, [flats, firestore, flatsLoading, projectId]);
   
   if (!project && !projectLoading) {
       notFound();
