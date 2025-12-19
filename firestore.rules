@@ -1,41 +1,21 @@
 /**
  * Core Philosophy:
- * This ruleset implements a Role-Based Access Control (RBAC) model for a real estate
- * management application. Access to business-critical data (projects, customers,
- * transactions) is governed by a user's assigned role, which is stored on their
- * user profile document. A user's own profile is protected by an ownership model.
+ * This ruleset allows any authenticated user to perform read and write operations.
+ * This is a permissive setup for rapid prototyping. For production, you should
+ * implement more granular, role-based access control.
  *
  * Data Structure:
  * The data is organized into several top-level collections: /users, /projects,
  * /customers, and /officeExpenses. Project-specific data, such as /flats and
- * various transaction types, are nested as subcollections under /projects/{projectId}
- * to enable clear, hierarchical security and queries.
+ * various transaction types, are nested as subcollections under /projects/{projectId}.
  *
  * Key Security Decisions:
- * - Role-Based Access: User roles ('Admin', 'Accountant', 'Viewer') defined in
- *   /users/{userId} documents determine read/write permissions for all business
- *   data. Admins and Accountants have write access, while Viewers have read-only access.
- * - User Data Privacy: A user can only read and update their own profile in /users.
- *   An exception is made for 'Admin' users, who can read any user's profile for
- *   administrative purposes. User listing is disabled to prevent data scraping.
  * - Authenticated Access: All endpoints require a user to be authenticated. There is
  *   no public or anonymous access to any data.
- * - Write Integrity: All write operations on business data are restricted to
- *   authorized roles. On document creation, relational integrity is enforced by
+ * - User Data Privacy: A user can only read and update their own profile in /users.
+ * - Write Integrity: On document creation, relational integrity is enforced by
  *   validating that denormalized IDs (like 'projectId' in a subcollection document)
  *   match the document's path.
- *
- * Denormalization for Authorization:
- * Authorization relies on the 'role' field denormalized onto each user's document
- * in the `/users` collection. Rules for business collections perform a `get()` request
- * to `/users/{request.auth.uid}` to check this role. This is an efficient and
- * secure pattern for implementing RBAC in Firestore.
- *
- * Structural Segregation:
- * User data is strictly segregated in the `/users` collection, which has different
- * security rules (owner-based) than the business data collections (role-based).
- * This separation ensures user privacy cannot be accidentally compromised by rules
- * meant for business data.
  */
 rules_version = '2';
 service cloud.firestore {
@@ -66,42 +46,12 @@ service cloud.firestore {
     }
 
     /**
-     * Retrieves the authenticated user's profile document.
-     * Caches the result for the duration of the request evaluation.
+     * Returns true if user is authenticated.
      */
-    function getUserData() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid));
-    }
-
-    /**
-     * Returns true if the authenticated user has one of the specified roles.
-     * This function reads the user's role from their user profile document.
-     */
-    function hasOneOfRoles(roles) {
-      return isSignedIn() && getUserData().data.role in roles;
-    }
-
-    /**
-     * Returns true if user has a role that permits reading business data.
-     */
-    function canReadBusinessData() {
-      return hasOneOfRoles(['Admin', 'Accountant', 'Viewer']);
-    }
-
-    /**
-     * Returns true if user has a role that permits writing business data.
-     */
-    function canWriteBusinessData() {
-      return hasOneOfRoles(['Admin', 'Accountant']);
+    function canAccessBusinessData() {
+      return isSignedIn();
     }
     
-    /**
-     * Returns true if the user is an Admin. Used for special permissions.
-     */
-    function isAdmin() {
-       return hasOneOfRoles(['Admin']);
-    }
-
     // --- Data Integrity Validation Helpers (Prototyping Mode) ---
 
     /**
@@ -135,16 +85,15 @@ service cloud.firestore {
     // ---------------- COLLECTION RULES ----------------
 
     /**
-     * @description Manages user profiles. A user can manage their own profile. Admins can view any profile.
+     * @description Manages user profiles. A user can manage their own profile.
      * @path /users/{userId}
      * @allow (get) An authenticated user `user_abc` reading their own profile at `/users/user_abc`.
-     * @allow (get) An 'Admin' user reading any profile at `/users/user_xyz`.
      * @deny (list) Any user trying to list all documents in the `/users` collection.
      * @deny (update) User `user_abc` trying to update the profile of `user_xyz`.
-     * @principle Restricts access to a user's own data tree and grants admin read override.
+     * @principle Restricts access to a user's own data tree.
      */
     match /users/{userId} {
-      allow get: if isOwner(userId) || isAdmin();
+      allow get: if isOwner(userId);
       allow list: if false;
       allow create: if isOwner(userId) && hasValidUserIdOnCreate(userId);
       allow update: if isOwner(userId) && isExistingDoc() && isUserIdImmutable();
@@ -152,107 +101,83 @@ service cloud.firestore {
     }
 
     /**
-     * @description Manages projects. Read access is for all authorized roles. Write access is restricted to Admins and Accountants.
+     * @description Manages projects. Access is granted to any authenticated user.
      * @path /projects/{projectId}
-     * @allow (get) A 'Viewer' role user reading a project document.
-     * @allow (create) An 'Admin' or 'Accountant' role user creating a new project.
-     * @deny (create) A 'Viewer' role user trying to create a new project.
-     * @deny (update) Any user trying to modify a project without being an 'Admin' or 'Accountant'.
-     * @principle Enforces Role-Based Access Control for business data.
+     * @allow (get) Any signed-in user reading a project document.
+     * @allow (create) Any signed-in user creating a new project.
+     * @principle Enforces authenticated access for all business data.
      */
     match /projects/{projectId} {
-      allow get, list: if canReadBusinessData();
-      allow create: if canWriteBusinessData();
-      allow update, delete: if canWriteBusinessData() && isExistingDoc();
+      allow read, write: if canAccessBusinessData();
 
       /**
-       * @description Manages flats within a project. Inherits RBAC from parent project rules.
+       * @description Manages flats within a project. Access is granted to any authenticated user.
        * @path /projects/{projectId}/flats/{flatId}
-       * @allow (list) An 'Accountant' role user listing all flats for a project.
-       * @allow (create) An 'Admin' role user creating a new flat document ensuring the `projectId` field matches the path.
-       * @deny (create) A 'Viewer' role user trying to create a flat.
-       * @deny (update) An 'Accountant' attempting to change the `projectId` on an existing flat document.
-       * @principle Enforces RBAC and validates relational integrity between parent and child documents.
+       * @allow (list) Any signed-in user listing all flats for a project.
+       * @allow (create) Any signed-in user creating a new flat document ensuring the `projectId` field matches the path.
+       * @principle Enforces authenticated access and validates relational integrity.
        */
       match /flats/{flatId} {
-        allow get, list: if canReadBusinessData();
-        allow create: if canWriteBusinessData() && hasValidProjectIdOnCreate(projectId);
-        allow update: if canWriteBusinessData() && isExistingDoc() && isProjectIdImmutable();
-        allow delete: if canWriteBusinessData() && isExistingDoc();
+        allow read: if canAccessBusinessData();
+        allow create: if canAccessBusinessData() && hasValidProjectIdOnCreate(projectId);
+        allow update: if canAccessBusinessData() && isExistingDoc() && isProjectIdImmutable();
+        allow delete: if canAccessBusinessData() && isExistingDoc();
       }
 
       /**
-       * @description Manages inflow transactions for a project. Inherits RBAC from parent project rules.
+       * @description Manages inflow transactions for a project. Access is granted to any authenticated user.
        * @path /projects/{projectId}/inflowTransactions/{inflowTransactionId}
-       * @allow (list) An 'Accountant' role user listing all inflow transactions for a project.
-       * @allow (create) An 'Admin' role user creating a new transaction ensuring the `projectId` field matches the path.
-       * @deny (delete) A 'Viewer' role user trying to delete a transaction.
-       * @principle Enforces RBAC and validates relational integrity between parent and child documents.
+       * @allow (list) Any signed-in user listing all inflow transactions for a project.
+       * @principle Enforces authenticated access and validates relational integrity.
        */
       match /inflowTransactions/{inflowTransactionId} {
-        allow get, list: if canReadBusinessData();
-        allow create: if canWriteBusinessData() && hasValidProjectIdOnCreate(projectId);
-        allow update: if canWriteBusinessData() && isExistingDoc() && isProjectIdImmutable();
-        allow delete: if canWriteBusinessData() && isExistingDoc();
+        allow read: if canAccessBusinessData();
+        allow create: if canAccessBusinessData() && hasValidProjectIdOnCreate(projectId);
+        allow update: if canAccessBusinessData() && isExistingDoc() && isProjectIdImmutable();
+        allow delete: if canAccessBusinessData() && isExistingDoc();
       }
 
       /**
-       * @description Manages outflow transactions for a project. Inherits RBAC from parent project rules.
+       * @description Manages outflow transactions for a project. Access is granted to any authenticated user.
        * @path /projects/{projectId}/outflowTransactions/{outflowTransactionId}
-       * @allow (get) A 'Viewer' role user reading a specific outflow transaction.
-       * @allow (create) An 'Accountant' role user creating a new outflow transaction.
-       * @deny (update) A 'Viewer' role user trying to update an outflow transaction.
-       * @principle Enforces RBAC and validates relational integrity between parent and child documents.
+       * @principle Enforces authenticated access and validates relational integrity.
        */
       match /outflowTransactions/{outflowTransactionId} {
-        allow get, list: if canReadBusinessData();
-        allow create: if canWriteBusinessData() && hasValidProjectIdOnCreate(projectId);
-        allow update: if canWriteBusinessData() && isExistingDoc() && isProjectIdImmutable();
-        allow delete: if canWriteBusinessData() && isExistingDoc();
+        allow read: if canAccessBusinessData();
+        allow create: if canAccessBusinessData() && hasValidProjectIdOnCreate(projectId);
+        allow update: if canAccessBusinessData() && isExistingDoc() && isProjectIdImmutable();
+        allow delete: if canAccessBusinessData() && isExistingDoc();
       }
 
       /**
-       * @description Manages office cost allocations for a project. Inherits RBAC from parent project rules.
+       * @description Manages office cost allocations for a project. Access is granted to any authenticated user.
        * @path /projects/{projectId}/officeCostAllocations/{officeCostAllocationId}
-       * @allow (create) An 'Admin' creating a new cost allocation, ensuring the `projectId` field is correct.
-       * @allow (list) Any user with a valid business role listing cost allocations.
-       * @deny (create) A 'Viewer' trying to create a new cost allocation.
-       * @principle Enforces RBAC and validates relational integrity between parent and child documents.
+       * @principle Enforces authenticated access and validates relational integrity.
        */
       match /officeCostAllocations/{officeCostAllocationId} {
-        allow get, list: if canReadBusinessData();
-        allow create: if canWriteBusinessData() && hasValidProjectIdOnCreate(projectId);
-        allow update: if canWriteBusinessData() && isExistingDoc() && isProjectIdImmutable();
-        allow delete: if canWriteBusinessData() && isExistingDoc();
+        allow read: if canAccessBusinessData();
+        allow create: if canAccessBusinessData() && hasValidProjectIdOnCreate(projectId);
+        allow update: if canAccessBusinessData() && isExistingDoc() && isProjectIdImmutable();
+        allow delete: if canAccessBusinessData() && isExistingDoc();
       }
     }
 
     /**
-     * @description Manages customer data. Read access is for all roles, write access is for Admins and Accountants.
+     * @description Manages customer data. Access is granted to any authenticated user.
      * @path /customers/{customerId}
-     * @allow (list) A 'Viewer' role user listing all customers.
-     * @allow (create) An 'Accountant' role user adding a new customer.
-     * @deny (update) A 'Viewer' role user attempting to update a customer's phone number.
-     * @principle Enforces Role-Based Access Control for business data.
+     * @principle Enforces authenticated access for all business data.
      */
     match /customers/{customerId} {
-      allow get, list: if canReadBusinessData();
-      allow create: if canWriteBusinessData();
-      allow update, delete: if canWriteBusinessData() && isExistingDoc();
+      allow read, write: if canAccessBusinessData();
     }
 
     /**
-     * @description Manages general office expenses. Read access is for all roles, write is for Admins and Accountants.
+     * @description Manages general office expenses. Access is granted to any authenticated user.
      * @path /officeExpenses/{officeExpenseId}
-     * @allow (get) An 'Accountant' role user fetching a single office expense document.
-     * @allow (create) An 'Admin' role user creating a new office expense.
-     * @deny (delete) A 'Viewer' role user trying to delete an expense.
-     * @principle Enforces Role-Based Access Control for business data.
+     * @principle Enforces authenticated access for all business data.
      */
     match /officeExpenses/{officeExpenseId} {
-      allow get, list: if canReadBusinessData();
-      allow create: if canWriteBusinessData();
-      allow update, delete: if canWriteBusinessData() && isExistingDoc();
+      allow read, write: if canAccessBusinessData();
     }
   }
 }
