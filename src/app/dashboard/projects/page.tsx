@@ -141,7 +141,7 @@ export default function ProjectsPage() {
                     </TableCell>
                     <TableCell className="text-right space-x-2">
                        <Button variant="outline" size="sm" asChild>
-                         <Link href={`/dashboard/projects/${project.id}`}>
+                         <Link href={`/project/${project.id}`}>
                             <ArrowUpRight className="mr-2 h-4 w-4" />
                             View
                          </Link>
