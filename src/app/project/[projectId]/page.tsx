@@ -2,7 +2,14 @@
 
 import { useState, useEffect } from 'react';
 import { useFirestore } from '@/firebase';
-import { doc, collection, query, where, getDocs, getDoc } from 'firebase/firestore';
+import {
+  doc,
+  collection,
+  query,
+  where,
+  getDocs,
+  getDoc,
+} from 'firebase/firestore';
 import type { Project, Flat, Sale, Customer } from '@/lib/types';
 import {
   Card,
@@ -59,7 +66,7 @@ export default function ProjectDetailPage({
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!projectId) return;
+    if (!projectId || !firestore) return;
 
     const fetchData = async () => {
       setIsLoading(true);
@@ -70,17 +77,23 @@ export default function ProjectDetailPage({
         const projectSnap = await getDoc(projectRef);
 
         if (!projectSnap.exists()) {
-          setError("Project not found");
-          setIsLoading(false);
+          notFound();
           return;
         }
         const projectData = projectSnap.data() as Project;
         setProject(projectData);
 
-        // 2. Fetch Flats for the project
-        const flatsQuery = collection(firestore, 'projects', projectId, 'flats');
-        const flatsSnap = await getDocs(flatsQuery);
-        const flats = flatsSnap.docs.map(d => ({ ...d.data() } as Flat));
+        // 2. Fetch all data concurrently
+        const flatsQuery = query(collection(firestore, `projects/${projectId}/flats`));
+        const salesQuery = query(collection(firestore, 'sales'), where('projectId', '==', projectId));
+
+        const [flatsSnap, salesSnap] = await Promise.all([
+          getDocs(flatsQuery),
+          getDocs(salesQuery),
+        ]);
+
+        const flats = flatsSnap.docs.map(d => ({ ...d.data(), id: d.id } as Flat));
+        const sales = salesSnap.docs.map(d => d.data() as Sale);
 
         if (flats.length === 0) {
           setEnrichedFlats([]);
@@ -88,64 +101,53 @@ export default function ProjectDetailPage({
           return;
         }
 
-        // 3. Find which flats are sold to get sales info
-        const soldFlats = flats.filter(f => f.status === 'Sold');
-        const soldFlatIds = soldFlats.map(f => f.id);
-        const salesMap = new Map<string, Sale>();
+        // 3. Create a map of flatId -> customerId
+        const flatToCustomerMap = new Map<string, string>();
+        sales.forEach(sale => {
+          flatToCustomerMap.set(sale.flatId, sale.customerId);
+        });
         
-        if (soldFlatIds.length > 0) {
-          const salesQuery = query(
-            collection(firestore, 'sales'),
-            where('projectId', '==', projectId),
-            where('flatId', 'in', soldFlatIds)
-          );
-          const salesSnap = await getDocs(salesQuery);
-          salesSnap.forEach(doc => {
-            const sale = doc.data() as Sale;
-            salesMap.set(sale.flatId, sale);
-          });
-        }
-        
-        // 4. Get unique customer IDs from the sales
-        const customerIds = [...new Set(Array.from(salesMap.values()).map(s => s.customerId))];
+        const customerIds = [...new Set(sales.map(s => s.customerId))];
         const customersMap = new Map<string, Customer>();
 
         if (customerIds.length > 0) {
-            // Firestore 'in' query is limited to 30 elements. Chunk if necessary.
-            const customerChunks = [];
-            for (let i = 0; i < customerIds.length; i += 30) {
-                customerChunks.push(customerIds.slice(i, i + 30));
-            }
-            
-            const customerPromises = customerChunks.map(chunk => 
-                getDocs(query(collection(firestore, 'customers'), where('id', 'in', chunk)))
-            );
+          const customerChunks = [];
+          for (let i = 0; i < customerIds.length; i += 30) {
+            customerChunks.push(customerIds.slice(i, i + 30));
+          }
+          
+          const customerPromises = customerChunks.map(chunk => 
+              getDocs(query(collection(firestore, 'customers'), where('id', 'in', chunk)))
+          );
 
-            const customerSnapshots = await Promise.all(customerPromises);
-            customerSnapshots.forEach(snap => {
-                snap.forEach(doc => {
-                    customersMap.set(doc.id, doc.data() as Customer);
-                });
-            });
+          const customerSnapshots = await Promise.all(customerPromises);
+          customerSnapshots.forEach(snap => {
+              snap.forEach(doc => {
+                  customersMap.set(doc.id, doc.data() as Customer);
+              });
+          });
         }
-
-        // 5. Enrich the flat data with customer info
+        
+        // 4. Enrich the flat data
         const enrichedData = flats.map(flat => {
-          if (flat.status === 'Sold' && salesMap.has(flat.id)) {
-            const sale = salesMap.get(flat.id)!;
-            const customer = customersMap.get(sale.customerId);
+          const customerId = flatToCustomerMap.get(flat.id);
+          if (customerId) {
+            const customer = customersMap.get(customerId);
             return {
               ...flat,
-              customer: customer ? { fullName: customer.fullName, mobile: customer.mobile } : undefined,
+              customer: customer
+                ? { fullName: customer.fullName, mobile: customer.mobile }
+                : undefined,
             };
           }
           return flat;
         });
 
-        setEnrichedFlats(enrichedData.sort((a, b) => a.flatNumber.localeCompare(b.flatNumber)));
+        setEnrichedFlats(enrichedData.sort((a, b) => a.flatNumber.localeCompare(b.flatNumber, undefined, { numeric: true })));
+
       } catch (e: any) {
-        console.error("Failed to fetch project details:", e);
-        setError("Could not load project data. Please try again.");
+        console.error('Failed to fetch project details:', e);
+        setError('Could not load project data. Please try again.');
       } finally {
         setIsLoading(false);
       }
@@ -156,19 +158,23 @@ export default function ProjectDetailPage({
 
   if (isLoading) {
     return (
-        <div className="flex justify-center items-center h-screen">
-            <p>Loading project details...</p>
-        </div>
+      <div className="flex justify-center items-center h-screen">
+        <p>Loading project details...</p>
+      </div>
     );
   }
 
   if (error) {
-    // If project was not found during fetch, trigger Next.js not found page
-    notFound();
+    return (
+      <div className="flex justify-center items-center h-screen">
+        <p className="text-red-500">{error}</p>
+      </div>
+    );
   }
-
+  
   if (!project) {
-    return null; // Should be covered by loading/error state
+    notFound();
+    return null;
   }
 
   const formatCurrency = (value: number) => {
@@ -183,8 +189,12 @@ export default function ProjectDetailPage({
   };
 
   const soldCount = enrichedFlats.filter(f => f.status === 'Sold').length;
-  const availableCount = enrichedFlats.filter(f => f.status === 'Available').length;
-  const reservedCount = enrichedFlats.filter(f => f.status === 'Reserved').length;
+  const availableCount = enrichedFlats.filter(
+    f => f.status === 'Available'
+  ).length;
+  const reservedCount = enrichedFlats.filter(
+    f => f.status === 'Reserved'
+  ).length;
 
   return (
     <div className="space-y-6 container mx-auto py-6">
@@ -206,20 +216,38 @@ export default function ProjectDetailPage({
         </CardHeader>
         <CardContent>
           <div className="grid md:grid-cols-3 gap-6 text-sm">
-            <div><strong>Project Name:</strong> {project.projectName}</div>
-            <div><strong>Location:</strong> {project.location}</div>
-            <div><strong>Start Date:</strong> {new Date(project.startDate).toLocaleDateString()}</div>
-            <div><strong>Status:</strong> <Badge variant={project.status === 'Ongoing' ? 'default' : 'secondary'}>{project.status}</Badge></div>
-            <div><strong>Total Flats:</strong> {project.totalFlats}</div>
-            <div><strong>Target Sell:</strong> {formatCurrency(project.targetSell)}</div>
+            <div>
+              <strong>Project Name:</strong> {project.projectName}
+            </div>
+            <div>
+              <strong>Location:</strong> {project.location}
+            </div>
+            <div>
+              <strong>Start Date:</strong>{' '}
+              {new Date(project.startDate).toLocaleDateString()}
+            </div>
+            <div>
+              <strong>Status:</strong>{' '}
+              <Badge
+                variant={project.status === 'Ongoing' ? 'default' : 'secondary'}
+              >
+                {project.status}
+              </Badge>
+            </div>
+            <div>
+              <strong>Total Flats:</strong> {project.totalFlats}
+            </div>
+            <div>
+              <strong>Target Sell:</strong> {formatCurrency(project.targetSell)}
+            </div>
           </div>
         </CardContent>
       </Card>
-      
+
       <div className="grid gap-4 md:grid-cols-3">
-          <StatCardSmall title="Sold" value={soldCount.toString()} />
-          <StatCardSmall title="Available" value={availableCount.toString()} />
-          <StatCardSmall title="Reserved" value={reservedCount.toString()} />
+        <StatCardSmall title="Sold" value={soldCount.toString()} />
+        <StatCardSmall title="Available" value={availableCount.toString()} />
+        <StatCardSmall title="Reserved" value={reservedCount.toString()} />
       </div>
 
       <Card>
@@ -242,13 +270,19 @@ export default function ProjectDetailPage({
               <TableBody>
                 {enrichedFlats.map(flat => (
                   <TableRow key={flat.id}>
-                    <TableCell className="font-medium">{flat.flatNumber}</TableCell>
+                    <TableCell className="font-medium">
+                      {flat.flatNumber}
+                    </TableCell>
                     <TableCell>{flat.flatSize}</TableCell>
                     <TableCell>{flat.ownership}</TableCell>
                     <TableCell>
                       <Badge
                         variant={
-                          flat.status === 'Sold' ? 'destructive' : flat.status === 'Available' ? 'default' : 'secondary'
+                          flat.status === 'Sold'
+                            ? 'destructive'
+                            : flat.status === 'Available'
+                              ? 'default'
+                              : 'secondary'
                         }
                       >
                         {flat.status}
@@ -262,8 +296,8 @@ export default function ProjectDetailPage({
                             <span>{flat.customer.fullName}</span>
                           </div>
                           <div className="flex items-center gap-2">
-                             <Phone className="h-4 w-4 text-muted-foreground" />
-                             <span>{flat.customer.mobile}</span>
+                            <Phone className="h-4 w-4 text-muted-foreground" />
+                            <span>{flat.customer.mobile}</span>
                           </div>
                         </div>
                       ) : (
@@ -277,8 +311,12 @@ export default function ProjectDetailPage({
           ) : (
             <div className="flex flex-col items-center justify-center h-40 text-center text-muted-foreground border-2 border-dashed rounded-lg">
               <Building className="h-12 w-12 mb-2" />
-              <p className="text-lg font-semibold">No flats found for this project.</p>
-              <p className="text-sm">You can add flats by editing the project.</p>
+              <p className="text-lg font-semibold">
+                No flats found for this project.
+              </p>
+              <p className="text-sm">
+                You can add flats by editing the project.
+              </p>
             </div>
           )}
         </CardContent>
