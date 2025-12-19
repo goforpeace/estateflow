@@ -195,6 +195,18 @@
         "amount": {
           "type": "number",
           "description": "Amount of the inflow transaction."
+        },
+        "paymentMethod": {
+            "type": "string",
+            "description": "Method of payment (Cash, Cheque, Bank Transfer)."
+        },
+        "receiptId": {
+            "type": "string",
+            "description": "Unique identifier for the receipt."
+        },
+        "reference": {
+            "type": "string",
+            "description": "Reference information for the transaction."
         }
       },
       "required": [
@@ -204,7 +216,8 @@
         "customerId",
         "paymentType",
         "date",
-        "amount"
+        "amount",
+        "paymentMethod"
       ]
     },
     "OutflowTransaction": {

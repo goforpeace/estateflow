@@ -1,7 +1,7 @@
 export type ProjectStatus = 'Planning' | 'Ongoing' | 'Completed';
 export type FlatOwnership = 'Developer' | 'Landowner';
 export type FlatStatus = 'Available' | 'Sold' | 'Reserved';
-export type PaymentMode = 'Cash' | 'Bank';
+export type PaymentMode = 'Cash' | 'Cheque' | 'Bank Transfer';
 export type TransactionType = 'Inflow' | 'Outflow';
 export type InflowType = 'Booking' | 'Installment';
 export type OutflowCategory = 'Material' | 'Labor' | 'Utility' | 'Office';
@@ -50,6 +50,9 @@ export interface InflowTransaction {
   paymentType: InflowType;
   date: string;
   amount: number;
+  paymentMethod: PaymentMode;
+  receiptId?: string;
+  reference?: string;
 }
 
 export interface OutflowTransaction {

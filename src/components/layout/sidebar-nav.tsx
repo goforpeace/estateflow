@@ -11,6 +11,7 @@ import {
   Settings,
   Users,
   ShoppingCart,
+  DollarSign,
 } from 'lucide-react';
 import { Logo } from '../icons';
 import { cn } from '@/lib/utils';
@@ -22,8 +23,7 @@ const navItems = [
   { href: '/dashboard/projects', icon: Briefcase, label: 'Projects' },
   { href: '/dashboard/customers', icon: Users, label: 'Customers' },
   { href: '/dashboard/sales', icon: ShoppingCart, label: 'Sales' },
-  { href: '/dashboard/transactions', icon: ArrowRightLeft, label: 'Transactions' },
-  { href: '/dashboard/office-costs', icon: Building, label: 'Office Costs' },
+  { href: '/dashboard/add-payment', icon: DollarSign, label: 'Add Payment' },
   { href: '/dashboard/forecasting', icon: BrainCircuit, label: 'Forecasting', isNew: true },
 ];
 
