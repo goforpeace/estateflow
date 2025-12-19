@@ -22,15 +22,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/ui/popover';
-import { CalendarIcon, PlusCircle, Trash2 } from 'lucide-react';
-import { Calendar } from '@/components/ui/calendar';
-import { cn } from '@/lib/utils';
-import { format } from 'date-fns';
+import { PlusCircle, Trash2 } from 'lucide-react';
 import {
   useFirestore,
   addDocumentNonBlocking,
@@ -41,7 +33,7 @@ import { useToast } from '@/hooks/use-toast';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { useState } from 'react';
+import { cn } from '@/lib/utils';
 
 
 const projectFormSchema = z.object({
@@ -54,8 +46,8 @@ const projectFormSchema = z.object({
   estimatedBudget: z.coerce
     .number()
     .min(1, { message: 'Estimated budget must be greater than 0.' }),
-  startDate: z.date({
-    required_error: 'A start date is required.',
+  startDate: z.string().min(1, {
+    message: 'A start date is required.',
   }),
   status: z.enum(['Planning', 'Ongoing', 'Completed']),
   flats: z
@@ -78,13 +70,13 @@ interface AddProjectFormProps {
 export function AddProjectForm({ setDialogOpen }: AddProjectFormProps) {
   const firestore = useFirestore();
   const { toast } = useToast();
-  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const form = useForm<ProjectFormValues>({
     resolver: zodResolver(projectFormSchema),
     defaultValues: {
       projectName: '',
       location: '',
       estimatedBudget: 0,
+      startDate: '',
       status: 'Planning',
       flats: [{ flatNumber: '', ownership: 'Developer', flatSize: 0 }],
     },
@@ -105,7 +97,7 @@ export function AddProjectForm({ setDialogOpen }: AddProjectFormProps) {
         projectName: data.projectName,
         location: data.location,
         totalFlats: data.flats.length,
-        startDate: data.startDate.toISOString(),
+        startDate: new Date(data.startDate).toISOString(),
         status: data.status,
         estimatedBudget: data.estimatedBudget,
       };
@@ -206,39 +198,14 @@ export function AddProjectForm({ setDialogOpen }: AddProjectFormProps) {
               control={form.control}
               name="startDate"
               render={({ field }) => (
-                <FormItem className="flex flex-col">
+                <FormItem>
                   <FormLabel>Start Date</FormLabel>
-                  <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
-                    <PopoverTrigger asChild>
-                      <FormControl>
-                        <Button
-                          variant={'outline'}
-                          className={cn(
-                            'w-full pl-3 text-left font-normal',
-                            !field.value && 'text-muted-foreground'
-                          )}
-                        >
-                          {field.value ? (
-                            format(field.value, 'PPP')
-                          ) : (
-                            <span>Pick a date</span>
-                          )}
-                          <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                        </Button>
-                      </FormControl>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
-                      <Calendar
-                        mode="single"
-                        selected={field.value}
-                        onSelect={(date) => {
-                          field.onChange(date);
-                          setIsCalendarOpen(false);
-                        }}
-                        initialFocus
-                      />
-                    </PopoverContent>
-                  </Popover>
+                  <FormControl>
+                    <Input type="date" {...field} />
+                  </FormControl>
+                   <FormDescription>
+                    Please use YYYY-MM-DD format.
+                  </FormDescription>
                   <FormMessage />
                 </FormItem>
               )}
@@ -396,5 +363,3 @@ export function AddProjectForm({ setDialogOpen }: AddProjectFormProps) {
     </Form>
   );
 }
-
-    
