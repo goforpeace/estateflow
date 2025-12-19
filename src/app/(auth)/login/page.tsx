@@ -15,14 +15,16 @@ import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Logo } from '@/components/icons';
 import { useToast } from "@/hooks/use-toast";
-import { useAuth } from '@/firebase';
+import { useAuth, useFirestore, setDocumentNonBlocking } from '@/firebase';
 import { signInWithEmailAndPassword } from 'firebase/auth';
+import { doc, getDoc } from 'firebase/firestore';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const auth = useAuth();
+  const firestore = useFirestore();
   const router = useRouter();
   const { toast } = useToast();
 
@@ -30,7 +32,27 @@ export default function LoginPage() {
     e.preventDefault();
     setIsLoading(true);
     try {
-      await signInWithEmailAndPassword(auth, email, password);
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      const user = userCredential.user;
+
+      // After successful login, check if the user document exists.
+      const userDocRef = doc(firestore, 'users', user.uid);
+      const userDoc = await getDoc(userDocRef);
+
+      if (!userDoc.exists()) {
+        // If the document doesn't exist, create it with a default role.
+        const [firstName, lastName] = user.displayName?.split(' ') || [user.email?.split('@')[0] || 'New', 'User'];
+        const newUser = {
+          id: user.uid,
+          email: user.email,
+          firstName: firstName,
+          lastName: lastName || '',
+          role: 'Viewer', // Assign a default role
+        };
+        // Using non-blocking update
+        setDocumentNonBlocking(userDocRef, newUser, { merge: false });
+      }
+
       router.push('/dashboard');
     } catch (error: any) {
       toast({
