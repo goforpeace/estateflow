@@ -1,6 +1,6 @@
 'use client';
 
-import { Ban, PlusCircle } from 'lucide-react';
+import { Ban, PlusCircle, Pencil } from 'lucide-react';
 import {
   Card,
   CardContent,
@@ -29,6 +29,7 @@ import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
 import { collection, query } from 'firebase/firestore';
 import type { Project } from '@/lib/types';
 import { AddProjectForm } from '@/components/dashboard/projects/add-project-form';
+import { EditProjectForm } from '@/components/dashboard/projects/edit-project-form';
 import { useState } from 'react';
 
 export default function ProjectsPage() {
@@ -38,7 +39,14 @@ export default function ProjectsPage() {
     [firestore]
   );
   const { data: projects, isLoading } = useCollection<Project>(projectsQuery);
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [editingProject, setEditingProject] = useState<Project | null>(null);
+
+  const handleEditClick = (project: Project) => {
+    setEditingProject(project);
+    setIsEditDialogOpen(true);
+  };
 
   const formatCurrency = (value: number) => {
     if (!value) return 'N/A';
@@ -62,7 +70,7 @@ export default function ProjectsPage() {
                 Manage all your real estate projects.
               </CardDescription>
             </div>
-            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+            <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
               <DialogTrigger asChild>
                 <Button>
                   <PlusCircle className="mr-2 h-4 w-4" />
@@ -73,7 +81,7 @@ export default function ProjectsPage() {
                 <DialogHeader>
                   <DialogTitle>Add New Project</DialogTitle>
                 </DialogHeader>
-                <AddProjectForm setDialogOpen={setIsDialogOpen} />
+                <AddProjectForm setDialogOpen={setIsAddDialogOpen} />
               </DialogContent>
             </Dialog>
           </div>
@@ -102,6 +110,7 @@ export default function ProjectsPage() {
                   <TableHead>Budget</TableHead>
                   <TableHead>Total Flats</TableHead>
                   <TableHead>Status</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -129,6 +138,12 @@ export default function ProjectsPage() {
                         {project.status}
                       </Badge>
                     </TableCell>
+                    <TableCell className="text-right">
+                      <Button variant="outline" size="sm" onClick={() => handleEditClick(project)}>
+                        <Pencil className="mr-2 h-4 w-4" />
+                        Edit
+                      </Button>
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -136,8 +151,16 @@ export default function ProjectsPage() {
           )}
         </CardContent>
       </Card>
+      {editingProject && (
+        <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+          <DialogContent className="sm:max-w-[625px]">
+            <DialogHeader>
+              <DialogTitle>Edit Project</DialogTitle>
+            </DialogHeader>
+            <EditProjectForm project={editingProject} setDialogOpen={setIsEditDialogOpen} />
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 }
-
-    
