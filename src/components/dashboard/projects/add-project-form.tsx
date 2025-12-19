@@ -43,9 +43,9 @@ const projectFormSchema = z.object({
   location: z.string().min(2, {
     message: 'Location must be at least 2 characters.',
   }),
-  estimatedBudget: z.coerce
+  targetSell: z.coerce
     .number()
-    .min(1, { message: 'Estimated budget must be greater than 0.' }),
+    .min(1, { message: 'Target sell must be greater than 0.' }),
   startDate: z.string().min(1, {
     message: 'A start date is required.',
   }),
@@ -75,7 +75,7 @@ export function AddProjectForm({ setDialogOpen }: AddProjectFormProps) {
     defaultValues: {
       projectName: '',
       location: '',
-      estimatedBudget: 0,
+      targetSell: 0,
       startDate: '',
       status: 'Planning',
       flats: [{ flatNumber: '', ownership: 'Developer', flatSize: 0 }],
@@ -99,7 +99,7 @@ export function AddProjectForm({ setDialogOpen }: AddProjectFormProps) {
         totalFlats: data.flats.length,
         startDate: new Date(data.startDate).toISOString(),
         status: data.status,
-        estimatedBudget: data.estimatedBudget,
+        targetSell: data.targetSell,
       };
 
       // Create a batch to write all documents atomically
@@ -176,10 +176,10 @@ export function AddProjectForm({ setDialogOpen }: AddProjectFormProps) {
             />
             <FormField
               control={form.control}
-              name="estimatedBudget"
+              name="targetSell"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Estimated Budget (৳)</FormLabel>
+                  <FormLabel>Target Sell (৳)</FormLabel>
                   <FormControl>
                     <Input
                       type="number"
@@ -363,3 +363,5 @@ export function AddProjectForm({ setDialogOpen }: AddProjectFormProps) {
     </Form>
   );
 }
+
+    

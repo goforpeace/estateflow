@@ -107,7 +107,7 @@ export default function ProjectsPage() {
                 <TableRow>
                   <TableHead>Project Name</TableHead>
                   <TableHead>Location</TableHead>
-                  <TableHead>Budget</TableHead>
+                  <TableHead>Target Sell</TableHead>
                   <TableHead>Total Flats</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
@@ -120,7 +120,7 @@ export default function ProjectsPage() {
                       {project.projectName}
                     </TableCell>
                     <TableCell>{project.location}</TableCell>
-                    <TableCell>{formatCurrency(project.estimatedBudget)}</TableCell>
+                    <TableCell>{formatCurrency(project.targetSell)}</TableCell>
                     <TableCell>{project.totalFlats}</TableCell>
                     <TableCell>
                       <Badge
@@ -164,3 +164,5 @@ export default function ProjectsPage() {
     </div>
   );
 }
+
+    

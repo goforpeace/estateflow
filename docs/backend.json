@@ -67,9 +67,9 @@
           "type": "string",
           "description": "Status of the project (Planning, Ongoing, Completed)."
         },
-        "estimatedBudget": {
+        "targetSell": {
           "type": "number",
-          "description": "Estimated budget for the project."
+          "description": "Target sell amount for the project."
         }
       },
       "required": [
@@ -79,7 +79,7 @@
         "totalFlats",
         "startDate",
         "status",
-        "estimatedBudget"
+        "targetSell"
       ]
     },
     "Flat": {
