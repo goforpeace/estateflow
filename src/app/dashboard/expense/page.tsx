@@ -172,24 +172,19 @@ export default function AddExpensePage() {
 
   // Fetch and enrich expenses for the log
   useEffect(() => {
-    if (!isDataDirty) {
-        return;
+    // Guard: Don't run if data isn't dirty or if required collections are still loading.
+    if (!isDataDirty || vendorsLoading || projectsLoading || itemsLoading) {
+      return;
     }
     
-    // Only fetch if all dependent data is ready.
-    if (vendorsLoading || projectsLoading || itemsLoading) {
+    // Definitive Guard: Also ensure the data arrays are actually populated before proceeding.
+    if (!vendors || !projects || !expenseItems) {
         return;
     }
 
     const fetchAndEnrichExpenses = async () => {
         setIsLoadingLog(true);
         try {
-            // This is a safeguard. If loading is false, data should be available.
-            if (!vendors || !projects || !expenseItems) {
-                // This case should be rare given the guard condition, but it's a safeguard
-                throw new Error("Dependency data not available for enrichment.");
-            }
-            
             const expensesSnap = await getDocs(query(collection(firestore, 'expenses')));
             
             const vendorsMap = new Map(vendors.map(d => [d.id, d.vendorName]));
