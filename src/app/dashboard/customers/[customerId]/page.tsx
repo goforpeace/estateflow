@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -130,8 +129,7 @@ export default function CustomerDetailPage({
         // 3. Calculate financials
         const totalPrice = enrichedSales.reduce((sum, s) => {
             const basePrice = s.totalPrice || 0;
-            const extra = s.extraCosts?.reduce((acc, cost) => acc + cost.amount, 0) || 0;
-            return sum + basePrice + extra;
+            return sum + basePrice;
         }, 0);
         const totalPaid = paymentsData.reduce((sum, p) => sum + p.amount, 0);
         const totalDue = totalPrice - totalPaid;
@@ -169,7 +167,10 @@ export default function CustomerDetailPage({
   if (isLoading) {
     return (
       <div className="flex justify-center items-center h-screen">
-        <p>Loading customer details...</p>
+        <div className="text-center">
+            <p className="text-lg">Loading customer details...</p>
+            <p className="text-sm text-muted-foreground">Please wait a moment.</p>
+        </div>
       </div>
     );
   }
@@ -177,7 +178,10 @@ export default function CustomerDetailPage({
   if (error) {
     return (
       <div className="flex justify-center items-center h-screen">
-        <p className="text-red-500">{error}</p>
+        <div className="text-center p-8 border-2 border-dashed border-destructive rounded-lg">
+             <h2 className="text-xl font-semibold text-destructive">{error}</h2>
+             <p className="text-muted-foreground">There was a problem fetching the data from the server.</p>
+        </div>
       </div>
     );
   }
@@ -276,7 +280,7 @@ export default function CustomerDetailPage({
               </TableHeader>
               <TableBody>
                 {sales.map(sale => {
-                    const saleTotalPrice = sale.totalPrice + (sale.extraCosts?.reduce((acc, cost) => acc + cost.amount, 0) || 0);
+                    const saleTotalPrice = sale.totalPrice;
                     return (
                       <TableRow key={sale.id}>
                         <TableCell className="font-medium">{sale.flatNumber}</TableCell>
@@ -355,6 +359,8 @@ export default function CustomerDetailPage({
   );
 }
     
+    
+
     
 
     
