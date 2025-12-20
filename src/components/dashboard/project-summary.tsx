@@ -32,6 +32,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { Combobox } from '@/components/ui/combobox';
 import { Skeleton } from '@/components/ui/skeleton';
 
 type ProjectSummaryData = {
@@ -48,7 +49,7 @@ type ProjectSummaryData = {
 
 export function ProjectSummary() {
   const firestore = useFirestore();
-  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
+  const [selectedProjectId, setSelectedProjectId] = useState<string>("");
   const [summary, setSummary] = useState<ProjectSummaryData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -136,21 +137,15 @@ export function ProjectSummary() {
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        <Select
-          onValueChange={value => setSelectedProjectId(value)}
-          disabled={projectsLoading}
-        >
-          <SelectTrigger>
-            <SelectValue placeholder="Select a project" />
-          </SelectTrigger>
-          <SelectContent>
-            {projects?.map(project => (
-              <SelectItem key={project.id} value={project.id}>
-                {project.projectName}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <Combobox
+            options={projects?.map(p => ({ value: p.id, label: p.projectName })) || []}
+            value={selectedProjectId}
+            onChange={setSelectedProjectId}
+            placeholder="Select a project"
+            searchPlaceholder="Search projects..."
+            emptyText="No projects found."
+            disabled={projectsLoading}
+        />
 
         {isLoading && (
           <div className="space-y-4 pt-4">

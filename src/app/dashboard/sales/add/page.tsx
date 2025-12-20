@@ -15,13 +15,7 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+import { Combobox } from '@/components/ui/combobox';
 import {
   useFirestore,
   useCollection,
@@ -186,30 +180,21 @@ export default function AddSalePage() {
                         control={form.control}
                         name="projectId"
                         render={({ field }) => (
-                            <FormItem>
+                            <FormItem className="flex flex-col">
                             <FormLabel>Project</FormLabel>
-                            <Select
-                                onValueChange={(value) => {
-                                field.onChange(value);
-                                setSelectedProjectId(value);
-                                form.setValue('flatId', ''); // Reset flat when project changes
+                             <Combobox
+                                options={projects?.map((project) => ({ value: project.id, label: project.projectName })) || []}
+                                value={field.value}
+                                onChange={(value) => {
+                                    field.onChange(value);
+                                    setSelectedProjectId(value);
+                                    form.setValue('flatId', ''); // Reset flat when project changes
                                 }}
-                                defaultValue={field.value}
+                                placeholder="Select a project"
+                                searchPlaceholder="Search projects..."
+                                emptyText="No projects found."
                                 disabled={projectsLoading}
-                            >
-                                <FormControl>
-                                <SelectTrigger>
-                                    <SelectValue placeholder="Select a project" />
-                                </SelectTrigger>
-                                </FormControl>
-                                <SelectContent>
-                                {projects?.map((project) => (
-                                    <SelectItem key={project.id} value={project.id}>
-                                    {project.projectName}
-                                    </SelectItem>
-                                ))}
-                                </SelectContent>
-                            </Select>
+                            />
                             <FormMessage />
                             </FormItem>
                         )}
@@ -218,26 +203,17 @@ export default function AddSalePage() {
                         control={form.control}
                         name="flatId"
                         render={({ field }) => (
-                            <FormItem>
+                            <FormItem className="flex flex-col">
                             <FormLabel>Flat Number</FormLabel>
-                            <Select 
-                                onValueChange={field.onChange} 
-                                defaultValue={field.value}
+                             <Combobox
+                                options={availableFlats?.map((flat) => ({ value: flat.id, label: `${flat.flatNumber} (${flat.flatSize} sft)` })) || []}
+                                value={field.value}
+                                onChange={field.onChange}
+                                placeholder="Select an available flat"
+                                searchPlaceholder="Search flats..."
+                                emptyText="No available flats found."
                                 disabled={!selectedProjectId || flatsLoading}
-                            >
-                                <FormControl>
-                                <SelectTrigger>
-                                    <SelectValue placeholder="Select an available flat" />
-                                </SelectTrigger>
-                                </FormControl>
-                                <SelectContent>
-                                {availableFlats?.map((flat) => (
-                                    <SelectItem key={flat.id} value={flat.id}>
-                                    {flat.flatNumber} ({flat.flatSize} sft)
-                                    </SelectItem>
-                                ))}
-                                </SelectContent>
-                            </Select>
+                            />
                             <FormDescription>
                                 Only flats with status 'Available' are shown.
                             </FormDescription>
@@ -256,26 +232,17 @@ export default function AddSalePage() {
                         control={form.control}
                         name="customerId"
                         render={({ field }) => (
-                        <FormItem>
+                        <FormItem className="flex flex-col">
                             <FormLabel>Customer</FormLabel>
-                            <Select 
-                                onValueChange={field.onChange} 
-                                defaultValue={field.value}
+                             <Combobox
+                                options={customers?.map((customer) => ({ value: customer.id, label: customer.fullName })) || []}
+                                value={field.value}
+                                onChange={field.onChange}
+                                placeholder="Select a customer"
+                                searchPlaceholder="Search customers..."
+                                emptyText="No customers found."
                                 disabled={customersLoading}
-                            >
-                            <FormControl>
-                                <SelectTrigger>
-                                <SelectValue placeholder="Select a customer" />
-                                </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                                {customers?.map((customer) => (
-                                <SelectItem key={customer.id} value={customer.id}>
-                                    {customer.fullName}
-                                </SelectItem>
-                                ))}
-                            </SelectContent>
-                            </Select>
+                            />
                             <FormMessage />
                         </FormItem>
                         )}

@@ -21,6 +21,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { Combobox } from '@/components/ui/combobox';
 import {
   useFirestore,
   useCollection,
@@ -484,26 +485,17 @@ export default function AddPaymentPage() {
                     control={form.control}
                     name="customerId"
                     render={({ field }) => (
-                      <FormItem>
+                      <FormItem className="flex flex-col">
                         <FormLabel>Customer</FormLabel>
-                        <Select
-                          onValueChange={field.onChange}
+                        <Combobox
+                          options={customers?.map(c => ({ value: c.id, label: c.fullName })) || []}
                           value={field.value}
+                          onChange={field.onChange}
+                          placeholder="Select a customer"
+                          searchPlaceholder="Search customers..."
+                          emptyText="No customer found."
                           disabled={customersLoading}
-                        >
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select a customer" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {customers?.map(customer => (
-                              <SelectItem key={customer.id} value={customer.id}>
-                                {customer.fullName}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                        />
                         <FormMessage />
                       </FormItem>
                     )}
@@ -512,26 +504,17 @@ export default function AddPaymentPage() {
                     control={form.control}
                     name="projectId"
                     render={({ field }) => (
-                      <FormItem>
+                      <FormItem className="flex flex-col">
                         <FormLabel>Project</FormLabel>
-                        <Select
-                          onValueChange={field.onChange}
+                        <Combobox
+                          options={projectsForCustomer.map(p => ({ value: p.id, label: p.projectName }))}
                           value={field.value}
+                          onChange={field.onChange}
+                          placeholder="Select a project"
+                          searchPlaceholder="Search projects..."
+                          emptyText="No projects for this customer."
                           disabled={!customerId || projectsForCustomer.length === 0}
-                        >
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select a project" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {projectsForCustomer.map(project => (
-                              <SelectItem key={project.id} value={project.id}>
-                                {project.projectName}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                        />
                         <FormMessage />
                       </FormItem>
                     )}
@@ -540,26 +523,17 @@ export default function AddPaymentPage() {
                     control={form.control}
                     name="flatId"
                     render={({ field }) => (
-                      <FormItem>
+                      <FormItem className="flex flex-col">
                         <FormLabel>Flat</FormLabel>
-                        <Select
-                          onValueChange={field.onChange}
+                        <Combobox
+                          options={flatsForProject.map(f => ({ value: f.id, label: f.flatNumber }))}
                           value={field.value}
+                          onChange={field.onChange}
+                          placeholder="Select a flat"
+                          searchPlaceholder="Search flats..."
+                          emptyText="No flats found."
                           disabled={!projectId || flatsForProject.length === 0}
-                        >
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select a flat" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {flatsForProject.map(flat => (
-                              <SelectItem key={flat.id} value={flat.id}>
-                                {flat.flatNumber}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                        />
                         <FormMessage />
                       </FormItem>
                     )}
@@ -865,8 +839,8 @@ export default function AddPaymentPage() {
                     </ScrollArea>
                      <DialogFooter className="p-4 border-t bg-muted print:hidden">
                         <Button type="button" variant="outline" onClick={() => setIsViewDialogOpen(false)}>Close</Button>
-                        <Button type="button" variant="outline" onClick={handlePrint}>
-                            <FileDown className="mr-2 h-4 w-4" /> Save as PDF
+                        <Button type="button" onClick={handlePrint}>
+                           <FileDown className="mr-2 h-4 w-4" /> Save as PDF
                         </Button>
                         <Button type="button" onClick={handlePrint}>
                             <Printer className="mr-2 h-4 w-4" /> Print

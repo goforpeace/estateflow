@@ -33,6 +33,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { Combobox } from '@/components/ui/combobox';
 import { Skeleton } from '@/components/ui/skeleton';
 
 type CustomerSummaryData = {
@@ -47,8 +48,8 @@ type CustomerSummaryData = {
 
 export function CustomerSummary() {
   const firestore = useFirestore();
-  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
-  const [selectedFlatId, setSelectedFlatId] = useState<string | null>(null);
+  const [selectedProjectId, setSelectedProjectId] = useState<string>("");
+  const [selectedFlatId, setSelectedFlatId] = useState<string>("");
   const [summary, setSummary] = useState<CustomerSummaryData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [soldFlats, setSoldFlats] = useState<Flat[]>([]);
@@ -62,7 +63,7 @@ export function CustomerSummary() {
   // Effect to fetch sold flats when a project is selected
   useEffect(() => {
     setSoldFlats([]);
-    setSelectedFlatId(null);
+    setSelectedFlatId("");
     setSummary(null);
     if (!selectedProjectId) return;
 
@@ -115,15 +116,15 @@ export function CustomerSummary() {
         );
         const paymentsSnap = await getDocs(paymentsQuery);
         
-        const allPayments = paymentsSnap.docs
-            .map(d => d.data() as InflowTransaction)
-            .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+        const allPayments = paymentsSnap.docs.map(d => d.data() as InflowTransaction);
 
-        // Filter payments specifically for the selected flat
-        const paymentsForFlat = allPayments.filter(p => p.flatId === selectedFlatId);
+        // Filter payments specifically for the selected flat and sort
+        const paymentsForFlat = allPayments
+            .filter(p => p.flatId === selectedFlatId)
+            .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
         
         const totalPaid = paymentsForFlat.reduce((sum, p) => sum + p.amount, 0);
-        const lastPayment = allPayments.length > 0 ? allPayments[0] : null;
+        const lastPayment = paymentsForFlat.length > 0 ? paymentsForFlat[0] : null;
 
         setSummary({
           customerName: customerData?.fullName || 'N/A',
@@ -157,30 +158,24 @@ export function CustomerSummary() {
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="grid grid-cols-2 gap-4">
-            <Select onValueChange={value => setSelectedProjectId(value)} disabled={projectsLoading}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select Project" />
-              </SelectTrigger>
-              <SelectContent>
-                {projects?.map(project => (
-                  <SelectItem key={project.id} value={project.id}>
-                    {project.projectName}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select onValueChange={value => setSelectedFlatId(value)} disabled={!selectedProjectId || soldFlats.length === 0} value={selectedFlatId || ""}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select Flat" />
-              </SelectTrigger>
-              <SelectContent>
-                {soldFlats.map(flat => (
-                  <SelectItem key={flat.id} value={flat.id}>
-                    {flat.flatNumber}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Combobox
+                options={projects?.map(p => ({ value: p.id, label: p.projectName })) || []}
+                value={selectedProjectId}
+                onChange={setSelectedProjectId}
+                placeholder="Select Project"
+                searchPlaceholder="Search projects..."
+                emptyText="No projects found."
+                disabled={projectsLoading}
+            />
+            <Combobox
+                options={soldFlats.map(f => ({ value: f.id, label: f.flatNumber }))}
+                value={selectedFlatId}
+                onChange={setSelectedFlatId}
+                placeholder="Select Flat"
+                searchPlaceholder="Search flats..."
+                emptyText="No sold flats in this project."
+                disabled={!selectedProjectId || soldFlats.length === 0}
+            />
         </div>
 
         {isLoading && (
