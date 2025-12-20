@@ -83,55 +83,44 @@ export default function ProjectDetailPage({
         const projectData = projectSnap.data() as Project;
         setProject(projectData);
 
-        // 2. Fetch all related data concurrently
+        // 2. Fetch Flats
         const flatsQuery = query(collection(firestore, `projects/${projectId}/flats`));
-        const salesQuery = query(collection(firestore, 'sales'), where('projectId', '==', projectId));
-
-        const [flatsSnap, salesSnap] = await Promise.all([
-          getDocs(flatsQuery),
-          getDocs(salesQuery),
-        ]);
-        
+        const flatsSnap = await getDocs(flatsQuery);
         const flats = flatsSnap.docs.map(d => ({ ...d.data(), id: d.id } as Flat));
-        const sales = salesSnap.docs.map(d => d.data() as Sale);
-        
-        const customersMap = new Map<string, Customer>();
-        const flatToCustomerMap = new Map<string, string>();
-        
-        // 3. Build maps and collect unique customer IDs from sales
-        if (sales.length > 0) {
-            const customerIds = [...new Set(sales.map(s => s.customerId))];
-            sales.forEach(sale => flatToCustomerMap.set(sale.flatId, sale.customerId));
 
-            // 4. Fetch all customers associated with the sales
-            if (customerIds.length > 0) {
-                const customerChunks = [];
-                for (let i = 0; i < customerIds.length; i += 30) {
-                  customerChunks.push(customerIds.slice(i, i + 30));
-                }
-                
-                const customerPromises = customerChunks.map(chunk => 
-                    getDocs(query(collection(firestore, 'customers'), where('id', 'in', chunk)))
+        // 3. Enrich flats with customer info one-by-one for reliability
+        const enrichedData: EnrichedFlat[] = [];
+
+        for (const flat of flats) {
+            let enrichedFlat: EnrichedFlat = { ...flat };
+            if (flat.status === 'Sold') {
+                // Find the sale record for this flat
+                const saleQuery = query(
+                    collection(firestore, 'sales'),
+                    where('projectId', '==', projectId),
+                    where('flatId', '==', flat.id)
                 );
-      
-                const customerSnapshots = await Promise.all(customerPromises);
-                customerSnapshots.forEach(snap => {
-                    snap.forEach(doc => {
-                        customersMap.set(doc.id, doc.data() as Customer);
-                    });
-                });
+                const saleSnap = await getDocs(saleQuery);
+
+                if (!saleSnap.empty) {
+                    const saleData = saleSnap.docs[0].data() as Sale;
+                    const customerId = saleData.customerId;
+
+                    // Find the customer record
+                    const customerRef = doc(firestore, 'customers', customerId);
+                    const customerSnap = await getDoc(customerRef);
+
+                    if (customerSnap.exists()) {
+                        const customerData = customerSnap.data() as Customer;
+                        enrichedFlat.customer = {
+                            fullName: customerData.fullName,
+                            mobile: customerData.mobile,
+                        };
+                    }
+                }
             }
+            enrichedData.push(enrichedFlat);
         }
-        
-        // 5. Enrich the flat data with customer info
-        const enrichedData = flats.map(flat => {
-          const customerId = flatToCustomerMap.get(flat.id);
-          const customer = customerId ? customersMap.get(customerId) : undefined;
-          return {
-            ...flat,
-            customer: customer ? { fullName: customer.fullName, mobile: customer.mobile } : undefined,
-          };
-        });
 
         setEnrichedFlats(enrichedData.sort((a, b) => a.flatNumber.localeCompare(b.flatNumber, undefined, { numeric: true })));
 
@@ -189,7 +178,7 @@ export default function ProjectDetailPage({
   return (
     <div className="space-y-6 container mx-auto py-6">
       <div className="flex items-center gap-4">
-        <Button variant="outline" size="icon" onClick={() => router.back()}>
+        <Button variant="outline" size="icon" onClick={() => router.push('/dashboard/projects')}>
           <ArrowLeft className="h-4 w-4" />
           <span className="sr-only">Back</span>
         </Button>
