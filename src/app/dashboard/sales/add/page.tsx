@@ -1,7 +1,7 @@
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useForm } from 'react-hook-form';
+import { useForm, useFieldArray } from 'react-hook-form';
 import * as z from 'zod';
 import { Button } from '@/components/ui/button';
 import {
@@ -34,12 +34,14 @@ import type { Project, Flat, Customer } from '@/lib/types';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
 import { Separator } from '@/components/ui/separator';
+import { PlusCircle, Trash2 } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 const addSaleFormSchema = z.object({
   projectId: z.string().min(1, { message: 'Please select a project.' }),
   flatId: z.string().min(1, { message: 'Please select a flat.' }),
   customerId: z.string().min(1, { message: 'Please select a customer.' }),
-  totalPrice: z.coerce.number().min(1, { message: 'Total price is required.' }),
+  totalPrice: z.coerce.number().min(1, { message: 'Base price is required.' }),
   perSftPrice: z.coerce.number().optional(),
   parkingCharge: z.coerce.number().optional(),
   utilityCharge: z.coerce.number().optional(),
@@ -48,6 +50,10 @@ const addSaleFormSchema = z.object({
   saleDate: z.string().min(1, { message: 'Sale date is required.' }),
   note: z.string().optional(),
   deedLink: z.string().url({ message: 'Please enter a valid URL.' }).optional().or(z.literal('')),
+  extraCosts: z.array(z.object({
+    purpose: z.string().min(1, { message: 'Purpose is required.' }),
+    amount: z.coerce.number().min(1, { message: 'Amount must be > 0.' }),
+  })).optional(),
 });
 
 type AddSaleFormValues = z.infer<typeof addSaleFormSchema>;
@@ -91,18 +97,32 @@ export default function AddSalePage() {
       saleDate: new Date().toISOString().split('T')[0],
       note: '',
       deedLink: '',
+      extraCosts: [],
     },
   });
+
+  const { fields, append, remove } = useFieldArray({
+    control: form.control,
+    name: "extraCosts",
+  });
+  
+  const watchTotalPrice = form.watch('totalPrice');
+  const watchExtraCosts = form.watch('extraCosts');
+
+  const calculatedTotalPrice = (watchTotalPrice || 0) + (watchExtraCosts?.reduce((acc, cost) => acc + (cost.amount || 0), 0) || 0);
 
   async function onSubmit(data: AddSaleFormValues) {
     try {
         const batch = writeBatch(firestore);
+        
+        const finalTotalPrice = calculatedTotalPrice;
 
         // 1. Create new sale document
         const saleRef = doc(collection(firestore, 'sales'));
         batch.set(saleRef, {
             id: saleRef.id,
             ...data,
+            totalPrice: finalTotalPrice,
             saleDate: new Date(data.saleDate).toISOString(),
         });
 
@@ -121,6 +141,7 @@ export default function AddSalePage() {
                 paymentType: 'Booking',
                 date: new Date(data.saleDate).toISOString(),
                 amount: data.downpayment,
+                paymentMethod: 'Cash', // Default or consider adding to form
             });
         }
         
@@ -140,6 +161,9 @@ export default function AddSalePage() {
       });
     }
   }
+  
+  const formatCurrency = (value: number) => `৳${value.toLocaleString('en-IN')}`;
+
 
   return (
     <Card>
@@ -263,7 +287,7 @@ export default function AddSalePage() {
                             name="totalPrice"
                             render={({ field }) => (
                                 <FormItem>
-                                <FormLabel>Total Price (৳)</FormLabel>
+                                <FormLabel>Base Price (৳)</FormLabel>
                                 <FormControl>
                                     <Input type="number" placeholder="5000000" {...field} />
                                 </FormControl>
@@ -311,7 +335,58 @@ export default function AddSalePage() {
                             )}
                         />
                     </div>
-                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                </div>
+
+                <Separator />
+                
+                 <div className="space-y-4">
+                    <h3 className="text-lg font-medium">Extra Costs</h3>
+                    <div className="space-y-2">
+                        {fields.map((field, index) => (
+                           <div key={field.id} className="grid grid-cols-[1fr_auto_auto] items-end gap-2 p-3 border rounded-lg">
+                               <FormField
+                                   control={form.control}
+                                   name={`extraCosts.${index}.purpose`}
+                                   render={({ field }) => (
+                                       <FormItem>
+                                            <FormLabel className={cn(index !== 0 && "sr-only")}>Purpose</FormLabel>
+                                            <FormControl>
+                                               <Input {...field} placeholder="e.g., Interior Design" />
+                                            </FormControl>
+                                            <FormMessage />
+                                       </FormItem>
+                                   )}
+                               />
+                               <FormField
+                                   control={form.control}
+                                   name={`extraCosts.${index}.amount`}
+                                   render={({ field }) => (
+                                       <FormItem>
+                                            <FormLabel className={cn(index !== 0 && "sr-only")}>Amount</FormLabel>
+                                            <FormControl>
+                                                <Input type="number" {...field} placeholder="50000" />
+                                            </FormControl>
+                                            <FormMessage />
+                                       </FormItem>
+                                   )}
+                               />
+                               <Button type="button" variant="destructive" size="icon" onClick={() => remove(index)}>
+                                    <Trash2 className="h-4 w-4" />
+                               </Button>
+                           </div>
+                        ))}
+                    </div>
+                     <Button type="button" variant="outline" size="sm" onClick={() => append({ purpose: '', amount: 0 })}>
+                        <PlusCircle className="mr-2 h-4 w-4" />
+                        Add Extra Cost
+                     </Button>
+                </div>
+                
+                 <Separator />
+
+                <div className="space-y-4">
+                    <h3 className="text-lg font-medium">Payment Plan</h3>
+                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
                         <FormField
                             control={form.control}
                             name="downpayment"
@@ -338,6 +413,14 @@ export default function AddSalePage() {
                                 </FormItem>
                             )}
                         />
+                        <div className="p-4 bg-muted rounded-lg">
+                            <FormLabel>Total Price</FormLabel>
+                            <p className="text-xl font-bold">{formatCurrency(calculatedTotalPrice)}</p>
+                        </div>
+                         <div className="p-4 bg-muted rounded-lg">
+                            <FormLabel>Due Amount</FormLabel>
+                            <p className="text-xl font-bold text-destructive">{formatCurrency(calculatedTotalPrice)}</p>
+                        </div>
                     </div>
                 </div>
 
@@ -369,7 +452,7 @@ export default function AddSalePage() {
                                 <Input placeholder="https://example.com/deed.pdf" {...field} />
                                 </FormControl>
                                  <FormDescription>
-                                    Link to the deed PDF (e.g., on Cloudinary).
+                                    Link to the deed PDF (e.g., on Cloud Storage).
                                 </FormDescription>
                                 <FormMessage />
                             </FormItem>

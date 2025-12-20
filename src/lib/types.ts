@@ -79,4 +79,5 @@ export interface Sale {
   saleDate: string;
   note?: string;
   deedLink?: string;
+  extraCosts?: { purpose: string; amount: number }[];
 }

@@ -385,6 +385,22 @@
         "deedLink": {
           "type": "string",
           "description": "Link to the uploaded deed document."
+        },
+        "extraCosts": {
+            "type": "array",
+            "description": "Additional costs for the sale.",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "purpose": {
+                        "type": "string"
+                    },
+                    "amount": {
+                        "type": "number"
+                    }
+                },
+                "required": ["purpose", "amount"]
+            }
         }
       },
       "required": [
