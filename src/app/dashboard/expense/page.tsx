@@ -15,15 +15,15 @@ import {
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Combobox } from '@/components/ui/combobox';
-import { useFirestore, useCollection, useMemoFirebase, addDocumentNonBlocking } from '@/firebase';
-import { collection, query, doc, writeBatch } from 'firebase/firestore';
+import { useFirestore, useCollection, useMemoFirebase, addDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase';
+import { collection, query, doc, writeBatch, getDocs } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
-import { useState } from 'react';
-import type { Project, Vendor, ExpenseItem } from '@/lib/types';
+import { useState, useEffect, useMemo } from 'react';
+import type { Project, Vendor, ExpenseItem, Expense } from '@/lib/types';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
 import { Separator } from '@/components/ui/separator';
-import { PlusCircle } from 'lucide-react';
+import { PlusCircle, Search, Ban, MoreHorizontal, Pencil, Trash2, Eye } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -31,6 +31,33 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+    AlertDialogTrigger,
+  } from "@/components/ui/alert-dialog";
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuLabel,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 const addExpenseFormSchema = z.object({
   vendorId: z.string().min(1, { message: 'Please select a vendor.' }),
@@ -49,6 +76,13 @@ const addItemFormSchema = z.object({
 });
 type AddItemFormValues = z.infer<typeof addItemFormSchema>;
 
+type EnrichedExpense = Expense & {
+    vendorName: string;
+    projectName: string;
+    itemName: string;
+}
+
+const ITEMS_PER_PAGE = 10;
 
 // A small form component for the "Add Item" dialog
 function AddItemForm({ setDialogOpen }: { setDialogOpen: (open: boolean) => void }) {
@@ -62,9 +96,10 @@ function AddItemForm({ setDialogOpen }: { setDialogOpen: (open: boolean) => void
   async function onSubmit(data: AddItemFormValues) {
     try {
       const itemsCollection = collection(firestore, 'expenseItems');
+      const newItemRef = doc(itemsCollection);
       addDocumentNonBlocking(itemsCollection, {
-        id: doc(itemsCollection).id,
-        ...data,
+        id: newItemRef.id,
+        name: data.name
       });
       toast({ title: 'Item Added', description: `${data.name} has been added.` });
       form.reset();
@@ -105,8 +140,13 @@ export default function AddExpensePage() {
   const firestore = useFirestore();
   const { toast } = useToast();
   const [isAddItemDialogOpen, setIsAddItemDialogOpen] = useState(false);
+  const [isDataDirty, setIsDataDirty] = useState(true);
+  const [expenses, setExpenses] = useState<EnrichedExpense[]>([]);
+  const [isLoadingLog, setIsLoadingLog] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
 
-  // Data fetching
+  // Data fetching for form
   const vendorsQuery = useMemoFirebase(() => query(collection(firestore, 'vendors')), [firestore]);
   const { data: vendors, isLoading: vendorsLoading } = useCollection<Vendor>(vendorsQuery);
 
@@ -115,6 +155,57 @@ export default function AddExpensePage() {
 
   const itemsQuery = useMemoFirebase(() => query(collection(firestore, 'expenseItems')), [firestore]);
   const { data: expenseItems, isLoading: itemsLoading } = useCollection<ExpenseItem>(itemsQuery);
+
+  // Fetch and enrich expenses for the log
+  useEffect(() => {
+    if (!isDataDirty) return;
+
+    const fetchAndEnrichExpenses = async () => {
+        setIsLoadingLog(true);
+        try {
+            // 1. Fetch all data concurrently
+            const expensesSnap = await getDocs(query(collection(firestore, 'expenses')));
+            
+            // Assuming vendors, projects, and expenseItems are already fetched by their hooks.
+            // If not, they should be fetched here. For this example, we'll assume they are loaded.
+            
+            // 2. Create lookup maps from the hook data
+            const vendorsMap = new Map(vendors?.map(d => [d.id, d.vendorName]));
+            const projectsMap = new Map(projects?.map(d => [d.id, d.projectName]));
+            const itemsMap = new Map(expenseItems?.map(d => [d.id, d.name]));
+
+            // 3. Enrich expenses data
+            const enriched = expensesSnap.docs.map(doc => {
+                const expense = { ...doc.data(), id: doc.id } as Expense;
+                return {
+                    ...expense,
+                    vendorName: vendorsMap.get(expense.vendorId) || 'N/A',
+                    projectName: projectsMap.get(expense.projectId) || 'N/A',
+                    itemName: itemsMap.get(expense.itemId) || 'N/A',
+                }
+            }).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+            setExpenses(enriched);
+
+        } catch (error) {
+            console.error("Error fetching and enriching expenses:", error);
+            toast({
+              variant: 'destructive',
+              title: "Error loading expenses",
+              description: "Could not fetch expense data from the database."
+            });
+            setExpenses([]);
+        }
+        setIsLoadingLog(false);
+        setIsDataDirty(false);
+    };
+
+    if (!vendorsLoading && !projectsLoading && !itemsLoading) {
+        fetchAndEnrichExpenses();
+    }
+
+  }, [firestore, toast, isDataDirty, vendors, projects, expenseItems, vendorsLoading, projectsLoading, itemsLoading]);
+
 
   const form = useForm<AddExpenseFormValues>({
     resolver: zodResolver(addExpenseFormSchema),
@@ -163,6 +254,7 @@ export default function AddExpensePage() {
         description: `An expense of ${data.price} has been successfully logged.`,
       });
       form.reset();
+      setIsDataDirty(true); // Mark data as dirty to trigger a re-fetch for the log
     } catch (error: any) {
       console.error('Error recording expense: ', error);
       toast({
@@ -173,167 +265,343 @@ export default function AddExpensePage() {
     }
   }
 
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Add New Expense</CardTitle>
-        <CardDescription>Record a new project expense and cash outflow.</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-4">
-                <h3 className="text-lg font-medium">Details</h3>
-                <FormField
-                  control={form.control}
-                  name="vendorId"
-                  render={({ field }) => (
-                    <FormItem className="flex flex-col">
-                      <FormLabel>Vendor</FormLabel>
-                      <Combobox
-                        options={vendors?.map(v => ({ value: v.id, label: v.vendorName })) || []}
-                        value={field.value}
-                        onChange={field.onChange}
-                        placeholder="Select a vendor"
-                        searchPlaceholder="Search vendors..."
-                        emptyText="No vendors found."
-                        disabled={vendorsLoading}
-                      />
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="projectId"
-                  render={({ field }) => (
-                    <FormItem className="flex flex-col">
-                      <FormLabel>Project</FormLabel>
-                      <Combobox
-                        options={projects?.map(p => ({ value: p.id, label: p.projectName })) || []}
-                        value={field.value}
-                        onChange={field.onChange}
-                        placeholder="Select a project"
-                        searchPlaceholder="Search projects..."
-                        emptyText="No projects found."
-                        disabled={projectsLoading}
-                      />
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="date"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Expense Date</FormLabel>
-                      <FormControl>
-                        <Input type="date" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
+  const handleDeleteExpense = (expense: EnrichedExpense) => {
+    // This is a simplified deletion. A robust implementation would also delete the related outflow transaction.
+    const expenseRef = doc(firestore, 'expenses', expense.id);
+    deleteDocumentNonBlocking(expenseRef);
+    toast({
+        title: "Expense Deleted",
+        description: "The expense record has been successfully deleted.",
+    });
+    setIsDataDirty(true);
+  };
 
-              <div className="space-y-4">
-                <h3 className="text-lg font-medium">Itemization</h3>
-                <FormItem className="flex flex-col">
-                  <FormLabel>Item</FormLabel>
-                  <div className="flex items-center gap-2">
+  const filteredExpenses = useMemo(() => {
+    const searchTerm = searchQuery.toLowerCase();
+    if (!searchTerm) return expenses;
+    return expenses.filter(exp => 
+        exp.vendorName.toLowerCase().includes(searchTerm) ||
+        exp.projectName.toLowerCase().includes(searchTerm) ||
+        exp.itemName.toLowerCase().includes(searchTerm) ||
+        exp.price.toString().includes(searchTerm)
+    );
+  }, [expenses, searchQuery]);
+
+  const totalPages = Math.ceil(filteredExpenses.length / ITEMS_PER_PAGE);
+  const paginatedExpenses = filteredExpenses.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE
+  );
+
+  const handleNextPage = () => {
+    if (currentPage < totalPages) setCurrentPage(currentPage + 1);
+  };
+
+  const handlePrevPage = () => {
+    if (currentPage > 1) setCurrentPage(currentPage - 1);
+  };
+  
+  const formatCurrency = (value: number) => `৳${value.toLocaleString('en-IN')}`;
+
+
+  return (
+    <div className="space-y-6">
+        <Card>
+        <CardHeader>
+            <CardTitle>Add New Expense</CardTitle>
+            <CardDescription>Record a new project expense and cash outflow.</CardDescription>
+        </CardHeader>
+        <CardContent>
+            <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-4">
+                    <h3 className="text-lg font-medium">Details</h3>
                     <FormField
-                      control={form.control}
-                      name="itemId"
-                      render={({ field }) => (
-                        <div className="flex-grow">
-                          <Combobox
-                            options={expenseItems?.map(i => ({ value: i.id, label: i.name })) || []}
+                    control={form.control}
+                    name="vendorId"
+                    render={({ field }) => (
+                        <FormItem className="flex flex-col">
+                        <FormLabel>Vendor</FormLabel>
+                        <Combobox
+                            options={vendors?.map(v => ({ value: v.id, label: v.vendorName })) || []}
                             value={field.value}
                             onChange={field.onChange}
-                            placeholder="Select an item"
-                            searchPlaceholder="Search items..."
-                            emptyText="No items found."
-                            disabled={itemsLoading}
-                          />
-                        </div>
-                      )}
+                            placeholder="Select a vendor"
+                            searchPlaceholder="Search vendors..."
+                            emptyText="No vendors found."
+                            disabled={vendorsLoading}
+                        />
+                        <FormMessage />
+                        </FormItem>
+                    )}
                     />
-                    <Dialog open={isAddItemDialogOpen} onOpenChange={setIsAddItemDialogOpen}>
-                      <DialogTrigger asChild>
-                        <Button type="button" variant="outline" size="icon">
-                          <PlusCircle className="h-4 w-4" />
-                        </Button>
-                      </DialogTrigger>
-                      <DialogContent className="sm:max-w-[425px]">
-                        <DialogHeader>
-                          <DialogTitle>Add New Expense Item</DialogTitle>
-                        </DialogHeader>
-                        <AddItemForm setDialogOpen={setIsAddItemDialogOpen} />
-                      </DialogContent>
-                    </Dialog>
-                  </div>
-                   <FormMessage>{form.formState.errors.itemId?.message}</FormMessage>
-                </FormItem>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <FormField
+                    <FormField
                     control={form.control}
-                    name="quantity"
+                    name="projectId"
                     render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Quantity</FormLabel>
+                        <FormItem className="flex flex-col">
+                        <FormLabel>Project</FormLabel>
+                        <Combobox
+                            options={projects?.map(p => ({ value: p.id, label: p.projectName })) || []}
+                            value={field.value}
+                            onChange={field.onChange}
+                            placeholder="Select a project"
+                            searchPlaceholder="Search projects..."
+                            emptyText="No projects found."
+                            disabled={projectsLoading}
+                        />
+                        <FormMessage />
+                        </FormItem>
+                    )}
+                    />
+                    <FormField
+                    control={form.control}
+                    name="date"
+                    render={({ field }) => (
+                        <FormItem>
+                        <FormLabel>Expense Date</FormLabel>
                         <FormControl>
-                          <Input type="number" placeholder="1" {...field} />
+                            <Input type="date" {...field} />
                         </FormControl>
                         <FormMessage />
-                      </FormItem>
+                        </FormItem>
                     )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="price"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Total Price (৳)</FormLabel>
-                        <FormControl>
-                          <Input type="number" placeholder="5000" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                    />
                 </div>
-              </div>
-            </div>
 
-            <Separator />
-            
-            <FormField
-              control={form.control}
-              name="description"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Description</FormLabel>
-                  <FormControl>
-                    <Textarea placeholder="Add any extra details about the expense..." {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+                <div className="space-y-4">
+                    <h3 className="text-lg font-medium">Itemization</h3>
+                    <FormItem className="flex flex-col">
+                    <FormLabel>Item</FormLabel>
+                    <div className="flex items-center gap-2">
+                        <FormField
+                        control={form.control}
+                        name="itemId"
+                        render={({ field }) => (
+                            <div className="flex-grow">
+                            <Combobox
+                                options={expenseItems?.map(i => ({ value: i.id, label: i.name })) || []}
+                                value={field.value}
+                                onChange={field.onChange}
+                                placeholder="Select an item"
+                                searchPlaceholder="Search items..."
+                                emptyText="No items found."
+                                disabled={itemsLoading}
+                            />
+                            </div>
+                        )}
+                        />
+                        <Dialog open={isAddItemDialogOpen} onOpenChange={setIsAddItemDialogOpen}>
+                        <DialogTrigger asChild>
+                            <Button type="button" variant="outline" size="icon">
+                            <PlusCircle className="h-4 w-4" />
+                            </Button>
+                        </DialogTrigger>
+                        <DialogContent className="sm:max-w-[425px]">
+                            <DialogHeader>
+                            <DialogTitle>Add New Expense Item</DialogTitle>
+                            </DialogHeader>
+                            <AddItemForm setDialogOpen={setIsAddItemDialogOpen} />
+                        </DialogContent>
+                        </Dialog>
+                    </div>
+                    <FormMessage>{form.formState.errors.itemId?.message}</FormMessage>
+                    </FormItem>
 
-            <div className="flex justify-end pt-4">
-              <Button type="submit" disabled={form.formState.isSubmitting}>
-                {form.formState.isSubmitting ? 'Recording...' : 'Record Expense'}
-              </Button>
-            </div>
-          </form>
-        </Form>
-      </CardContent>
-    </Card>
+                    <div className="grid grid-cols-2 gap-4">
+                    <FormField
+                        control={form.control}
+                        name="quantity"
+                        render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Quantity</FormLabel>
+                            <FormControl>
+                            <Input type="number" placeholder="1" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                        </FormItem>
+                        )}
+                    />
+                    <FormField
+                        control={form.control}
+                        name="price"
+                        render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Total Price (৳)</FormLabel>
+                            <FormControl>
+                            <Input type="number" placeholder="5000" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                        </FormItem>
+                        )}
+                    />
+                    </div>
+                </div>
+                </div>
+
+                <Separator />
+                
+                <FormField
+                control={form.control}
+                name="description"
+                render={({ field }) => (
+                    <FormItem>
+                    <FormLabel>Description</FormLabel>
+                    <FormControl>
+                        <Textarea placeholder="Add any extra details about the expense..." {...field} />
+                    </FormControl>
+                    <FormMessage />
+                    </FormItem>
+                )}
+                />
+
+                <div className="flex justify-end pt-4">
+                <Button type="submit" disabled={form.formState.isSubmitting}>
+                    {form.formState.isSubmitting ? 'Recording...' : 'Record Expense'}
+                </Button>
+                </div>
+            </form>
+            </Form>
+        </CardContent>
+        </Card>
+
+        <Card>
+            <CardHeader>
+                <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
+                    <div>
+                        <CardTitle>Expense Log</CardTitle>
+                        <CardDescription>
+                            A record of all project expenses.
+                        </CardDescription>
+                    </div>
+                    <div className="relative w-full sm:w-auto">
+                        <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                        <Input 
+                            type="search" 
+                            placeholder="Search expenses..."
+                            className="pl-8 sm:w-[300px]"
+                            value={searchQuery}
+                            onChange={(e) => {
+                                setSearchQuery(e.target.value);
+                                setCurrentPage(1);
+                            }}
+                        />
+                    </div>
+                </div>
+            </CardHeader>
+            <CardContent>
+                {isLoadingLog && (
+                    <div className="flex justify-center items-center h-60">
+                        <p>Loading expense log...</p>
+                    </div>
+                )}
+                {!isLoadingLog && !paginatedExpenses.length && (
+                    <div className="flex flex-col items-center justify-center h-60 text-center text-muted-foreground border-2 border-dashed rounded-lg">
+                        <Ban className="h-12 w-12 mb-2" />
+                        <p className="text-lg font-semibold">No expenses found.</p>
+                        <p className="text-sm">
+                            {searchQuery ? 'Try a different search term or' : 'Record a new expense to'} see it here.
+                        </p>
+                    </div>
+                )}
+                {!isLoadingLog && paginatedExpenses.length > 0 && (
+                    <>
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>Vendor</TableHead>
+                                    <TableHead>Project</TableHead>
+                                    <TableHead>Item</TableHead>
+                                    <TableHead>Date</TableHead>
+                                    <TableHead className="text-right">Price</TableHead>
+                                    <TableHead className="text-right">Actions</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {paginatedExpenses.map(expense => (
+                                    <TableRow key={expense.id}>
+                                        <TableCell className="font-medium">{expense.vendorName}</TableCell>
+                                        <TableCell>{expense.projectName}</TableCell>
+                                        <TableCell>{expense.itemName}</TableCell>
+                                        <TableCell>{new Date(expense.date).toLocaleDateString()}</TableCell>
+                                        <TableCell className="text-right font-semibold">{formatCurrency(expense.price)}</TableCell>
+                                        <TableCell className="text-right">
+                                            <AlertDialog>
+                                                <DropdownMenu>
+                                                    <DropdownMenuTrigger asChild>
+                                                        <Button variant="ghost" className="h-8 w-8 p-0">
+                                                            <span className="sr-only">Open menu</span>
+                                                            <MoreHorizontal className="h-4 w-4" />
+                                                        </Button>
+                                                    </DropdownMenuTrigger>
+                                                    <DropdownMenuContent align="end">
+                                                        <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                                                        <DropdownMenuItem disabled>
+                                                            <Eye className="mr-2 h-4 w-4" />
+                                                            View (soon)
+                                                        </DropdownMenuItem>
+                                                        <DropdownMenuItem disabled>
+                                                            <Pencil className="mr-2 h-4 w-4" />
+                                                            Edit (soon)
+                                                        </DropdownMenuItem>
+                                                        <DropdownMenuSeparator />
+                                                        <AlertDialogTrigger asChild>
+                                                            <DropdownMenuItem className="text-red-600">
+                                                                <Trash2 className="mr-2 h-4 w-4" />
+                                                                Delete
+                                                            </DropdownMenuItem>
+                                                        </AlertDialogTrigger>
+                                                    </DropdownMenuContent>
+                                                </DropdownMenu>
+                                                <AlertDialogContent>
+                                                    <AlertDialogHeader>
+                                                        <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                                                        <AlertDialogDescription>
+                                                            This will permanently delete this expense record. This action cannot be undone.
+                                                        </AlertDialogDescription>
+                                                    </AlertDialogHeader>
+                                                    <AlertDialogFooter>
+                                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                                        <AlertDialogAction
+                                                          onClick={() => handleDeleteExpense(expense)}
+                                                          className="bg-destructive hover:bg-destructive/90"
+                                                        >
+                                                            Delete
+                                                        </AlertDialogAction>
+                                                    </AlertDialogFooter>
+                                                </AlertDialogContent>
+                                            </AlertDialog>
+                                        </TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                         <div className="flex items-center justify-end space-x-2 py-4">
+                            <div className="text-sm text-muted-foreground">
+                                Page {currentPage} of {totalPages}
+                            </div>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={handlePrevPage}
+                                disabled={currentPage === 1}
+                            >
+                                Previous
+                            </Button>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={handleNextPage}
+                                disabled={currentPage === totalPages}
+                            >
+                                Next
+                            </Button>
+                        </div>
+                    </>
+                )}
+            </CardContent>
+        </Card>
+    </div>
   );
 }
-
-    
