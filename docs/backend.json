@@ -1,3 +1,4 @@
+
 {
   "entities": {
     "User": {
@@ -474,7 +475,11 @@
       "properties": {
         "id": {
           "type": "string",
-          "description": "Unique identifier for the expense."
+          "description": "Unique identifier for the expense document."
+        },
+        "expenseId": {
+          "type": "string",
+          "description": "User-facing auto-generated identifier for the expense."
         },
         "vendorId": {
           "type": "string",
@@ -508,6 +513,7 @@
       },
       "required": [
         "id",
+        "expenseId",
         "vendorId",
         "projectId",
         "itemId",
@@ -736,5 +742,3 @@
     "reasoning": "The Firestore data structure is designed to ensure authorization independence, clarity, and scalability for the EstateFlow application. Key strategies include denormalization, structural segregation, and consistent access modeling.\n\n**Authorization Independence:**\nAuthorization independence is achieved by denormalizing authorization-related data. For instance, access to `flats` is determined by the project's attributes. If there were project-level access controls (e.g., project admins), this information would be denormalized into each flat document.\n\n**Structural Segregation:**\nData with different access requirements are stored in separate collections. User profiles are stored in `/users/{userId}`, ensuring that only the user (and admins) can access their data. Project-related data (flats, inflow transactions, outflow transactions, and office cost allocations) are organized under `/projects/{projectId}`, enabling project-level access control. Sales are stored in a top-level `/sales` collection for easier querying across all projects.\n\n**Access Modeling:**\n-   **User Data:** User profiles are stored under `/users/{userId}`, ensuring path-based ownership.\n-   **Project Data:** Project-related data is organized under `/projects/{projectId}`, with subcollections for flats, inflow transactions, outflow transactions and office cost allocations.\n-   **Sales Data:** Stored in a top-level `/sales` collection to allow for app-wide queries on sales data.\n\n**QAPs (Rules are not Filters):**\nThe structure supports secure `list` operations by avoiding hierarchical authorization dependencies.  For example, listing flats within a project does not require fetching parent project data to validate access.\n\nIn summary, this structure promotes clear, maintainable security rules and supports the core features of the EstateFlow application while adhering to best practices for Firestore data modeling."
   }
 }
-
-    

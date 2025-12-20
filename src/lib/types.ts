@@ -76,6 +76,8 @@ export interface OutflowTransaction {
   supplierVendor: string;
   amount: number;
   date: string;
+  expenseId?: string; // To link back to the detailed expense record
+  description?: string;
 }
 
 export interface Sale {
@@ -106,6 +108,7 @@ export interface ExpenseItem {
 
 export interface Expense {
   id: string;
+  expenseId: string; // The user-facing ID like EXID-0100
   vendorId: string;
   projectId: string;
   itemId: string;
@@ -114,5 +117,3 @@ export interface Expense {
   date: string;
   description?: string;
 }
-
-    

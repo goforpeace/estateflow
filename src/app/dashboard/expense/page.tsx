@@ -15,11 +15,11 @@ import {
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Combobox } from '@/components/ui/combobox';
-import { useFirestore, useCollection, useMemoFirebase, addDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase';
-import { collection, query, doc, writeBatch, getDocs } from 'firebase/firestore';
+import { useFirestore, useCollection, useMemoFirebase, addDocumentNonBlocking, deleteDocumentNonBlocking, updateDocumentNonBlocking } from '@/firebase';
+import { collection, query, doc, writeBatch, getDocs, runTransaction } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { useState, useEffect, useMemo } from 'react';
-import type { Project, Vendor, ExpenseItem, Expense } from '@/lib/types';
+import type { Project, Vendor, ExpenseItem, Expense, Counter } from '@/lib/types';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
 import { Separator } from '@/components/ui/separator';
@@ -58,6 +58,9 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { EditExpenseForm } from '@/components/dashboard/expenses/edit-expense-form';
+import { ExpenseDetails } from '@/components/dashboard/expenses/expense-details';
+
 
 const addExpenseFormSchema = z.object({
   vendorId: z.string().min(1, { message: 'Please select a vendor.' }),
@@ -76,7 +79,7 @@ const addItemFormSchema = z.object({
 });
 type AddItemFormValues = z.infer<typeof addItemFormSchema>;
 
-type EnrichedExpense = Expense & {
+export type EnrichedExpense = Expense & {
     vendorName: string;
     projectName: string;
     itemName: string;
@@ -145,6 +148,11 @@ export default function AddExpensePage() {
   const [isLoadingLog, setIsLoadingLog] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
+  const [editingExpense, setEditingExpense] = useState<EnrichedExpense | null>(null);
+  const [viewingExpense, setViewingExpense] = useState<EnrichedExpense | null>(null);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
+
 
   // Data fetching for form
   const vendorsQuery = useMemoFirebase(() => query(collection(firestore, 'vendors')), [firestore]);
@@ -220,15 +228,37 @@ export default function AddExpensePage() {
     },
   });
 
+  const getNextExpenseId = async (): Promise<string> => {
+    const counterRef = doc(firestore, 'counters', 'expense');
+    try {
+      const newCurrent = await runTransaction(firestore, async (transaction) => {
+        const counterDoc = await transaction.get(counterRef);
+        if (!counterDoc.exists()) {
+          transaction.set(counterRef, { current: 100 });
+          return 'EXID-0100';
+        }
+        const currentId = (counterDoc.data() as Counter).current + 1;
+        transaction.update(counterRef, { current: currentId });
+        return `EXID-0${currentId}`;
+      });
+      return newCurrent;
+    } catch (error) {
+      console.error("Transaction failed: ", error);
+      throw new Error("Could not generate expense ID.");
+    }
+  };
+
   async function onSubmit(data: AddExpenseFormValues) {
     try {
       const batch = writeBatch(firestore);
+      const expenseId = await getNextExpenseId();
 
       // 1. Create the main expense record
       const expenseRef = doc(collection(firestore, 'expenses'));
       batch.set(expenseRef, {
         ...data,
         id: expenseRef.id,
+        expenseId: expenseId,
         date: new Date(data.date).toISOString(),
       });
 
@@ -245,13 +275,14 @@ export default function AddExpensePage() {
         expenseCategory: 'Material', // Defaulting, could be enhanced
         supplierVendor: vendorName,
         description: `Expense for ${data.quantity} x ${itemName}. ${data.description || ''}`.trim(),
+        expenseId: expenseId,
       });
       
       await batch.commit();
 
       toast({
         title: 'Expense Recorded',
-        description: `An expense of ${data.price} has been successfully logged.`,
+        description: `Expense ${expenseId} of ${data.price} has been successfully logged.`,
       });
       form.reset();
       setIsDataDirty(true); // Mark data as dirty to trigger a re-fetch for the log
@@ -275,6 +306,16 @@ export default function AddExpensePage() {
     });
     setIsDataDirty(true);
   };
+  
+  const handleEditClick = (expense: EnrichedExpense) => {
+    setEditingExpense(expense);
+    setIsEditDialogOpen(true);
+  };
+
+  const handleViewClick = (expense: EnrichedExpense) => {
+    setViewingExpense(expense);
+    setIsViewDialogOpen(true);
+  };
 
   const filteredExpenses = useMemo(() => {
     const searchTerm = searchQuery.toLowerCase();
@@ -283,6 +324,7 @@ export default function AddExpensePage() {
         exp.vendorName.toLowerCase().includes(searchTerm) ||
         exp.projectName.toLowerCase().includes(searchTerm) ||
         exp.itemName.toLowerCase().includes(searchTerm) ||
+        exp.expenseId.toLowerCase().includes(searchTerm) ||
         exp.price.toString().includes(searchTerm)
     );
   }, [expenses, searchQuery]);
@@ -479,7 +521,7 @@ export default function AddExpensePage() {
                         <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                         <Input 
                             type="search" 
-                            placeholder="Search expenses..."
+                            placeholder="Search by ID, vendor, project..."
                             className="pl-8 sm:w-[300px]"
                             value={searchQuery}
                             onChange={(e) => {
@@ -510,6 +552,7 @@ export default function AddExpensePage() {
                         <Table>
                             <TableHeader>
                                 <TableRow>
+                                    <TableHead>Expense ID</TableHead>
                                     <TableHead>Vendor</TableHead>
                                     <TableHead>Project</TableHead>
                                     <TableHead>Item</TableHead>
@@ -521,6 +564,7 @@ export default function AddExpensePage() {
                             <TableBody>
                                 {paginatedExpenses.map(expense => (
                                     <TableRow key={expense.id}>
+                                        <TableCell className="font-mono">{expense.expenseId}</TableCell>
                                         <TableCell className="font-medium">{expense.vendorName}</TableCell>
                                         <TableCell>{expense.projectName}</TableCell>
                                         <TableCell>{expense.itemName}</TableCell>
@@ -537,13 +581,13 @@ export default function AddExpensePage() {
                                                     </DropdownMenuTrigger>
                                                     <DropdownMenuContent align="end">
                                                         <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                                                        <DropdownMenuItem disabled>
+                                                        <DropdownMenuItem onClick={() => handleViewClick(expense)}>
                                                             <Eye className="mr-2 h-4 w-4" />
-                                                            View (soon)
+                                                            View
                                                         </DropdownMenuItem>
-                                                        <DropdownMenuItem disabled>
+                                                        <DropdownMenuItem onClick={() => handleEditClick(expense)}>
                                                             <Pencil className="mr-2 h-4 w-4" />
-                                                            Edit (soon)
+                                                            Edit
                                                         </DropdownMenuItem>
                                                         <DropdownMenuSeparator />
                                                         <AlertDialogTrigger asChild>
@@ -602,6 +646,35 @@ export default function AddExpensePage() {
                 )}
             </CardContent>
         </Card>
+
+        {viewingExpense && (
+            <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
+                <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>Expense Details</DialogTitle>
+                        <CardDescription>Viewing details for expense ID: {viewingExpense.expenseId}</CardDescription>
+                    </DialogHeader>
+                    <ExpenseDetails expense={viewingExpense} />
+                </DialogContent>
+            </Dialog>
+        )}
+
+        {editingExpense && (
+            <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+                <DialogContent className="sm:max-w-2xl">
+                    <DialogHeader>
+                        <DialogTitle>Edit Expense</DialogTitle>
+                        <CardDescription>Updating details for expense ID: {editingExpense.expenseId}</CardDescription>
+                    </DialogHeader>
+                    <EditExpenseForm 
+                        expense={editingExpense} 
+                        setDialogOpen={setIsEditDialogOpen}
+                        onUpdate={() => setIsDataDirty(true)}
+                    />
+                </DialogContent>
+            </Dialog>
+        )}
+
     </div>
   );
 }
