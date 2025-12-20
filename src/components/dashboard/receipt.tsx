@@ -1,12 +1,12 @@
 'use client';
 
 import React from 'react';
-import type { Customer, InflowTransaction } from '@/lib/types';
-import Image from 'next/image';
+import type { Customer, InflowTransaction, Project } from '@/lib/types';
 
 interface ReceiptProps {
-    payment: InflowTransaction & { customerName: string, projectName: string, flatNumber: string };
+    payment: InflowTransaction & { customerName: string; projectName: string; flatNumber: string };
     customer: Customer;
+    project: Project;
 }
 
 const numberToWords = (num: number): string => {
@@ -27,7 +27,7 @@ const numberToWords = (num: number): string => {
     };
     
     let n = Math.floor(num);
-    if (n === 0) return 'zero';
+    if (n === 0) return 'Zero';
 
     let str = '';
     str += (n % 100) > 0 ? inWords(n % 100) : '';
@@ -45,24 +45,40 @@ const numberToWords = (num: number): string => {
         i++;
     }
 
-    return str.trim().replace(/\s+/g, ' ') + ' only';
+    return str.trim().replace(/\s+/g, ' ');
 };
 
 
-export const Receipt: React.FC<ReceiptProps> = ({ payment, customer }) => {
+export const Receipt: React.FC<ReceiptProps> = ({ payment, customer, project }) => {
     const company = {
-        name: 'Landmark New Homest Ltd.',
+        name: 'Landmark New Homes Ltd.',
         logo: 'https://res.cloudinary.com/dj4lirc0d/image/upload/Artboard_1_pabijh.png',
+        phone: '+8809649-699499',
         website: 'www.landmarkltd.net',
         email: 'info@landmarkltd.net',
-        facebook: 'www.facebook.com/landmarkltd.net'
+        facebook: 'www.facebook.com/landmarkltd.net',
+        address: 'House:4/C, Road: 7/B, Sector:09 Uttara Dhaka-1230'
     };
 
-    const amountInWords = numberToWords(payment.amount);
+    const amountInWords = numberToWords(payment.amount) + ' Taka Only';
 
     return (
-        <div className="p-8 bg-white font-sans a4-page mx-auto shadow-lg">
+        <div id="receipt-printable-area" className="p-8 bg-white font-sans a4-page mx-auto shadow-lg text-black">
             <style jsx global>{`
+                @media print {
+                    body * {
+                        visibility: hidden;
+                    }
+                    #receipt-printable-area, #receipt-printable-area * {
+                        visibility: visible;
+                    }
+                    #receipt-printable-area {
+                        position: absolute;
+                        left: 0;
+                        top: 0;
+                        width: 100%;
+                    }
+                }
                 .a4-page {
                     width: 210mm;
                     min-height: 297mm;
@@ -71,14 +87,15 @@ export const Receipt: React.FC<ReceiptProps> = ({ payment, customer }) => {
             `}</style>
             
             {/* Header */}
-            <div className="flex justify-between items-center pb-4 border-b-2 border-gray-300">
-                <div className="w-40 h-auto">
+            <div className="flex justify-between items-start pb-4 border-b-2 border-gray-400">
+                <div className="w-48 h-auto">
                     <img src={company.logo} alt="Company Logo" className="w-full h-auto" />
                 </div>
                 <div className="text-right">
                     <h1 className="text-3xl font-bold text-gray-800">{company.name}</h1>
-                    <p className="text-sm text-gray-500">{company.website} | {company.email}</p>
-                    <p className="text-sm text-gray-500">{company.facebook}</p>
+                    <p className="text-sm text-gray-600">{company.address}</p>
+                    <p className="text-sm text-gray-600">Phone: {company.phone} | Email: {company.email}</p>
+                    <p className="text-sm text-gray-600">{company.website} | {company.facebook}</p>
                 </div>
             </div>
 
@@ -105,22 +122,26 @@ export const Receipt: React.FC<ReceiptProps> = ({ payment, customer }) => {
             <div className="space-y-4 text-base">
                 <div className="flex items-baseline">
                     <p className="w-48 font-semibold shrink-0">Received with thanks from</p>
-                    <p className="border-b border-dotted border-gray-400 flex-grow">{customer.fullName}</p>
+                    <p className="border-b border-dotted border-gray-400 flex-grow font-semibold">{customer.fullName}</p>
                 </div>
                 <div className="flex items-baseline">
-                    <p className="w-48 font-semibold shrink-0">the sum of Taka</p>
+                    <p className="w-48 font-semibold shrink-0">Address</p>
+                    <p className="border-b border-dotted border-gray-400 flex-grow">{customer.address}</p>
+                </div>
+                <div className="flex items-baseline">
+                    <p className="w-48 font-semibold shrink-0">The sum of Taka</p>
                     <p className="border-b border-dotted border-gray-400 flex-grow capitalize">{amountInWords}</p>
                 </div>
                  <div className="flex items-baseline">
-                    <p className="w-48 font-semibold shrink-0">by</p>
-                    <p className="border-b border-dotted border-gray-400 flex-grow">{payment.paymentMethod}{payment.reference ? ` (${payment.reference})`: ''}</p>
+                    <p className="w-48 font-semibold shrink-0">By</p>
+                    <p className="border-b border-dotted border-gray-400 flex-grow">{payment.paymentMethod}{payment.reference ? ` (Ref: ${payment.reference})`: ''}</p>
                 </div>
                  <div className="flex items-baseline">
-                    <p className="w-48 font-semibold shrink-0">on account of</p>
+                    <p className="w-48 font-semibold shrink-0">On account of</p>
                     <p className="border-b border-dotted border-gray-400 flex-grow">
                         {payment.paymentPurpose === 'Other' ? payment.otherPurpose : payment.paymentPurpose}
-                        {' for Flat '}{payment.flatNumber}
-                        {' in Project '}{payment.projectName}
+                        {' for Flat No- '}{payment.flatNumber}
+                        {' of project '}{payment.projectName}, {project.location}.
                     </p>
                 </div>
             </div>
@@ -133,18 +154,18 @@ export const Receipt: React.FC<ReceiptProps> = ({ payment, customer }) => {
             </div>
 
             {/* Footer */}
-            <div className="flex justify-between items-end pt-16 mt-16 text-sm">
+            <div className="flex justify-between items-end pt-24 mt-24 text-sm">
                 <div className="w-1/3 text-center">
-                    <p className="border-t-2 border-gray-400 pt-2 font-bold">Received By</p>
+                    <p className="border-t-2 border-gray-500 pt-2 font-bold">Received By</p>
                 </div>
                 <div className="w-1/3 text-center">
                 </div>
                  <div className="w-1/3 text-center">
-                    <p className="border-t-2 border-gray-400 pt-2 font-bold">Authorized Signature</p>
+                    <p className="border-t-2 border-gray-500 pt-2 font-bold">For {company.name}</p>
+                    <p>Authorized Signature</p>
                 </div>
             </div>
-             <p className="text-center text-xs text-gray-500 mt-4">This is a computer-generated receipt and does not require a physical signature.</p>
-
+             <p className="text-center text-xs text-gray-500 mt-4">This is a computer-generated receipt and does not require a physical signature for its validity.</p>
         </div>
     );
 };

@@ -60,7 +60,8 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
+  DialogDescription,
+  DialogFooter,
 } from '@/components/ui/dialog';
 import {
   AlertDialog,
@@ -95,6 +96,8 @@ import { Ban, Printer, MoreHorizontal, Pencil, Trash2, Eye } from 'lucide-react'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Receipt } from '@/components/dashboard/receipt';
 import { EditPaymentForm } from '@/components/dashboard/payments/edit-payment-form';
+import { ScrollArea } from '@/components/ui/scroll-area';
+
 
 const addPaymentFormSchema = z.object({
   customerId: z.string().min(1, { message: 'Please select a customer.' }),
@@ -139,6 +142,9 @@ export default function AddPaymentPage() {
   const [lastPayment, setLastPayment] = useState<EnrichedTransaction | null>(null);
   const [editingPayment, setEditingPayment] = useState<InflowTransaction | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [viewingPayment, setViewingPayment] = useState<{payment: EnrichedTransaction, customer: Customer, project: Project} | null>(null);
+  const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
+
 
   // Data fetching for form dropdowns
   const customersQuery = useMemoFirebase(
@@ -356,12 +362,19 @@ export default function AddPaymentPage() {
         const project = projectsForCustomer?.find(p => p.id === data.projectId);
         const flat = flatsForProject?.find(f => f.id === data.flatId);
 
-        setLastPayment({
+        const enrichedPayment = {
             ...newPayment,
             customerName: customer?.fullName || 'N/A',
             projectName: project?.projectName || 'N/A',
             flatNumber: flat?.flatNumber || 'N/A',
-        });
+        };
+
+        setLastPayment(enrichedPayment);
+        
+        if (customer && project) {
+            setViewingPayment({ payment: enrichedPayment, customer, project });
+            setIsViewDialogOpen(true);
+        }
 
         toast({
             title: 'Payment Recorded',
@@ -403,52 +416,29 @@ export default function AddPaymentPage() {
     fetchRecentTransactions(); // Refresh the list
   };
 
-    const handlePrintSpecificReceipt = (payment: EnrichedTransaction) => {
-        const customer = customers?.find(c => c.id === payment.customerId);
-        if (!customer) {
-            toast({
+    const handleViewClick = async (payment: EnrichedTransaction) => {
+        const customerSnap = await getDoc(doc(firestore, 'customers', payment.customerId));
+        const projectSnap = await getDoc(doc(firestore, 'projects', payment.projectId));
+
+        if (!customerSnap.exists() || !projectSnap.exists()) {
+             toast({
                 variant: 'destructive',
-                title: 'Customer not found',
-                description: 'Cannot print receipt without customer details.',
+                title: 'Missing Data',
+                description: 'Cannot display receipt. Customer or Project data is missing.',
             });
             return;
         }
-        
-        const printWindow = window.open('', '_blank');
-        if (printWindow) {
-            const receiptHtml = `
-                <html>
-                    <head>
-                        <title>Money Receipt - ${payment.receiptId}</title>
-                        <script src="https://cdn.tailwindcss.com"></script>
-                    </head>
-                    <body class="bg-gray-100">
-                        <div id="receipt-root"></div>
-                    </body>
-                </html>
-            `;
-            printWindow.document.write(receiptHtml);
-            printWindow.document.close();
 
-            const receiptRoot = printWindow.document.getElementById('receipt-root');
-            if (receiptRoot) {
-                const ReactDOM = require('react-dom');
-                ReactDOM.render(
-                    React.createElement(Receipt, { payment, customer }),
-                    receiptRoot
-                );
-            }
-            
-            setTimeout(() => {
-                printWindow.print();
-                printWindow.close();
-            }, 500);
-        }
+        setViewingPayment({
+            payment,
+            customer: customerSnap.data() as Customer,
+            project: projectSnap.data() as Project,
+        });
+        setIsViewDialogOpen(true);
     };
 
-    const handlePrintLastReceipt = () => {
-        if (!lastPayment) return;
-        handlePrintSpecificReceipt(lastPayment);
+    const handlePrint = () => {
+        window.print();
     };
 
   const formatCurrency = (value: number) => `৳${value.toLocaleString('en-IN')}`;
@@ -704,12 +694,6 @@ export default function AddPaymentPage() {
               </div>
 
               <div className="flex justify-end pt-4 gap-2">
-                 {lastPayment && (
-                    <Button type="button" variant="outline" onClick={handlePrintLastReceipt}>
-                        <Printer className="mr-2 h-4 w-4" />
-                        Print Last Receipt
-                    </Button>
-                )}
                 <Button type="submit" disabled={form.formState.isSubmitting}>
                   {form.formState.isSubmitting
                     ? 'Recording...'
@@ -783,7 +767,7 @@ export default function AddPaymentPage() {
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
                               <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                               <DropdownMenuItem onClick={() => handlePrintSpecificReceipt(tx)}>
+                               <DropdownMenuItem onClick={() => handleViewClick(tx)}>
                                 <Eye className="mr-2 h-4 w-4" />
                                 View & Print
                               </DropdownMenuItem>
@@ -842,8 +826,26 @@ export default function AddPaymentPage() {
                 </DialogContent>
             </Dialog>
         )}
+
+        {viewingPayment && (
+            <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
+                <DialogContent className="max-w-4xl p-0">
+                    <ScrollArea className="max-h-[90vh]">
+                        <Receipt 
+                            payment={viewingPayment.payment} 
+                            customer={viewingPayment.customer} 
+                            project={viewingPayment.project}
+                        />
+                    </ScrollArea>
+                     <DialogFooter className="p-4 border-t bg-muted">
+                        <Button type="button" variant="outline" onClick={() => setIsViewDialogOpen(false)}>Close</Button>
+                        <Button type="button" onClick={handlePrint}>
+                            <Printer className="mr-2 h-4 w-4" /> Print
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+        )}
     </div>
   );
 }
-
-    
