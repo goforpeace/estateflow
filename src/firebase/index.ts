@@ -1,29 +1,26 @@
 'use client';
 
 import { firebaseConfig } from '@/firebase/config';
-import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
-import { getAuth } from 'firebase/auth';
-import { getFirestore } from 'firebase/firestore'
+import { initializeApp, getApps, getApp, type FirebaseApp } from 'firebase/app';
+import { getAuth, type Auth } from 'firebase/auth';
+import { getFirestore, type Firestore } from 'firebase/firestore';
+
+let firebaseApp: FirebaseApp;
+let auth: Auth;
+let firestore: Firestore;
 
 // IMPORTANT: DO NOT MODIFY THIS FUNCTION
 export function initializeFirebase() {
-  if (!getApps().length) {
-    // Always initialize with the explicit config.
-    // This works for both local development and Vercel deployments.
-    const firebaseApp = initializeApp(firebaseConfig);
-    return getSdks(firebaseApp);
+  if (!firebaseApp) {
+    if (getApps().length > 0) {
+      firebaseApp = getApp();
+    } else {
+      firebaseApp = initializeApp(firebaseConfig);
+    }
+    auth = getAuth(firebaseApp);
+    firestore = getFirestore(firebaseApp);
   }
-
-  // If already initialized, return the SDKs with the already initialized App
-  return getSdks(getApp());
-}
-
-export function getSdks(firebaseApp: FirebaseApp) {
-  return {
-    firebaseApp,
-    auth: getAuth(firebaseApp),
-    firestore: getFirestore(firebaseApp)
-  };
+  return { firebaseApp, auth, firestore };
 }
 
 export * from './provider';
