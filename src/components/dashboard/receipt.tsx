@@ -193,6 +193,7 @@ export const Receipt: React.FC<ReceiptProps> = ({ payment, customer, project }) 
                 </div>
                  <div className="mt-12 border-t pt-4 text-xs text-gray-500">
                     <p>Phone: {company.phone} | Email: {company.email} | Web: {company.website} | Facebook: {company.facebook}</p>
+                    <p>{company.address}</p>
                 </div>
             </footer>
         </div>

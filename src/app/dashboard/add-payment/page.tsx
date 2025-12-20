@@ -93,7 +93,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Ban, Printer, MoreHorizontal, Pencil, Trash2, Eye } from 'lucide-react';
+import { Ban, Printer, MoreHorizontal, Pencil, Trash2, Eye, FileDown } from 'lucide-react';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Receipt } from '@/components/dashboard/receipt';
 import { EditPaymentForm } from '@/components/dashboard/payments/edit-payment-form';
@@ -840,8 +840,11 @@ export default function AddPaymentPage() {
                     </ScrollArea>
                      <DialogFooter className="p-4 border-t bg-muted print:hidden">
                         <Button type="button" variant="outline" onClick={() => setIsViewDialogOpen(false)}>Close</Button>
+                        <Button type="button" variant="outline" onClick={handlePrint}>
+                            <FileDown className="mr-2 h-4 w-4" /> Save as PDF
+                        </Button>
                         <Button type="button" onClick={handlePrint}>
-                            <Printer className="mr-2 h-4 w-4" /> Print / Save PDF
+                            <Printer className="mr-2 h-4 w-4" /> Print
                         </Button>
                     </DialogFooter>
                 </DialogContent>
