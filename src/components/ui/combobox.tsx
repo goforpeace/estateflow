@@ -46,19 +46,8 @@ export function Combobox({
   className,
 }: ComboboxProps) {
   const [open, setOpen] = React.useState(false);
-  const [search, setSearch] = React.useState('');
 
   const selectedOption = options.find(option => option.value === value);
-
-  const filteredOptions = React.useMemo(() => {
-    if (!search) return options;
-    return options.filter(option => {
-      if (typeof option.label === 'string') {
-        return option.label.toLowerCase().includes(search.toLowerCase());
-      }
-      return false; 
-    });
-  }, [options, search]);
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -79,23 +68,30 @@ export function Combobox({
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
-        <Command>
+        <Command
+          filter={(value, search) => {
+            const option = options.find(option => option.value === value);
+            if (option && typeof option.label === 'string') {
+              if (option.label.toLowerCase().includes(search.toLowerCase())) {
+                return 1;
+              }
+            }
+            return 0;
+          }}
+        >
           <CommandInput 
             placeholder={searchPlaceholder} 
-            value={search}
-            onValueChange={setSearch}
           />
           <CommandList>
             <CommandEmpty>{emptyText}</CommandEmpty>
             <CommandGroup>
-              {filteredOptions.map(option => (
+              {options.map(option => (
                 <CommandItem
                   key={option.value}
                   value={option.value}
                   onSelect={currentValue => {
                     onChange(currentValue === value ? '' : currentValue);
                     setOpen(false);
-                    setSearch('');
                   }}
                 >
                   <Check
