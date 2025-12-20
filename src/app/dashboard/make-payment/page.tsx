@@ -17,7 +17,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Combobox } from '@/components/ui/combobox';
 import { useFirestore, useCollection, useMemoFirebase, addDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase';
-import { collection, query, where, doc, writeBatch, getDocs, runTransaction, collectionGroup, getDoc, limit } from 'firebase/firestore';
+import { collection, query, where, doc, writeBatch, getDocs, runTransaction, collectionGroup, getDoc, limit, deleteDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { useState, useEffect, useMemo } from 'react';
 import type { Vendor, Expense, OutflowTransaction } from '@/lib/types';
@@ -154,7 +154,7 @@ export default function MakePaymentPage() {
                 const data = { ...doc.data(), id: doc.id } as OutflowTransaction;
                 const expenseDetails = data.expenseId ? expensesMap.get(data.expenseId) : undefined;
                 const itemName = expenseDetails ? itemsMap.get(expenseDetails.itemId) : 'N/A';
-                const projectName = expenseDetails ? projectsMap.get(expenseDetails.projectId) : 'Office';
+                const projectName = expenseDetails ? projectsMap.get(expenseDetails.projectId) : (data.projectId ? projectsMap.get(data.projectId) : 'Office');
 
                 return {
                     ...data,
@@ -237,14 +237,22 @@ export default function MakePaymentPage() {
   }
 
   const handleDeletePayment = async (payment: EnrichedOutflow) => {
-    if (!payment.expenseId) {
-        toast({ variant: 'destructive', title: 'Cannot Delete', description: 'This payment is not linked to a specific expense and cannot be reversed automatically.' });
+    // If the payment is not linked to a specific expense, just delete the outflow transaction
+    if (!payment.expenseId || !payment.projectId) {
+        if (!payment.projectId) {
+             toast({ variant: 'destructive', title: 'Cannot Delete', description: 'This payment is not associated with a project.' });
+             return;
+        }
+        const paymentRef = doc(firestore, 'projects', payment.projectId, 'outflowTransactions', payment.id);
+        await deleteDoc(paymentRef);
+        toast({ title: 'Payment Deleted', description: 'The standalone payment has been deleted.' });
+        setIsDataDirty(true);
         return;
     }
 
+    // If it is linked, perform the transaction to reverse the payment
     try {
         await runTransaction(firestore, async (transaction) => {
-            // 1. Find the original expense document
             const expenseQuery = query(collection(firestore, 'expenses'), where('expenseId', '==', payment.expenseId), limit(1));
             const expenseSnap = await getDocs(expenseQuery);
 
@@ -255,19 +263,18 @@ export default function MakePaymentPage() {
             const expenseDoc = expenseSnap.docs[0];
             const expenseData = expenseDoc.data() as Expense;
 
-            // 2. Calculate new paid amount and status
             const newPaidAmount = expenseData.paidAmount - payment.amount;
             const newStatus = newPaidAmount <= 0 ? 'Unpaid' : 'Partially Paid';
             
-            // 3. Update the expense document
             transaction.update(expenseDoc.ref, {
                 paidAmount: newPaidAmount,
                 status: newStatus,
             });
 
-            // 4. Delete the outflow transaction
-            const paymentRef = doc(firestore, 'projects', expenseData.projectId, 'outflowTransactions', payment.id);
-            transaction.delete(paymentRef);
+            if(expenseData.projectId) {
+                 const paymentRef = doc(firestore, 'projects', expenseData.projectId, 'outflowTransactions', payment.id);
+                 transaction.delete(paymentRef);
+            }
         });
 
         toast({ title: 'Payment Deleted', description: 'The payment has been reversed and the expense status updated.' });
@@ -505,7 +512,7 @@ export default function MakePaymentPage() {
                                                 <DropdownMenuItem disabled>Edit</DropdownMenuItem>
                                                 <DropdownMenuSeparator />
                                                  <AlertDialogTrigger asChild>
-                                                    <DropdownMenuItem className="text-destructive" disabled={!tx.expenseId}>
+                                                    <DropdownMenuItem className="text-destructive">
                                                         <Trash2 className="mr-2 h-4 w-4" />
                                                         Delete
                                                     </DropdownMenuItem>
@@ -516,7 +523,7 @@ export default function MakePaymentPage() {
                                             <AlertDialogHeader>
                                                 <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
                                                 <AlertDialogDescription>
-                                                    This will permanently delete this payment and update the original expense record. This action cannot be undone.
+                                                    This will permanently delete this payment. If linked to an expense, the expense's paid amount will be updated. This action cannot be undone.
                                                 </AlertDialogDescription>
                                             </AlertDialogHeader>
                                             <AlertDialogFooter>
