@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -109,30 +108,37 @@ export default function CustomerDetailPage({
             .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
 
-        // 4. Enrich sales with project and flat info
-        const enrichedSales: EnrichedSale[] = [];
-        if (salesData.length > 0) {
-            // Collect all unique project and flat IDs
-            const projectIds = [...new Set(salesData.map(s => s.projectId))];
-            
-            // Fetch all projects and flats in batches
-            const projectDocs = projectIds.length > 0 ? await getDocs(query(collection(firestore, 'projects'), where('id', 'in', projectIds))) : { docs: [] };
-            const flatDocsPromises = projectIds.map(pId => getDocs(query(collection(firestore, `projects/${pId}/flats`))));
-            const flatDocsSnaps = await Promise.all(flatDocsPromises);
+        // 4. Enrich sales with project and flat info (simplified, direct lookup)
+        const enrichedSales: EnrichedSale[] = await Promise.all(
+          salesData.map(async sale => {
+            const projectRef = doc(firestore, 'projects', sale.projectId);
+            const flatRef = doc(
+              firestore,
+              'projects',
+              sale.projectId,
+              'flats',
+              sale.flatId
+            );
 
-            // Create lookup maps
-            const projectsMap = new Map(projectDocs.docs.map(d => [d.id, d.data() as Project]));
-            const flatsMap = new Map<string, Flat>();
-            flatDocsSnaps.forEach(snap => snap.docs.forEach(d => flatsMap.set(d.id, d.data() as Flat)));
+            const [projectSnap, flatSnap] = await Promise.all([
+              getDoc(projectRef),
+              getDoc(flatRef),
+            ]);
 
-            for (const sale of salesData) {
-                enrichedSales.push({
-                    ...sale,
-                    projectName: projectsMap.get(sale.projectId)?.projectName || 'N/A',
-                    flatNumber: flatsMap.get(sale.flatId)?.flatNumber || 'N/A',
-                });
-            }
-        }
+            const projectName = projectSnap.exists()
+              ? (projectSnap.data() as Project).projectName
+              : 'N/A';
+            const flatNumber = flatSnap.exists()
+              ? (flatSnap.data() as Flat).flatNumber
+              : 'N/A';
+
+            return {
+              ...sale,
+              projectName,
+              flatNumber,
+            };
+          })
+        );
         
         // 5. Calculate financials
         const totalPrice = salesData.reduce((sum, s) => sum + s.totalPrice, 0);
@@ -350,3 +356,5 @@ export default function CustomerDetailPage({
     </div>
   );
 }
+
+    
