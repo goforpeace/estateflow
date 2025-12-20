@@ -90,7 +90,7 @@ export default function SaleDetailPage({
 
         const saleData = saleSnap.data() as Sale;
 
-        // 2. Fetch related project, flat, and customer
+        // 2. Fetch related project, flat, and customer concurrently
         const projectRef = doc(firestore, 'projects', saleData.projectId);
         const flatRef = doc(firestore, 'projects', saleData.projectId, 'flats', saleData.flatId);
         const customerRef = doc(firestore, 'customers', saleData.customerId);
@@ -159,6 +159,8 @@ export default function SaleDetailPage({
   }
 
   const { sale, project, flat, customer } = details;
+
+  const basePrice = sale.totalPrice - (sale.parkingCharge || 0) - (sale.utilityCharge || 0) - (sale.extraCosts?.reduce((acc, cost) => acc + cost.amount, 0) || 0)
 
   return (
     <div className="space-y-6 container mx-auto py-6">
@@ -230,7 +232,7 @@ export default function SaleDetailPage({
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div className="flex flex-col space-y-1.5 p-4 bg-muted rounded-lg">
                     <p className="text-sm text-muted-foreground flex items-center gap-2"><DollarSign className="h-4 w-4" /> Base Price</p>
-                    <p className="text-lg font-bold">{formatCurrency(sale.totalPrice - (sale.extraCosts?.reduce((acc, cost) => acc + cost.amount, 0) || 0))}</p>
+                    <p className="text-lg font-bold">{formatCurrency(basePrice)}</p>
                 </div>
                 <div className="flex flex-col space-y-1.5 p-4 bg-muted rounded-lg">
                     <p className="text-sm text-muted-foreground flex items-center gap-2"><ParkingCircle className="h-4 w-4" /> Parking Charge</p>
