@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -110,13 +111,15 @@ export function CustomerSummary() {
         // 3. Get all payments for this customer for this project
         const paymentsQuery = query(
           collection(firestore, `projects/${selectedProjectId}/inflowTransactions`),
-          where('customerId', '==', customerId),
-          orderBy('date', 'desc')
+          where('customerId', '==', customerId)
         );
         const paymentsSnap = await getDocs(paymentsQuery);
         
-        // Filter payments specifically for the selected flat and get the most recent date overall
-        const allPayments = paymentsSnap.docs.map(d => d.data() as InflowTransaction);
+        const allPayments = paymentsSnap.docs
+            .map(d => d.data() as InflowTransaction)
+            .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+        // Filter payments specifically for the selected flat
         const paymentsForFlat = allPayments.filter(p => p.flatId === selectedFlatId);
         
         const totalPaid = paymentsForFlat.reduce((sum, p) => sum + p.amount, 0);
