@@ -174,9 +174,14 @@ export default function AddExpensePage() {
         try {
             const expensesSnap = await getDocs(query(collection(firestore, 'expenses')));
             
-            const vendorsMap = new Map(vendors?.map(d => [d.id, d.vendorName]));
-            const projectsMap = new Map(projects?.map(d => [d.id, d.projectName]));
-            const itemsMap = new Map(expenseItems?.map(d => [d.id, d.name]));
+            if (!vendors || !projects || !expenseItems) {
+                // This case should be rare given the guard condition, but it's a safeguard
+                throw new Error("Dependency data not available for enrichment.");
+            }
+            
+            const vendorsMap = new Map(vendors.map(d => [d.id, d.vendorName]));
+            const projectsMap = new Map(projects.map(d => [d.id, d.projectName]));
+            const itemsMap = new Map(expenseItems.map(d => [d.id, d.name]));
 
             const enriched = expensesSnap.docs.map(doc => {
                 const expense = { ...doc.data(), id: doc.id } as Expense;
@@ -203,9 +208,7 @@ export default function AddExpensePage() {
         setIsDataDirty(false);
     };
     
-    if (vendors && projects && expenseItems) {
-        fetchAndEnrichExpenses();
-    }
+    fetchAndEnrichExpenses();
 
   }, [firestore, toast, isDataDirty, vendors, projects, expenseItems, vendorsLoading, projectsLoading, itemsLoading]);
 
@@ -246,25 +249,33 @@ export default function AddExpensePage() {
   async function onSubmit(data: AddExpenseFormValues) {
     try {
       const expenseId = await getNextExpenseId();
-
       const expenseRef = doc(collection(firestore, 'expenses'));
-      const newExpense = {
-        ...data,
+      
+      const newExpense: Expense = {
         id: expenseRef.id,
         expenseId: expenseId,
+        vendorId: data.vendorId,
+        projectId: data.projectId,
+        itemId: data.itemId,
+        quantity: data.quantity,
+        price: data.price,
         date: new Date(data.date).toISOString(),
-        paidAmount: 0,
-        status: 'Unpaid' as 'Unpaid',
+        description: data.description,
+        paidAmount: 0, // Initialize paidAmount to 0
+        status: 'Unpaid', // Initialize status to Unpaid
       };
       
+      // Use a non-blocking add to create the expense document
       addDocumentNonBlocking(collection(firestore, 'expenses'), newExpense);
 
       toast({
         title: 'Expense Recorded',
-        description: `Expense ${expenseId} of ${data.price} has been logged as unpaid.`,
+        description: `Expense ${expenseId} for ${formatCurrency(data.price)} has been logged as unpaid.`,
       });
+      
       form.reset();
       setIsDataDirty(true);
+
     } catch (error: any) {
       console.error('Error recording expense: ', error);
       toast({
@@ -663,5 +674,3 @@ export default function AddExpensePage() {
     </div>
   );
 }
-
-    
