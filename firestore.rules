@@ -161,6 +161,15 @@ service cloud.firestore {
         allow delete: if canAccessBusinessData() && isExistingDoc();
       }
     }
+    
+    /**
+     * @description Enables collection group queries on inflow transactions.
+     * @path /{path=**}/inflowTransactions/{inflowTransactionId}
+     * @principle Required for cross-project queries like fetching all payments for a single customer.
+     */
+    match /{path=**}/inflowTransactions/{inflowTransactionId} {
+        allow read: if canAccessBusinessData();
+    }
 
     /**
      * @description Manages customer data. Access is granted to any authenticated user.
