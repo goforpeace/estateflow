@@ -16,33 +16,42 @@ const numberToWords = (num: number): string => {
     const b = [
         '', '', 'twenty', 'thirty', 'forty', 'fifty', 'sixty', 'seventy', 'eighty', 'ninety'
     ];
-    const g = [
-        '', 'thousand', 'lakh', 'crore'
-    ];
-
-    const inWords = (n: number): string => {
-        if (n < 20) return a[n];
-        let digit = n % 10;
-        return b[Math.floor(n / 10)] + (digit ? ' ' + a[digit] : '');
-    };
     
-    let n = Math.floor(num);
-    if (n === 0) return 'Zero';
+    if (num === 0) return 'Zero';
 
     let str = '';
-    str += (n % 100) > 0 ? inWords(n % 100) : '';
-    n = Math.floor(n / 100);
-    str = (n % 10 > 0 ? inWords(n % 10) + ' hundred' : '') + (str ? ' ' + str : '');
-    n = Math.floor(n / 10);
 
-    let i = 0;
-    while(n > 0) {
-        let remainder = n % 100;
-        if (remainder > 0) {
-            str = inWords(remainder) + ' ' + g[i] + (str ? ' ' + str : '');
+    const toWords = (n: number, s: string) => {
+        let tempStr = '';
+        if (n > 19) {
+            tempStr = b[Math.floor(n / 10)] + (n % 10 !== 0 ? ' ' + a[n % 10] : '');
+        } else {
+            tempStr = a[n];
         }
-        n = Math.floor(n / 100);
-        i++;
+        if (n !== 0) {
+            tempStr += ' ' + s;
+        }
+        return tempStr;
+    };
+    
+    let crore = Math.floor(num / 10000000);
+    num %= 10000000;
+    str += toWords(crore, 'Crore');
+
+    let lakh = Math.floor(num / 100000);
+    num %= 100000;
+    str += toWords(lakh, 'Lakh');
+
+    let thousand = Math.floor(num / 1000);
+    num %= 1000;
+    str += toWords(thousand, 'Thousand');
+    
+    let hundred = Math.floor(num / 100);
+    num %= 100;
+    str += toWords(hundred, 'Hundred');
+
+    if (num > 0) {
+        str += (str !== '' ? ' ' : '') + toWords(num, '');
     }
 
     return str.trim().replace(/\s+/g, ' ');
@@ -52,7 +61,7 @@ const numberToWords = (num: number): string => {
 export const Receipt: React.FC<ReceiptProps> = ({ payment, customer, project }) => {
     const company = {
         name: 'Landmark New Homes Ltd.',
-        logo: 'https://res.cloudinary.com/dj4lirc0d/image/upload/Artboard_1_pabijh.png',
+        logo: 'https://res.cloudinary.com/dj4lirc0d/image/upload/v1718794838/Artboard_1_pabijh.png',
         phone: '+8809649-699499',
         website: 'www.landmarkltd.net',
         email: 'info@landmarkltd.net',
@@ -63,9 +72,13 @@ export const Receipt: React.FC<ReceiptProps> = ({ payment, customer, project }) 
     const amountInWords = numberToWords(payment.amount) + ' Taka Only';
 
     return (
-        <div id="receipt-printable-area" className="p-8 bg-white font-sans a4-page mx-auto shadow-lg text-black">
-            <style jsx global>{`
+        <div id="receipt-printable-area" className="p-8 bg-white text-gray-800 font-body a4-page mx-auto shadow-lg">
+             <style jsx global>{`
                 @media print {
+                    @page {
+                        size: A4;
+                        margin: 0;
+                    }
                     body * {
                         visibility: hidden;
                     }
@@ -77,6 +90,8 @@ export const Receipt: React.FC<ReceiptProps> = ({ payment, customer, project }) 
                         left: 0;
                         top: 0;
                         width: 100%;
+                        border: none;
+                        box-shadow: none;
                     }
                 }
                 .a4-page {
@@ -87,85 +102,88 @@ export const Receipt: React.FC<ReceiptProps> = ({ payment, customer, project }) 
             `}</style>
             
             {/* Header */}
-            <div className="flex justify-between items-start pb-4 border-b-2 border-gray-400">
-                <div className="w-48 h-auto">
+            <header className="flex justify-between items-center pb-6 mb-8 border-b-2 border-primary">
+                 <div className="w-48">
                     <img src={company.logo} alt="Company Logo" className="w-full h-auto" />
                 </div>
                 <div className="text-right">
-                    <h1 className="text-3xl font-bold text-gray-800">{company.name}</h1>
-                    <p className="text-sm text-gray-600">{company.address}</p>
-                    <p className="text-sm text-gray-600">Phone: {company.phone} | Email: {company.email}</p>
-                    <p className="text-sm text-gray-600">{company.website} | {company.facebook}</p>
+                    <h1 className="text-4xl font-bold text-primary">{company.name}</h1>
+                    <p className="text-sm text-gray-500">{company.address}</p>
                 </div>
-            </div>
+            </header>
 
-            {/* Title */}
-            <div className="text-center my-8">
-                <h2 className="text-2xl font-semibold uppercase tracking-widest border-2 border-gray-800 inline-block px-4 py-2">
-                    Money Receipt
-                </h2>
-            </div>
+            {/* Title & Info */}
+            <section className="flex justify-between items-start mb-10">
+                <div>
+                     <h2 className="text-3xl font-semibold text-gray-700 uppercase tracking-widest">
+                        Money Receipt
+                    </h2>
+                </div>
+                <div className="text-right text-sm">
+                    <div className="flex justify-end items-center">
+                        <span className="font-semibold text-gray-600 w-28 text-left">Receipt No:</span>
+                        <span className="font-mono text-primary font-bold">{payment.receiptId}</span>
+                    </div>
+                     <div className="flex justify-end items-center mt-1">
+                        <span className="font-semibold text-gray-600 w-28 text-left">Date:</span>
+                        <span>{new Date(payment.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</span>
+                    </div>
+                </div>
+            </section>
             
-            {/* Receipt Info */}
-            <div className="flex justify-between text-sm mb-8">
-                <div>
-                    <span className="font-bold">Receipt No: </span>
-                    <span>{payment.receiptId}</span>
-                </div>
-                <div>
-                    <span className="font-bold">Date: </span>
-                    <span>{new Date(payment.date).toLocaleDateString('en-GB')}</span>
-                </div>
-            </div>
-
             {/* Body */}
-            <div className="space-y-4 text-base">
-                <div className="flex items-baseline">
+            <main className="space-y-5 text-base leading-relaxed mb-10">
+                <div className="flex">
                     <p className="w-48 font-semibold shrink-0">Received with thanks from</p>
-                    <p className="border-b border-dotted border-gray-400 flex-grow font-semibold">{customer.fullName}</p>
+                    <p className="border-b border-dotted border-gray-400 flex-grow font-semibold text-primary">{customer.fullName}</p>
                 </div>
-                <div className="flex items-baseline">
+                <div className="flex">
                     <p className="w-48 font-semibold shrink-0">Address</p>
                     <p className="border-b border-dotted border-gray-400 flex-grow">{customer.address}</p>
                 </div>
-                <div className="flex items-baseline">
+                <div className="flex">
                     <p className="w-48 font-semibold shrink-0">The sum of Taka</p>
-                    <p className="border-b border-dotted border-gray-400 flex-grow capitalize">{amountInWords}</p>
+                    <p className="border-b border-dotted border-gray-400 flex-grow capitalize font-medium">{amountInWords}</p>
                 </div>
-                 <div className="flex items-baseline">
+                 <div className="flex">
                     <p className="w-48 font-semibold shrink-0">By</p>
                     <p className="border-b border-dotted border-gray-400 flex-grow">{payment.paymentMethod}{payment.reference ? ` (Ref: ${payment.reference})`: ''}</p>
                 </div>
-                 <div className="flex items-baseline">
+                 <div className="flex">
                     <p className="w-48 font-semibold shrink-0">On account of</p>
                     <p className="border-b border-dotted border-gray-400 flex-grow">
-                        {payment.paymentPurpose === 'Other' ? payment.otherPurpose : payment.paymentPurpose}
-                        {' for Flat No- '}{payment.flatNumber}
-                        {' of project '}{payment.projectName}, {project.location}.
+                        <span className="font-medium">{payment.paymentPurpose === 'Other' ? payment.otherPurpose : payment.paymentPurpose}</span>
+                        {' for Flat No. '}<span className="font-semibold">{payment.flatNumber}</span>
+                        {' of project '}<span className="font-semibold">{payment.projectName}</span>, {project.location}.
                     </p>
                 </div>
-            </div>
+            </main>
             
             {/* Amount Box */}
-            <div className="mt-8 mb-12">
-                <div className="inline-block border-2 border-gray-800 px-4 py-2 rounded">
-                    <span className="font-bold text-lg">TK. {payment.amount.toLocaleString('en-IN')}/=</span>
+            <section className="my-12 flex justify-start">
+                <div className="bg-primary text-primary-foreground px-6 py-3 rounded-lg shadow-lg">
+                    <span className="text-lg font-bold">TK. {payment.amount.toLocaleString('en-IN')}/=</span>
                 </div>
-            </div>
+            </section>
 
             {/* Footer */}
-            <div className="flex justify-between items-end pt-24 mt-24 text-sm">
-                <div className="w-1/3 text-center">
-                    <p className="border-t-2 border-gray-500 pt-2 font-bold">Received By</p>
+            <footer className="pt-24 mt-24 text-sm text-center">
+                <div className="flex justify-between items-end">
+                    <div className="w-1/3">
+                        <p className="border-t-2 border-gray-400 pt-2 font-bold">Received By</p>
+                    </div>
+                    <div className="w-1/3">
+                        <p className="text-xs text-gray-400">This is a computer-generated receipt.</p>
+                    </div>
+                    <div className="w-1/3">
+                        <p className="border-t-2 border-gray-400 pt-2 font-bold">For {company.name}</p>
+                        <p>Authorized Signature</p>
+                    </div>
                 </div>
-                <div className="w-1/3 text-center">
+                 <div className="mt-12 border-t pt-4 text-xs text-gray-500">
+                    <p>Phone: {company.phone} | Email: {company.email} | Web: {company.website} | Facebook: {company.facebook}</p>
                 </div>
-                 <div className="w-1/3 text-center">
-                    <p className="border-t-2 border-gray-500 pt-2 font-bold">For {company.name}</p>
-                    <p>Authorized Signature</p>
-                </div>
-            </div>
-             <p className="text-center text-xs text-gray-500 mt-4">This is a computer-generated receipt and does not require a physical signature for its validity.</p>
+            </footer>
         </div>
     );
 };
