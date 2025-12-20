@@ -161,7 +161,6 @@ export default function AddPaymentPage() {
       // 2. Fetch last 5 inflow transactions
       const inflowsQuery = query(
         collectionGroup(firestore, 'inflowTransactions'),
-        orderBy('date', 'desc'),
         limit(5)
       );
       const inflowSnap = await getDocs(inflowsQuery);
@@ -726,3 +725,5 @@ export default function AddPaymentPage() {
     </div>
   );
 }
+
+    

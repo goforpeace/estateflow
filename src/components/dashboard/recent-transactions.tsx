@@ -40,7 +40,7 @@ export function RecentTransactions() {
         const projectsData = projectsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Project));
         const projectMap = new Map(projectsData.map(p => [p.id, p.projectName]));
 
-        const inflowsQuery = query(collectionGroup(firestore, 'inflowTransactions'), orderBy('date', 'desc'), limit(5));
+        const inflowsQuery = query(collectionGroup(firestore, 'inflowTransactions'), limit(5));
         const outflowsQuery = query(collectionGroup(firestore, 'outflowTransactions'), orderBy('date', 'desc'), limit(5));
         
         const [inflowSnap, outflowSnap] = await Promise.all([
@@ -147,3 +147,5 @@ export function RecentTransactions() {
     </Card>
   )
 }
+
+    
