@@ -141,7 +141,11 @@ export default function CustomerDetailPage({
         );
         
         // 5. Calculate financials
-        const totalPrice = salesData.reduce((sum, s) => sum + s.totalPrice, 0);
+        const totalPrice = enrichedSales.reduce((sum, s) => {
+            const basePrice = s.totalPrice || 0;
+            const extraCosts = s.extraCosts?.reduce((acc, cost) => acc + cost.amount, 0) || 0;
+            return sum + basePrice + extraCosts;
+        }, 0);
         const totalPaid = paymentsData.reduce((sum, p) => sum + p.amount, 0);
         const totalDue = totalPrice - totalPaid;
 
@@ -284,14 +288,17 @@ export default function CustomerDetailPage({
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {sales.map(sale => (
-                  <TableRow key={sale.id}>
-                    <TableCell className="font-medium">{sale.flatNumber}</TableCell>
-                    <TableCell>{sale.projectName}</TableCell>
-                    <TableCell>{new Date(sale.saleDate).toLocaleDateString()}</TableCell>
-                    <TableCell className="text-right">{formatCurrency(sale.totalPrice)}</TableCell>
-                  </TableRow>
-                ))}
+                {sales.map(sale => {
+                    const saleTotalPrice = (sale.totalPrice || 0) + (sale.extraCosts?.reduce((acc, cost) => acc + cost.amount, 0) || 0);
+                    return (
+                      <TableRow key={sale.id}>
+                        <TableCell className="font-medium">{sale.flatNumber}</TableCell>
+                        <TableCell>{sale.projectName}</TableCell>
+                        <TableCell>{new Date(sale.saleDate).toLocaleDateString()}</TableCell>
+                        <TableCell className="text-right">{formatCurrency(saleTotalPrice)}</TableCell>
+                      </TableRow>
+                    );
+                })}
               </TableBody>
             </Table>
           ) : (
@@ -360,3 +367,5 @@ export default function CustomerDetailPage({
     </div>
   );
 }
+
+    
