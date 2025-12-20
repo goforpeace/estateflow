@@ -170,6 +170,24 @@ service cloud.firestore {
     match /{path=**}/inflowTransactions/{inflowTransactionId} {
         allow read: if canAccessBusinessData();
     }
+    
+    /**
+     * @description Enables collection group queries on outflow transactions.
+     * @path /{path=**}/outflowTransactions/{outflowTransactionId}
+     * @principle Required for cross-project queries for dashboard stats.
+     */
+    match /{path=**}/outflowTransactions/{outflowTransactionId} {
+        allow read: if canAccessBusinessData();
+    }
+    
+    /**
+     * @description Enables collection group queries on flats.
+     * @path /{path=**}/flats/{flatId}
+     * @principle Required for enriching sales data efficiently.
+     */
+    match /{path=**}/flats/{flatId} {
+        allow read: if canAccessBusinessData();
+    }
 
     /**
      * @description Manages customer data. Access is granted to any authenticated user.

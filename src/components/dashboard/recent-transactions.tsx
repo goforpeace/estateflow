@@ -19,7 +19,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
 import { ArrowUpRight, Ban } from "lucide-react"
-import { useCollection, useFirestore, useMemoFirebase } from "@/firebase";
+import { useFirestore } from "@/firebase";
 import { collection, getDocs, limit, orderBy, query, collectionGroup } from "firebase/firestore";
 import { useEffect, useState } from "react";
 import type { InflowTransaction, OutflowTransaction, Project } from "@/lib/types";
@@ -40,7 +40,7 @@ export function RecentTransactions() {
         const projectsData = projectsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Project));
         const projectMap = new Map(projectsData.map(p => [p.id, p.projectName]));
 
-        const inflowsQuery = query(collectionGroup(firestore, 'inflowTransactions'), limit(5));
+        const inflowsQuery = query(collectionGroup(firestore, 'inflowTransactions'), orderBy('date', 'desc'), limit(5));
         const outflowsQuery = query(collectionGroup(firestore, 'outflowTransactions'), orderBy('date', 'desc'), limit(5));
         
         const [inflowSnap, outflowSnap] = await Promise.all([
