@@ -148,6 +148,16 @@ export default function AddPaymentPage() {
       const projectsMap = new Map(projectsSnap.docs.map(d => [d.id, d.data() as Project]));
       const customersMap = new Map(customersSnap.docs.map(d => [d.id, d.data() as Customer]));
       
+      // Fetch all flats from all projects
+      const allFlatsMap = new Map<string, Flat>();
+        for (const project of projectsMap.values()) {
+            const flatsQuery = query(collection(firestore, `projects/${project.id}/flats`));
+            const flatsSnap = await getDocs(flatsQuery);
+            flatsSnap.forEach(doc => {
+                allFlatsMap.set(`${project.id}_${doc.id}`, doc.data() as Flat);
+            });
+        }
+
       // 2. Fetch last 5 inflow transactions
       const inflowsQuery = query(
         collectionGroup(firestore, 'inflowTransactions'),
@@ -159,19 +169,16 @@ export default function AddPaymentPage() {
         doc => ({ ...doc.data(), id: doc.id } as InflowTransaction)
       );
 
-      // 3. Enrich transactions with names
-      const enriched: EnrichedTransaction[] = [];
-       for (const tx of inflows) {
-         const flatSnap = await getDocs(query(collection(firestore, `projects/${tx.projectId}/flats`), where('id', '==', tx.flatId)));
-         const flatData = flatSnap.docs[0]?.data() as Flat;
-
-         enriched.push({
+      // 3. Enrich transactions with names synchronously
+      const enriched: EnrichedTransaction[] = inflows.map(tx => {
+         const flatData = allFlatsMap.get(`${tx.projectId}_${tx.flatId}`);
+         return {
             ...tx,
             customerName: customersMap.get(tx.customerId)?.fullName || 'N/A',
             projectName: projectsMap.get(tx.projectId)?.projectName || 'N/A',
             flatNumber: flatData?.flatNumber || 'N/A',
-         });
-      }
+         };
+      });
 
       setRecentTransactions(enriched);
     } catch (error) {
@@ -186,7 +193,7 @@ export default function AddPaymentPage() {
     if (firestore) {
       fetchRecentTransactions();
     }
-  }, [firestore]);
+  }, [firestore, toast]);
 
 
   useEffect(() => {
