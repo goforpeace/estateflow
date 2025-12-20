@@ -233,6 +233,25 @@ service cloud.firestore {
     match /counters/{counterId} {
       allow read, write: if canAccessBusinessData();
     }
+
+    /**
+     * @description Manages expense items. Access is granted to any authenticated user.
+     * @path /expenseItems/{expenseItemId}
+     * @principle Enforces authenticated access for all business data.
+     */
+    match /expenseItems/{expenseItemId} {
+      allow read, write: if canAccessBusinessData();
+    }
+
+    /**
+     * @description Manages individual expenses. Access is granted to any authenticated user.
+     * @path /expenses/{expenseId}
+     * @principle Enforces authenticated access for all business data.
+     */
+    match /expenses/{expenseId} {
+      allow read, write: if canAccessBusinessData();
+    }
   }
 }
 
+    

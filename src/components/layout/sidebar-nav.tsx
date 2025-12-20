@@ -13,6 +13,7 @@ import {
   ShoppingCart,
   DollarSign,
   Truck,
+  Receipt,
 } from 'lucide-react';
 import { Logo } from '../icons';
 import { cn } from '@/lib/utils';
@@ -26,6 +27,7 @@ const navItems = [
   { href: '/dashboard/vendors', icon: Truck, label: 'Vendors' },
   { href: '/dashboard/sales', icon: ShoppingCart, label: 'Sales' },
   { href: '/dashboard/add-payment', icon: DollarSign, label: 'Add Payment' },
+  { href: '/dashboard/expense', icon: Receipt, label: 'Add Expense' },
   { href: '/dashboard/forecasting', icon: BrainCircuit, label: 'Forecasting', isNew: true },
 ];
 
@@ -82,3 +84,4 @@ export function SidebarNav() {
   );
 }
 
+    

@@ -99,3 +99,20 @@ export interface Counter {
     current: number;
 }
 
+export interface ExpenseItem {
+  id: string;
+  name: string;
+}
+
+export interface Expense {
+  id: string;
+  vendorId: string;
+  projectId: string;
+  itemId: string;
+  quantity?: number;
+  price: number;
+  date: string;
+  description?: string;
+}
+
+    
