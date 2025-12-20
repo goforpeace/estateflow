@@ -40,7 +40,7 @@ import {
 } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import type {
   Project,
   Customer,
@@ -93,7 +93,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Ban, Printer, MoreHorizontal, Pencil, Trash2, Eye, FileDown } from 'lucide-react';
+import { Ban, Printer, MoreHorizontal, Pencil, Trash2, Eye, FileDown, Search } from 'lucide-react';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Receipt } from '@/components/dashboard/receipt';
 import { EditPaymentForm } from '@/components/dashboard/payments/edit-payment-form';
@@ -139,6 +139,7 @@ export default function AddPaymentPage() {
   const [projectsForCustomer, setProjectsForCustomer] = useState<Project[]>([]);
   const [flatsForProject, setFlatsForProject] = useState<Flat[]>([]);
   const [recentTransactions, setRecentTransactions] = useState<EnrichedTransaction[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
   const [isLogLoading, setIsLogLoading] = useState(true);
   const [lastPayment, setLastPayment] = useState<EnrichedTransaction | null>(null);
   const [editingPayment, setEditingPayment] = useState<InflowTransaction | null>(null);
@@ -197,7 +198,7 @@ export default function AddPaymentPage() {
       // 2. Fetch last 5 inflow transactions
       const inflowsQuery = query(
         collectionGroup(firestore, 'inflowTransactions'),
-        limit(5)
+        limit(10) // Fetch more to allow for filtering
       );
       const inflowSnap = await getDocs(inflowsQuery);
       const inflows = inflowSnap.docs.map(
@@ -401,6 +402,25 @@ export default function AddPaymentPage() {
         });
     }
   }
+
+  const filteredTransactions = useMemo(() => {
+    if (!recentTransactions) return [];
+    const searchTerm = searchQuery.toLowerCase();
+    if (!searchTerm) return recentTransactions;
+    
+    return recentTransactions.filter(tx => {
+      const date = new Date(tx.date).toLocaleDateString();
+      return (
+        tx.customerName.toLowerCase().includes(searchTerm) ||
+        tx.projectName.toLowerCase().includes(searchTerm) ||
+        tx.flatNumber.toLowerCase().includes(searchTerm) ||
+        (tx.paymentMethod || '').toLowerCase().includes(searchTerm) ||
+        tx.amount.toString().includes(searchTerm) ||
+        date.includes(searchTerm)
+      );
+    });
+  }, [recentTransactions, searchQuery]);
+
 
   const handleEditClick = (payment: InflowTransaction) => {
     setEditingPayment(payment);
@@ -699,10 +719,24 @@ export default function AddPaymentPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Recent Payments</CardTitle>
-          <CardDescription>
-            A log of the 5 most recent cash inflows.
-          </CardDescription>
+           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+              <div>
+                <CardTitle>Recent Payments</CardTitle>
+                <CardDescription>
+                  A log of the most recent cash inflows.
+                </CardDescription>
+              </div>
+              <div className="relative">
+                  <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                  <Input 
+                      type="search" 
+                      placeholder="Search payments..."
+                      className="pl-8 sm:w-[300px]"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                  />
+              </div>
+          </div>
         </CardHeader>
         <CardContent>
           {isLogLoading && (
@@ -710,16 +744,16 @@ export default function AddPaymentPage() {
               <p>Loading recent payments...</p>
             </div>
           )}
-          {!isLogLoading && !recentTransactions?.length && (
+          {!isLogLoading && !filteredTransactions?.length && (
             <div className="flex flex-col items-center justify-center h-60 text-center text-muted-foreground border-2 border-dashed rounded-lg">
               <Ban className="h-12 w-12 mb-2" />
               <p className="text-lg font-semibold">No payments found.</p>
               <p className="text-sm">
-                Once you add a payment, it will appear here.
+                Once you add a payment, it will appear here. {searchQuery && 'Try a different search.'}
               </p>
             </div>
           )}
-          {!isLogLoading && recentTransactions && recentTransactions.length > 0 && (
+          {!isLogLoading && filteredTransactions && filteredTransactions.length > 0 && (
             <Table>
               <TableHeader>
                 <TableRow>
@@ -732,7 +766,7 @@ export default function AddPaymentPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {recentTransactions.map(tx => (
+                {filteredTransactions.map(tx => (
                   <TableRow key={tx.id}>
                     <TableCell className="font-medium">{tx.customerName}</TableCell>
                     <TableCell>
