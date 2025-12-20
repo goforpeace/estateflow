@@ -1,3 +1,4 @@
+
 'use client';
 
 import { Ban, PlusCircle, Trash2 } from 'lucide-react';
@@ -34,6 +35,12 @@ import { collection, query, getDocs, doc, writeBatch } from 'firebase/firestore'
 import type { Sale, Project, Flat, Customer } from '@/lib/types';
 import { useEffect, useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 type EnrichedSale = Sale & {
     projectName: string;
@@ -168,61 +175,70 @@ export default function SalesPage() {
             </div>
           )}
           {!isLoading && enrichedSales && enrichedSales.length > 0 && (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Customer</TableHead>
-                  <TableHead>Project</TableHead>
-                  <TableHead>Flat</TableHead>
-                  <TableHead>Date</TableHead>
-                  <TableHead className="text-right">Total Price</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {enrichedSales.map(sale => (
-                  <TableRow key={sale.id}>
-                    <TableCell className="font-medium">
-                      {sale.customerName}
-                    </TableCell>
-                    <TableCell>{sale.projectName}</TableCell>
-                    <TableCell>{sale.flatNumber}</TableCell>
-                     <TableCell>{new Date(sale.saleDate).toLocaleDateString()}</TableCell>
-                    <TableCell className="text-right">{formatCurrency(sale.totalPrice)}</TableCell>
-                    <TableCell className="text-right">
-                       <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <Button variant="destructive" size="sm">
-                                <Trash2 className="mr-2 h-4 w-4" />
-                                Delete
-                            </Button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                              <AlertDialogDescription>
-                                This will permanently delete this sale record and set the corresponding flat's status back to 'Available'.
-                              </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>Cancel</AlertDialogCancel>
-                              <AlertDialogAction
-                                onClick={() => handleDeleteSale(sale)}
-                                className="bg-destructive hover:bg-destructive/90"
-                              >
-                                Delete
-                              </AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
-                    </TableCell>
+            <TooltipProvider>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Customer</TableHead>
+                    <TableHead>Project</TableHead>
+                    <TableHead>Flat</TableHead>
+                    <TableHead>Date</TableHead>
+                    <TableHead className="text-right">Total Price</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {enrichedSales.map(sale => (
+                    <TableRow key={sale.id}>
+                      <TableCell className="font-medium">
+                        {sale.customerName}
+                      </TableCell>
+                      <TableCell>{sale.projectName}</TableCell>
+                      <TableCell>{sale.flatNumber}</TableCell>
+                      <TableCell>{new Date(sale.saleDate).toLocaleDateString()}</TableCell>
+                      <TableCell className="text-right">{formatCurrency(sale.totalPrice)}</TableCell>
+                      <TableCell className="text-right">
+                        <AlertDialog>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <AlertDialogTrigger asChild>
+                                  <Button variant="destructive" size="icon">
+                                      <Trash2 className="h-4 w-4" />
+                                      <span className="sr-only">Delete Sale</span>
+                                  </Button>
+                                </AlertDialogTrigger>
+                              </TooltipTrigger>
+                              <TooltipContent>Delete Sale</TooltipContent>
+                            </Tooltip>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  This will permanently delete this sale record and set the corresponding flat's status back to 'Available'.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction
+                                  onClick={() => handleDeleteSale(sale)}
+                                  className="bg-destructive hover:bg-destructive/90"
+                                >
+                                  Delete
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TooltipProvider>
           )}
         </CardContent>
       </Card>
     </div>
   );
 }
+
+    

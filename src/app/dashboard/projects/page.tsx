@@ -1,3 +1,4 @@
+
 'use client';
 
 import { Ban, PlusCircle, Pencil, ArrowUpRight, Trash2 } from 'lucide-react';
@@ -44,6 +45,13 @@ import { AddProjectForm } from '@/components/dashboard/projects/add-project-form
 import { EditProjectForm } from '@/components/dashboard/projects/edit-project-form';
 import { useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+
 
 export default function ProjectsPage() {
   const firestore = useFirestore();
@@ -150,83 +158,100 @@ export default function ProjectsPage() {
             </div>
           )}
           {!isLoading && projects && projects.length > 0 && (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Project Name</TableHead>
-                  <TableHead>Location</TableHead>
-                  <TableHead>Target Sell</TableHead>
-                  <TableHead>Total Flats</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {projects.map(project => (
-                  <TableRow key={project.id}>
-                    <TableCell className="font-medium">
-                      {project.projectName}
-                    </TableCell>
-                    <TableCell>{project.location}</TableCell>
-                    <TableCell>{formatCurrency(project.targetSell)}</TableCell>
-                    <TableCell>{project.totalFlats}</TableCell>
-                    <TableCell>
-                      <Badge
-                        variant={
-                          project.status === 'Ongoing' ? 'default' : 'secondary'
-                        }
-                        className={
-                          project.status === 'Completed'
-                            ? 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-400'
-                            : project.status === 'Ongoing'
-                              ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-400'
-                              : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/50 dark:text-yellow-400'
-                        }
-                      >
-                        {project.status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-right space-x-2">
-                       <Button variant="outline" size="sm" asChild>
-                         <Link href={`/project/${project.id}`}>
-                            <ArrowUpRight className="mr-2 h-4 w-4" />
-                            View
-                         </Link>
-                      </Button>
-                      <Button variant="outline" size="sm" onClick={() => handleEditClick(project)}>
-                        <Pencil className="mr-2 h-4 w-4" />
-                        Edit
-                      </Button>
-                      <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <Button variant="destructive" size="sm">
-                                <Trash2 className="mr-2 h-4 w-4" />
-                                Delete
-                            </Button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                              <AlertDialogDescription>
-                                This action cannot be undone. This will permanently delete this project and all its associated data (flats, transactions, etc.).
-                              </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>Cancel</AlertDialogCancel>
-                              <AlertDialogAction
-                                onClick={() => handleDeleteProject(project.id)}
-                                className="bg-destructive hover:bg-destructive/90"
-                              >
-                                Delete
-                              </AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
-                    </TableCell>
+            <TooltipProvider>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Project Name</TableHead>
+                    <TableHead>Location</TableHead>
+                    <TableHead>Target Sell</TableHead>
+                    <TableHead>Total Flats</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {projects.map(project => (
+                    <TableRow key={project.id}>
+                      <TableCell className="font-medium">
+                        {project.projectName}
+                      </TableCell>
+                      <TableCell>{project.location}</TableCell>
+                      <TableCell>{formatCurrency(project.targetSell)}</TableCell>
+                      <TableCell>{project.totalFlats}</TableCell>
+                      <TableCell>
+                        <Badge
+                          variant={
+                            project.status === 'Ongoing' ? 'default' : 'secondary'
+                          }
+                          className={
+                            project.status === 'Completed'
+                              ? 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-400'
+                              : project.status === 'Ongoing'
+                                ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-400'
+                                : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/50 dark:text-yellow-400'
+                          }
+                        >
+                          {project.status}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-right space-x-2">
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button variant="outline" size="icon" asChild>
+                              <Link href={`/project/${project.id}`}>
+                                  <ArrowUpRight className="h-4 w-4" />
+                                  <span className="sr-only">View Project</span>
+                              </Link>
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>View Project</TooltipContent>
+                        </Tooltip>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button variant="outline" size="icon" onClick={() => handleEditClick(project)}>
+                              <Pencil className="h-4 w-4" />
+                              <span className="sr-only">Edit Project</span>
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>Edit Project</TooltipContent>
+                        </Tooltip>
+                        <AlertDialog>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <AlertDialogTrigger asChild>
+                                  <Button variant="destructive" size="icon">
+                                      <Trash2 className="h-4 w-4" />
+                                      <span className="sr-only">Delete Project</span>
+                                  </Button>
+                                </AlertDialogTrigger>
+                              </TooltipTrigger>
+                              <TooltipContent>Delete Project</TooltipContent>
+                            </Tooltip>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  This action cannot be undone. This will permanently delete this project and all its associated data (flats, transactions, etc.).
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction
+                                  onClick={() => handleDeleteProject(project.id)}
+                                  className="bg-destructive hover:bg-destructive/90"
+                                >
+                                  Delete
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TooltipProvider>
           )}
         </CardContent>
       </Card>
@@ -243,3 +268,5 @@ export default function ProjectsPage() {
     </div>
   );
 }
+
+    

@@ -1,3 +1,4 @@
+
 'use client';
 
 import { Ban, PlusCircle, Pencil, Trash2 } from 'lucide-react';
@@ -42,6 +43,12 @@ import { AddCustomerForm } from '@/components/dashboard/customers/add-customer-f
 import { EditCustomerForm } from '@/components/dashboard/customers/edit-customer-form';
 import { useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 export default function CustomersPage() {
   const firestore = useFirestore();
@@ -112,60 +119,72 @@ export default function CustomersPage() {
             </div>
           )}
           {!isLoading && customers && customers.length > 0 && (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Full Name</TableHead>
-                  <TableHead>Mobile</TableHead>
-                  <TableHead>Address</TableHead>
-                  <TableHead>NID Number</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {customers.map(customer => (
-                  <TableRow key={customer.id}>
-                    <TableCell className="font-medium">
-                      {customer.fullName}
-                    </TableCell>
-                    <TableCell>{customer.mobile}</TableCell>
-                    <TableCell>{customer.address}</TableCell>
-                    <TableCell>{customer.nidNumber}</TableCell>
-                    <TableCell className="text-right space-x-2">
-                      <Button variant="outline" size="sm" onClick={() => handleEditClick(customer)}>
-                        <Pencil className="mr-2 h-4 w-4" />
-                        Edit
-                      </Button>
-                      <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <Button variant="destructive" size="sm">
-                                <Trash2 className="mr-2 h-4 w-4" />
-                                Delete
-                            </Button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                              <AlertDialogDescription>
-                                This action cannot be undone. This will permanently delete this customer.
-                              </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>Cancel</AlertDialogCancel>
-                              <AlertDialogAction
-                                onClick={() => handleDeleteCustomer(customer.id)}
-                                className="bg-destructive hover:bg-destructive/90"
-                              >
-                                Delete
-                              </AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
-                    </TableCell>
+            <TooltipProvider>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Full Name</TableHead>
+                    <TableHead>Mobile</TableHead>
+                    <TableHead>Address</TableHead>
+                    <TableHead>NID Number</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {customers.map(customer => (
+                    <TableRow key={customer.id}>
+                      <TableCell className="font-medium">
+                        {customer.fullName}
+                      </TableCell>
+                      <TableCell>{customer.mobile}</TableCell>
+                      <TableCell>{customer.address}</TableCell>
+                      <TableCell>{customer.nidNumber}</TableCell>
+                      <TableCell className="text-right space-x-2">
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button variant="outline" size="icon" onClick={() => handleEditClick(customer)}>
+                              <Pencil className="h-4 w-4" />
+                              <span className="sr-only">Edit Customer</span>
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>Edit Customer</TooltipContent>
+                        </Tooltip>
+                        <AlertDialog>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <AlertDialogTrigger asChild>
+                                <Button variant="destructive" size="icon">
+                                    <Trash2 className="h-4 w-4" />
+                                    <span className="sr-only">Delete Customer</span>
+                                </Button>
+                              </AlertDialogTrigger>
+                            </TooltipTrigger>
+                            <TooltipContent>Delete Customer</TooltipContent>
+                          </Tooltip>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  This action cannot be undone. This will permanently delete this customer.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction
+                                  onClick={() => handleDeleteCustomer(customer.id)}
+                                  className="bg-destructive hover:bg-destructive/90"
+                                >
+                                  Delete
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TooltipProvider>
           )}
         </CardContent>
       </Card>
@@ -182,3 +201,5 @@ export default function CustomersPage() {
     </div>
   );
 }
+
+    
