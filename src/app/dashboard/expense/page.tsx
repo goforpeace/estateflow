@@ -24,7 +24,7 @@ import type { Project, Vendor, ExpenseItem, Expense, Counter } from '@/lib/types
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
 import { Separator } from '@/components/ui/separator';
-import { PlusCircle, Search, Ban, MoreHorizontal, Pencil, Trash2, Eye } from 'lucide-react';
+import { PlusCircle, Search, Ban, MoreHorizontal, Pencil, Trash2, Eye, Download } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -62,6 +62,9 @@ import {
 import { EditExpenseForm } from '@/components/dashboard/expenses/edit-expense-form';
 import { ExpenseDetails } from '@/components/dashboard/expenses/expense-details';
 import { Badge } from '@/components/ui/badge';
+import { DateRangePicker } from '@/components/ui/date-range-picker';
+import { DateRange } from 'react-day-picker';
+import { exportToCsv } from '@/lib/csv';
 
 
 const addExpenseFormSchema = z.object({
@@ -149,6 +152,7 @@ export default function AddExpensePage() {
   const [expenses, setExpenses] = useState<EnrichedExpense[]>([]);
   const [isLoadingLog, setIsLoadingLog] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
   const [currentPage, setCurrentPage] = useState(1);
   const [editingExpense, setEditingExpense] = useState<EnrichedExpense | null>(null);
   const [viewingExpense, setViewingExpense] = useState<EnrichedExpense | null>(null);
@@ -168,14 +172,24 @@ export default function AddExpensePage() {
 
   // Fetch and enrich expenses for the log
   useEffect(() => {
-    if (!isDataDirty || !vendors || !projects || !expenseItems) {
-        // Wait until all dependency data is loaded.
+    if (!isDataDirty) {
+        return;
+    }
+    
+    // Only fetch if all dependent data is ready.
+    if (vendorsLoading || projectsLoading || itemsLoading) {
         return;
     }
 
     const fetchAndEnrichExpenses = async () => {
         setIsLoadingLog(true);
         try {
+            // This is a safeguard. If loading is false, data should be available.
+            if (!vendors || !projects || !expenseItems) {
+                // This case should be rare given the guard condition, but it's a safeguard
+                throw new Error("Dependency data not available for enrichment.");
+            }
+            
             const expensesSnap = await getDocs(query(collection(firestore, 'expenses')));
             
             const vendorsMap = new Map(vendors.map(d => [d.id, d.vendorName]));
@@ -209,7 +223,7 @@ export default function AddExpensePage() {
     
     fetchAndEnrichExpenses();
 
-  }, [firestore, toast, isDataDirty, vendors, projects, expenseItems]);
+  }, [firestore, toast, isDataDirty, vendors, projects, expenseItems, vendorsLoading, projectsLoading, itemsLoading]);
 
 
   const form = useForm<AddExpenseFormValues>({
@@ -306,16 +320,27 @@ export default function AddExpensePage() {
   };
 
   const filteredExpenses = useMemo(() => {
-    const searchTerm = searchQuery.toLowerCase();
-    if (!searchTerm) return expenses;
-    return expenses.filter(exp => 
-        exp.vendorName.toLowerCase().includes(searchTerm) ||
-        exp.projectName.toLowerCase().includes(searchTerm) ||
-        exp.itemName.toLowerCase().includes(searchTerm) ||
-        exp.expenseId.toLowerCase().includes(searchTerm) ||
-        exp.price.toString().includes(searchTerm)
-    );
-  }, [expenses, searchQuery]);
+    return expenses.filter(exp => {
+        const searchTerm = searchQuery.toLowerCase();
+        const searchMatch = !searchTerm || (
+            exp.vendorName.toLowerCase().includes(searchTerm) ||
+            exp.projectName.toLowerCase().includes(searchTerm) ||
+            exp.itemName.toLowerCase().includes(searchTerm) ||
+            exp.expenseId.toLowerCase().includes(searchTerm) ||
+            exp.price.toString().includes(searchTerm)
+        );
+
+        const expDate = new Date(exp.date);
+        const fromDate = dateRange?.from;
+        const toDate = dateRange?.to;
+        const dateMatch = !dateRange || (
+            (!fromDate || expDate >= fromDate) &&
+            (!toDate || expDate <= toDate)
+        );
+
+        return searchMatch && dateMatch;
+    });
+  }, [expenses, searchQuery, dateRange]);
 
   const totalPages = Math.ceil(filteredExpenses.length / ITEMS_PER_PAGE);
   const paginatedExpenses = filteredExpenses.slice(
@@ -329,6 +354,21 @@ export default function AddExpensePage() {
 
   const handlePrevPage = () => {
     if (currentPage > 1) setCurrentPage(currentPage - 1);
+  };
+
+  const handleExport = () => {
+    const dataToExport = filteredExpenses.map(exp => ({
+        'Expense ID': exp.expenseId,
+        'Date': new Date(exp.date).toLocaleDateString(),
+        'Vendor': exp.vendorName,
+        'Project': exp.projectName,
+        'Item': exp.itemName,
+        'Quantity': exp.quantity,
+        'Price': exp.price,
+        'Paid Amount': exp.paidAmount,
+        'Status': exp.status,
+    }));
+    exportToCsv(dataToExport, `expenses_${new Date().toISOString().split('T')[0]}.csv`);
   };
   
   const formatCurrency = (value: number) => `৳${value.toLocaleString('en-IN')}`;
@@ -505,18 +545,25 @@ export default function AddExpensePage() {
                             A record of all project expenses.
                         </CardDescription>
                     </div>
-                    <div className="relative w-full sm:w-auto">
-                        <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                        <Input 
-                            type="search" 
-                            placeholder="Search by ID, vendor, project..."
-                            className="pl-8 sm:w-[300px]"
-                            value={searchQuery}
-                            onChange={(e) => {
-                                setSearchQuery(e.target.value);
-                                setCurrentPage(1);
-                            }}
-                        />
+                    <div className="flex items-center gap-2">
+                        <DateRangePicker date={dateRange} onDateChange={setDateRange} />
+                        <div className="relative">
+                            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                            <Input 
+                                type="search" 
+                                placeholder="Search by ID, vendor, project..."
+                                className="pl-8 sm:w-[200px] lg:w-[300px]"
+                                value={searchQuery}
+                                onChange={(e) => {
+                                    setSearchQuery(e.target.value);
+                                    setCurrentPage(1);
+                                }}
+                            />
+                        </div>
+                        <Button variant="outline" onClick={handleExport}>
+                            <Download className="mr-2 h-4 w-4" />
+                            Export
+                        </Button>
                     </div>
                 </div>
             </CardHeader>
@@ -673,5 +720,3 @@ export default function AddExpensePage() {
     </div>
   );
 }
-
-    

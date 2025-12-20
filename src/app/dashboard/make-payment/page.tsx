@@ -23,7 +23,7 @@ import { useState, useEffect, useMemo } from 'react';
 import type { Vendor, Expense, OutflowTransaction } from '@/lib/types';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
-import { Ban, MoreHorizontal, Search, Pencil, Trash2 } from 'lucide-react';
+import { Ban, MoreHorizontal, Search, Pencil, Trash2, Download } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -45,6 +45,9 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { DateRangePicker } from '@/components/ui/date-range-picker';
+import { DateRange } from 'react-day-picker';
+import { exportToCsv } from '@/lib/csv';
 
 const makePaymentFormSchema = z.object({
   vendorId: z.string().min(1, { message: 'Please select a vendor.' }),
@@ -74,6 +77,7 @@ export default function MakePaymentPage() {
   const [outflowTransactions, setOutflowTransactions] = useState<EnrichedOutflow[]>([]);
   const [isLoadingLog, setIsLoadingLog] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
   const [currentPage, setCurrentPage] = useState(1);
 
   // Data for forms
@@ -290,20 +294,45 @@ export default function MakePaymentPage() {
   const dueAmount = selectedExpense ? selectedExpense.price - selectedExpense.paidAmount : 0;
   
   const filteredTransactions = useMemo(() => {
-    const searchTerm = searchQuery.toLowerCase();
-    return outflowTransactions.filter(t => 
-        (t.supplierVendor || '').toLowerCase().includes(searchTerm) ||
-        (t.projectName || '').toLowerCase().includes(searchTerm) ||
-        (t.expenseId || '').toLowerCase().includes(searchTerm) ||
-        t.amount.toString().includes(searchTerm)
-    );
-  }, [outflowTransactions, searchQuery]);
+    return outflowTransactions.filter(t => {
+        const searchTerm = searchQuery.toLowerCase();
+        const searchMatch = !searchTerm || (
+            (t.supplierVendor || '').toLowerCase().includes(searchTerm) ||
+            (t.projectName || '').toLowerCase().includes(searchTerm) ||
+            (t.expenseId || '').toLowerCase().includes(searchTerm) ||
+            t.amount.toString().includes(searchTerm)
+        );
+
+        const tDate = new Date(t.date);
+        const fromDate = dateRange?.from;
+        const toDate = dateRange?.to;
+        const dateMatch = !dateRange || (
+            (!fromDate || tDate >= fromDate) &&
+            (!toDate || tDate <= toDate)
+        );
+
+        return searchMatch && dateMatch;
+    });
+  }, [outflowTransactions, searchQuery, dateRange]);
 
   const totalPages = Math.ceil(filteredTransactions.length / PAYMENTS_PER_PAGE);
   const paginatedTransactions = filteredTransactions.slice(
     (currentPage - 1) * PAYMENTS_PER_PAGE,
     currentPage * PAYMENTS_PER_PAGE
   );
+
+  const handleExport = () => {
+    const dataToExport = filteredTransactions.map(tx => ({
+        'Date': new Date(tx.date).toLocaleDateString(),
+        'Vendor': tx.supplierVendor,
+        'Project': tx.projectName,
+        'Expense ID': tx.expenseId || 'N/A',
+        'Amount': tx.amount,
+        'Method': tx.paymentMethod,
+        'Reference': tx.reference,
+    }));
+    exportToCsv(dataToExport, `vendor_payments_${new Date().toISOString().split('T')[0]}.csv`);
+  };
 
   return (
     <div className="space-y-6">
@@ -457,15 +486,22 @@ export default function MakePaymentPage() {
                     <CardTitle>Vendor Payment Log</CardTitle>
                     <CardDescription>A record of all cash outflows to vendors.</CardDescription>
                 </div>
-                <div className="relative">
-                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                    <Input
-                        type="search"
-                        placeholder="Search payments..."
-                        className="pl-8 sm:w-[300px]"
-                        value={searchQuery}
-                        onChange={e => setSearchQuery(e.target.value)}
-                    />
+                <div className="flex items-center gap-2">
+                    <DateRangePicker date={dateRange} onDateChange={setDateRange} />
+                    <div className="relative">
+                        <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                        <Input
+                            type="search"
+                            placeholder="Search payments..."
+                            className="pl-8 sm:w-[200px] lg:w-[300px]"
+                            value={searchQuery}
+                            onChange={e => setSearchQuery(e.target.value)}
+                        />
+                    </div>
+                     <Button variant="outline" onClick={handleExport}>
+                        <Download className="mr-2 h-4 w-4" />
+                        Export
+                    </Button>
                 </div>
             </div>
         </CardHeader>
@@ -556,5 +592,3 @@ export default function MakePaymentPage() {
     </div>
   );
 }
-
-    

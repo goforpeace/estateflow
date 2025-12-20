@@ -1,7 +1,7 @@
 
 'use client';
 
-import { Ban, PlusCircle, Pencil, Trash2, MoreHorizontal, Search, Eye } from 'lucide-react';
+import { Ban, PlusCircle, Pencil, Trash2, MoreHorizontal, Search, Eye, Download } from 'lucide-react';
 import {
   Card,
   CardContent,
@@ -53,6 +53,7 @@ import { useState, useMemo } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { Input } from '@/components/ui/input';
 import Link from 'next/link';
+import { exportToCsv } from '@/lib/csv';
 
 const ITEMS_PER_PAGE = 15;
 
@@ -108,6 +109,17 @@ export default function VendorsPage() {
   const handlePrevPage = () => {
     if (currentPage > 1) setCurrentPage(currentPage - 1);
   };
+  
+  const handleExport = () => {
+    const dataToExport = filteredVendors.map(v => ({
+      'ID': v.id,
+      'Vendor Name': v.vendorName,
+      'Phone Number': v.phoneNumber,
+      'Enterprise Name': v.enterpriseName,
+      'Details': v.details,
+    }));
+    exportToCsv(dataToExport, `vendors_${new Date().toISOString().split('T')[0]}.csv`);
+  };
 
 
   return (
@@ -135,6 +147,10 @@ export default function VendorsPage() {
                         }}
                     />
                 </div>
+                 <Button variant="outline" onClick={handleExport}>
+                    <Download className="mr-2 h-4 w-4" />
+                    Export
+                </Button>
                 <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
                 <DialogTrigger asChild>
                     <Button className="w-full sm:w-auto">

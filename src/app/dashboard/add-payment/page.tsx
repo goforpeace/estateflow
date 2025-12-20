@@ -94,11 +94,14 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Ban, Printer, MoreHorizontal, Pencil, Trash2, Eye, FileDown, Search } from 'lucide-react';
+import { Ban, Printer, MoreHorizontal, Pencil, Trash2, Eye, FileDown, Search, Download } from 'lucide-react';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Receipt } from '@/components/dashboard/receipt';
 import { EditPaymentForm } from '@/components/dashboard/payments/edit-payment-form';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { DateRangePicker } from '@/components/ui/date-range-picker';
+import { DateRange } from 'react-day-picker';
+import { exportToCsv } from '@/lib/csv';
 
 
 const addPaymentFormSchema = z.object({
@@ -141,6 +144,7 @@ export default function AddPaymentPage() {
   const [flatsForProject, setFlatsForProject] = useState<Flat[]>([]);
   const [recentTransactions, setRecentTransactions] = useState<EnrichedTransaction[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
+  const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
   const [isLogLoading, setIsLogLoading] = useState(true);
   const [lastPayment, setLastPayment] = useState<EnrichedTransaction | null>(null);
   const [editingPayment, setEditingPayment] = useState<InflowTransaction | null>(null);
@@ -406,21 +410,45 @@ export default function AddPaymentPage() {
 
   const filteredTransactions = useMemo(() => {
     if (!recentTransactions) return [];
-    const searchTerm = searchQuery.toLowerCase();
-    if (!searchTerm) return recentTransactions;
-    
     return recentTransactions.filter(tx => {
-      const date = new Date(tx.date).toLocaleDateString();
-      return (
-        tx.customerName.toLowerCase().includes(searchTerm) ||
-        tx.projectName.toLowerCase().includes(searchTerm) ||
-        tx.flatNumber.toLowerCase().includes(searchTerm) ||
-        (tx.paymentMethod || '').toLowerCase().includes(searchTerm) ||
-        tx.amount.toString().includes(searchTerm) ||
-        date.includes(searchTerm)
-      );
+        // Search term filter
+        const searchTerm = searchQuery.toLowerCase();
+        const searchMatch = !searchTerm || (
+            tx.customerName.toLowerCase().includes(searchTerm) ||
+            tx.projectName.toLowerCase().includes(searchTerm) ||
+            tx.flatNumber.toLowerCase().includes(searchTerm) ||
+            (tx.paymentMethod || '').toLowerCase().includes(searchTerm) ||
+            tx.amount.toString().includes(searchTerm) ||
+            new Date(tx.date).toLocaleDateString().includes(searchTerm)
+        );
+
+        // Date range filter
+        const txDate = new Date(tx.date);
+        const fromDate = dateRange?.from;
+        const toDate = dateRange?.to;
+        const dateMatch = !dateRange || (
+            (!fromDate || txDate >= fromDate) &&
+            (!toDate || txDate <= toDate)
+        );
+
+        return searchMatch && dateMatch;
     });
-  }, [recentTransactions, searchQuery]);
+  }, [recentTransactions, searchQuery, dateRange]);
+
+  const handleExport = () => {
+    const dataToExport = filteredTransactions.map(tx => ({
+        'Receipt ID': tx.receiptId,
+        'Date': new Date(tx.date).toLocaleDateString(),
+        'Customer': tx.customerName,
+        'Project': tx.projectName,
+        'Flat': tx.flatNumber,
+        'Amount': tx.amount,
+        'Method': tx.paymentMethod,
+        'Purpose': tx.paymentPurpose === 'Other' ? tx.otherPurpose : tx.paymentPurpose,
+        'Reference': tx.reference,
+    }));
+    exportToCsv(dataToExport, `recent_payments_${new Date().toISOString().split('T')[0]}.csv`);
+  };
 
 
   const handleEditClick = (payment: InflowTransaction) => {
@@ -700,16 +728,23 @@ export default function AddPaymentPage() {
                   A log of the most recent cash inflows.
                 </CardDescription>
               </div>
-              <div className="relative">
-                  <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                  <Input 
-                      type="search" 
-                      placeholder="Search payments..."
-                      className="pl-8 sm:w-[300px]"
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                  />
-              </div>
+              <div className="flex items-center gap-2">
+                    <DateRangePicker date={dateRange} onDateChange={setDateRange} />
+                    <div className="relative">
+                        <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                        <Input 
+                            type="search" 
+                            placeholder="Search payments..."
+                            className="pl-8 sm:w-[200px] lg:w-[300px]"
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                        />
+                    </div>
+                    <Button variant="outline" onClick={handleExport}>
+                        <Download className="mr-2 h-4 w-4" />
+                        Export
+                    </Button>
+                </div>
           </div>
         </CardHeader>
         <CardContent>
