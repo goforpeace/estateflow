@@ -7,7 +7,7 @@ import { ProjectStatus } from "@/components/dashboard/project-status";
 import { useCollection, useFirestore, useMemoFirebase } from "@/firebase";
 import { collection, collectionGroup, getDocs, query } from "firebase/firestore";
 import { useEffect, useState } from "react";
-import type { InflowTransaction, OutflowTransaction, Project, Sale } from "@/lib/types";
+import type { InflowTransaction, OutflowTransaction, Project, Sale, Expense } from "@/lib/types";
 import { ProjectSummary } from "@/components/dashboard/project-summary";
 import { CustomerSummary } from "@/components/dashboard/customer-summary";
 
@@ -19,6 +19,7 @@ export default function DashboardPage() {
     totalInflow: 0,
     totalOutflow: 0,
     netCashFlow: 0,
+    totalExpenses: 0,
   });
   const [isLoading, setIsLoading] = useState(true);
 
@@ -32,22 +33,26 @@ export default function DashboardPage() {
         const salesQuery = query(collection(firestore, 'sales'));
         const inflowsQuery = query(collectionGroup(firestore, 'inflowTransactions'));
         const outflowsQuery = query(collectionGroup(firestore, 'outflowTransactions'));
+        const expensesQuery = query(collection(firestore, 'expenses'));
 
-        const [salesSnap, inflowSnap, outflowSnap] = await Promise.all([
+        const [salesSnap, inflowSnap, outflowSnap, expensesSnap] = await Promise.all([
           getDocs(salesQuery),
           getDocs(inflowsQuery),
-          getDocs(outflowsQuery)
+          getDocs(outflowsQuery),
+          getDocs(expensesQuery),
         ]);
 
         const totalRevenue = salesSnap.docs.reduce((sum, doc) => sum + (doc.data() as Sale).totalPrice, 0);
         const totalInflow = inflowSnap.docs.reduce((sum, doc) => sum + (doc.data() as InflowTransaction).amount, 0);
         const totalOutflow = outflowSnap.docs.reduce((sum, doc) => sum + (doc.data() as OutflowTransaction).amount, 0);
+        const totalExpenses = expensesSnap.docs.reduce((sum, doc) => sum + (doc.data() as Expense).price, 0);
 
         setStats({
           totalRevenue,
           totalInflow,
           totalOutflow,
           netCashFlow: totalInflow - totalOutflow,
+          totalExpenses,
         });
 
       } catch (error) {
@@ -102,7 +107,7 @@ export default function DashboardPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
              <StatCard 
                 title="Total Expenses"
-                value={isLoading ? "Loading..." : formatCurrency(stats.totalOutflow)}
+                value={isLoading ? "Loading..." : formatCurrency(stats.totalExpenses)}
                 icon={DollarSign}
                 description="Total recorded expenses"
             />

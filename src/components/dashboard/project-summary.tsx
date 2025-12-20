@@ -17,6 +17,7 @@ import type {
   Sale,
   InflowTransaction,
   OutflowTransaction,
+  Expense,
 } from '@/lib/types';
 import {
   Card,
@@ -44,7 +45,7 @@ type ProjectSummaryData = {
   targetSell: number;
   totalInflow: number;
   totalOutflow: number;
-  totalExpense: number; // For future use
+  totalExpense: number;
 };
 
 export function ProjectSummary() {
@@ -78,23 +79,26 @@ export function ProjectSummary() {
         }
         const projectData = projectSnap.data() as Project;
 
-        // Fetch flats, sales, inflows, outflows
+        // Fetch related data concurrently
         const flatsQuery = collection(firestore, `projects/${selectedProjectId}/flats`);
         const salesQuery = query(collection(firestore, 'sales'), where('projectId', '==', selectedProjectId));
         const inflowsQuery = query(collection(firestore, `projects/${selectedProjectId}/inflowTransactions`));
         const outflowsQuery = query(collection(firestore, `projects/${selectedProjectId}/outflowTransactions`));
+        const expensesQuery = query(collection(firestore, 'expenses'), where('projectId', '==', selectedProjectId));
 
-        const [flatsSnap, salesSnap, inflowsSnap, outflowsSnap] = await Promise.all([
+        const [flatsSnap, salesSnap, inflowsSnap, outflowsSnap, expensesSnap] = await Promise.all([
           getDocs(flatsQuery),
           getDocs(salesQuery),
           getDocs(inflowsQuery),
           getDocs(outflowsQuery),
+          getDocs(expensesQuery),
         ]);
 
         const soldFlats = flatsSnap.docs.filter(d => (d.data() as Flat).status === 'Sold').length;
         const totalRevenue = salesSnap.docs.reduce((sum, doc) => sum + (doc.data() as Sale).totalPrice, 0);
         const totalInflow = inflowsSnap.docs.reduce((sum, doc) => sum + (doc.data() as InflowTransaction).amount, 0);
         const totalOutflow = outflowsSnap.docs.reduce((sum, doc) => sum + (doc.data() as OutflowTransaction).amount, 0);
+        const totalExpense = expensesSnap.docs.reduce((sum, doc) => sum + (doc.data() as Expense).price, 0);
 
         setSummary({
           projectName: projectData.projectName,
@@ -105,7 +109,7 @@ export function ProjectSummary() {
           targetSell: projectData.targetSell,
           totalInflow: totalInflow,
           totalOutflow: totalOutflow,
-          totalExpense: totalOutflow, // Placeholder for now
+          totalExpense: totalExpense,
         });
 
       } catch (error) {

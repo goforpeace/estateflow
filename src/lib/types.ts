@@ -1,6 +1,7 @@
 
 
 
+
 export type ProjectStatus = 'Planning' | 'Ongoing' | 'Completed';
 export type FlatOwnership = 'Developer' | 'Landowner';
 export type FlatStatus = 'Available' | 'Sold' | 'Reserved';
@@ -80,6 +81,8 @@ export interface OutflowTransaction {
   date: string;
   expenseId?: string; // To link back to the detailed expense record
   description?: string;
+  paymentMethod?: PaymentMode;
+  reference?: string;
 }
 
 export interface Sale {
