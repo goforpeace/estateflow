@@ -294,7 +294,7 @@ export default function SalesPage() {
       </Card>
         {editingSale && (
             <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-            <DialogContent className="sm:max-w-[625px]">
+            <DialogContent className="sm:max-w-3xl">
                 <DialogHeader>
                 <DialogTitle>Edit Sale</DialogTitle>
                 </DialogHeader>
