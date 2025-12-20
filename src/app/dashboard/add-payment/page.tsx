@@ -91,7 +91,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Ban, Printer, MoreHorizontal, Pencil, Trash2 } from 'lucide-react';
+import { Ban, Printer, MoreHorizontal, Pencil, Trash2, Eye } from 'lucide-react';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Receipt } from '@/components/dashboard/receipt';
 import { EditPaymentForm } from '@/components/dashboard/payments/edit-payment-form';
@@ -183,7 +183,7 @@ export default function AddPaymentPage() {
             const flatsQuery = query(collection(firestore, `projects/${project.id}/flats`));
             const flatsSnap = await getDocs(flatsQuery);
             flatsSnap.forEach(doc => {
-                allFlatsMap.set(`${project.id}_${doc.id}`, doc.data() as Flat);
+                allFlatsMap.set(doc.id, doc.data() as Flat);
             });
         }
 
@@ -199,7 +199,7 @@ export default function AddPaymentPage() {
 
       // 3. Enrich transactions with names synchronously
       const enriched: EnrichedTransaction[] = inflows.map(tx => {
-         const flatData = allFlatsMap.get(`${tx.projectId}_${tx.flatId}`);
+         const flatData = allFlatsMap.get(tx.flatId);
          return {
             ...tx,
             customerName: customersMap.get(tx.customerId)?.fullName || 'N/A',
@@ -403,41 +403,53 @@ export default function AddPaymentPage() {
     fetchRecentTransactions(); // Refresh the list
   };
 
-  const handlePrintReceipt = () => {
-    if (!lastPayment) return;
-    const printWindow = window.open('', '_blank');
-    if (printWindow) {
-        const receiptHtml = `
-            <html>
-                <head>
-                    <title>Money Receipt - ${lastPayment.receiptId}</title>
-                    <script src="https://cdn.tailwindcss.com"></script>
-                </head>
-                <body class="bg-gray-100">
-                    <div id="receipt-root"></div>
-                </body>
-            </html>
-        `;
-        printWindow.document.write(receiptHtml);
-        printWindow.document.close();
-
-        // This is a bit of a hack to get React to render into the new window.
-        // It's generally better to have a dedicated, non-auth-protected route for printing.
-        const receiptRoot = printWindow.document.getElementById('receipt-root');
-        if (receiptRoot) {
-            const ReactDOM = require('react-dom');
-            ReactDOM.render(
-                React.createElement(Receipt, { payment: lastPayment, customer: customers?.find(c=>c.id === lastPayment.customerId)! }),
-                receiptRoot
-            );
+    const handlePrintSpecificReceipt = (payment: EnrichedTransaction) => {
+        const customer = customers?.find(c => c.id === payment.customerId);
+        if (!customer) {
+            toast({
+                variant: 'destructive',
+                title: 'Customer not found',
+                description: 'Cannot print receipt without customer details.',
+            });
+            return;
         }
         
-        setTimeout(() => {
-            printWindow.print();
-            printWindow.close();
-        }, 500);
-    }
-  };
+        const printWindow = window.open('', '_blank');
+        if (printWindow) {
+            const receiptHtml = `
+                <html>
+                    <head>
+                        <title>Money Receipt - ${payment.receiptId}</title>
+                        <script src="https://cdn.tailwindcss.com"></script>
+                    </head>
+                    <body class="bg-gray-100">
+                        <div id="receipt-root"></div>
+                    </body>
+                </html>
+            `;
+            printWindow.document.write(receiptHtml);
+            printWindow.document.close();
+
+            const receiptRoot = printWindow.document.getElementById('receipt-root');
+            if (receiptRoot) {
+                const ReactDOM = require('react-dom');
+                ReactDOM.render(
+                    React.createElement(Receipt, { payment, customer }),
+                    receiptRoot
+                );
+            }
+            
+            setTimeout(() => {
+                printWindow.print();
+                printWindow.close();
+            }, 500);
+        }
+    };
+
+    const handlePrintLastReceipt = () => {
+        if (!lastPayment) return;
+        handlePrintSpecificReceipt(lastPayment);
+    };
 
   const formatCurrency = (value: number) => `৳${value.toLocaleString('en-IN')}`;
 
@@ -693,9 +705,9 @@ export default function AddPaymentPage() {
 
               <div className="flex justify-end pt-4 gap-2">
                  {lastPayment && (
-                    <Button type="button" variant="outline" onClick={handlePrintReceipt}>
+                    <Button type="button" variant="outline" onClick={handlePrintLastReceipt}>
                         <Printer className="mr-2 h-4 w-4" />
-                        Print Receipt
+                        Print Last Receipt
                     </Button>
                 )}
                 <Button type="submit" disabled={form.formState.isSubmitting}>
@@ -771,6 +783,10 @@ export default function AddPaymentPage() {
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
                               <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                               <DropdownMenuItem onClick={() => handlePrintSpecificReceipt(tx)}>
+                                <Eye className="mr-2 h-4 w-4" />
+                                View & Print
+                              </DropdownMenuItem>
                               <DropdownMenuItem onClick={() => handleEditClick(tx)}>
                                 <Pencil className="mr-2 h-4 w-4" />
                                 Edit
@@ -829,3 +845,5 @@ export default function AddPaymentPage() {
     </div>
   );
 }
+
+    
