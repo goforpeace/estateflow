@@ -1,7 +1,7 @@
 
 'use client';
 
-import { Ban, PlusCircle, Pencil, Trash2 } from 'lucide-react';
+import { Ban, PlusCircle, Pencil, Trash2, MoreHorizontal } from 'lucide-react';
 import {
   Card,
   CardContent,
@@ -36,6 +36,14 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuLabel,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+  } from "@/components/ui/dropdown-menu"
 import { useCollection, useFirestore, useMemoFirebase, deleteDocumentNonBlocking } from '@/firebase';
 import { collection, query, doc } from 'firebase/firestore';
 import type { Customer } from '@/lib/types';
@@ -43,12 +51,7 @@ import { AddCustomerForm } from '@/components/dashboard/customers/add-customer-f
 import { EditCustomerForm } from '@/components/dashboard/customers/edit-customer-form';
 import { useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+
 
 export default function CustomersPage() {
   const firestore = useFirestore();
@@ -119,7 +122,6 @@ export default function CustomersPage() {
             </div>
           )}
           {!isLoading && customers && customers.length > 0 && (
-            <TooltipProvider>
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -139,28 +141,30 @@ export default function CustomersPage() {
                       <TableCell>{customer.mobile}</TableCell>
                       <TableCell>{customer.address}</TableCell>
                       <TableCell>{customer.nidNumber}</TableCell>
-                      <TableCell className="text-right space-x-2">
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Button variant="outline" size="icon" onClick={() => handleEditClick(customer)}>
-                              <Pencil className="h-4 w-4" />
-                              <span className="sr-only">Edit Customer</span>
-                            </Button>
-                          </TooltipTrigger>
-                          <TooltipContent>Edit Customer</TooltipContent>
-                        </Tooltip>
-                        <AlertDialog>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <AlertDialogTrigger asChild>
-                                <Button variant="destructive" size="icon">
-                                    <Trash2 className="h-4 w-4" />
-                                    <span className="sr-only">Delete Customer</span>
+                      <TableCell className="text-right">
+                         <AlertDialog>
+                            <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" className="h-8 w-8 p-0">
+                                    <span className="sr-only">Open menu</span>
+                                    <MoreHorizontal className="h-4 w-4" />
                                 </Button>
-                              </AlertDialogTrigger>
-                            </TooltipTrigger>
-                            <TooltipContent>Delete Customer</TooltipContent>
-                          </Tooltip>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                                <DropdownMenuItem onClick={() => handleEditClick(customer)}>
+                                    <Pencil className="mr-2 h-4 w-4" />
+                                    Edit
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                <AlertDialogTrigger asChild>
+                                    <DropdownMenuItem className="text-red-600">
+                                        <Trash2 className="mr-2 h-4 w-4" />
+                                        Delete
+                                    </DropdownMenuItem>
+                                </AlertDialogTrigger>
+                                </DropdownMenuContent>
+                            </DropdownMenu>
                             <AlertDialogContent>
                               <AlertDialogHeader>
                                 <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
@@ -184,7 +188,6 @@ export default function CustomersPage() {
                   ))}
                 </TableBody>
               </Table>
-            </TooltipProvider>
           )}
         </CardContent>
       </Card>
@@ -201,5 +204,3 @@ export default function CustomersPage() {
     </div>
   );
 }
-
-    

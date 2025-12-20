@@ -1,7 +1,7 @@
 
 'use client';
 
-import { Ban, PlusCircle, Trash2 } from 'lucide-react';
+import { Ban, PlusCircle, Trash2, MoreHorizontal } from 'lucide-react';
 import Link from 'next/link';
 import {
   Card,
@@ -30,17 +30,18 @@ import {
     AlertDialogTitle,
     AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuLabel,
+    DropdownMenuTrigger,
+  } from "@/components/ui/dropdown-menu"
 import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
 import { collection, query, getDocs, doc, writeBatch } from 'firebase/firestore';
 import type { Sale, Project, Flat, Customer } from '@/lib/types';
 import { useEffect, useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 
 type EnrichedSale = Sale & {
     projectName: string;
@@ -175,7 +176,6 @@ export default function SalesPage() {
             </div>
           )}
           {!isLoading && enrichedSales && enrichedSales.length > 0 && (
-            <TooltipProvider>
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -199,46 +199,49 @@ export default function SalesPage() {
                       <TableCell className="text-right">{formatCurrency(sale.totalPrice)}</TableCell>
                       <TableCell className="text-right">
                         <AlertDialog>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" className="h-8 w-8 p-0">
+                                <span className="sr-only">Open menu</span>
+                                <MoreHorizontal className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuLabel>Actions</DropdownMenuLabel>
                                 <AlertDialogTrigger asChild>
-                                  <Button variant="destructive" size="icon">
-                                      <Trash2 className="h-4 w-4" />
-                                      <span className="sr-only">Delete Sale</span>
-                                  </Button>
+                                    <DropdownMenuItem className="text-red-600">
+                                        <Trash2 className="mr-2 h-4 w-4" />
+                                        Delete
+                                    </DropdownMenuItem>
                                 </AlertDialogTrigger>
-                              </TooltipTrigger>
-                              <TooltipContent>Delete Sale</TooltipContent>
-                            </Tooltip>
-                            <AlertDialogContent>
-                              <AlertDialogHeader>
-                                <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                                <AlertDialogDescription>
-                                  This will permanently delete this sale record and set the corresponding flat's status back to 'Available'.
-                                </AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter>
-                                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                <AlertDialogAction
-                                  onClick={() => handleDeleteSale(sale)}
-                                  className="bg-destructive hover:bg-destructive/90"
-                                >
-                                  Delete
-                                </AlertDialogAction>
-                              </AlertDialogFooter>
-                            </AlertDialogContent>
-                          </AlertDialog>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                This will permanently delete this sale record and set the corresponding flat's status back to 'Available'.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction
+                                onClick={() => handleDeleteSale(sale)}
+                                className="bg-destructive hover:bg-destructive/90"
+                              >
+                                Delete
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
                       </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
               </Table>
-            </TooltipProvider>
           )}
         </CardContent>
       </Card>
     </div>
   );
 }
-
-    
