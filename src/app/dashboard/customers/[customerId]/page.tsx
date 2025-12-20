@@ -9,7 +9,6 @@ import {
   where,
   getDocs,
   getDoc,
-  collectionGroup,
 } from 'firebase/firestore';
 import type {
   Project,
@@ -79,21 +78,16 @@ export default function CustomerDetailPage({
       setIsLoading(true);
       setError(null);
       try {
-        // 1. Fetch customer, all sales for that customer, and all payments for that customer concurrently
+        // 1. Fetch customer and their sales records concurrently
         const customerRef = doc(firestore, 'customers', customerId);
         const salesQuery = query(
           collection(firestore, 'sales'),
           where('customerId', '==', customerId)
         );
-        const paymentsQuery = query(
-          collectionGroup(firestore, 'inflowTransactions'),
-          where('customerId', '==', customerId)
-        );
 
-        const [customerSnap, salesSnap, paymentsSnap] = await Promise.all([
+        const [customerSnap, salesSnap] = await Promise.all([
           getDoc(customerRef),
           getDocs(salesQuery),
-          getDocs(paymentsQuery),
         ]);
 
         if (!customerSnap.exists()) {
@@ -105,10 +99,24 @@ export default function CustomerDetailPage({
         const salesData = salesSnap.docs.map(
           d => ({ ...d.data(), id: d.id } as Sale)
         );
-        const paymentsData = paymentsSnap.docs.map(d => d.data() as InflowTransaction)
-            .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+        
+        // 2. Fetch payments for this customer from all relevant projects
+        const allPayments: InflowTransaction[] = [];
+        const projectIds = [...new Set(salesData.map(s => s.projectId))];
+        for (const projectId of projectIds) {
+            const paymentsQuery = query(
+                collection(firestore, `projects/${projectId}/inflowTransactions`),
+                where('customerId', '==', customerId)
+            );
+            const paymentsSnap = await getDocs(paymentsQuery);
+            paymentsSnap.forEach(doc => {
+                allPayments.push(doc.data() as InflowTransaction);
+            });
+        }
+        allPayments.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
-        // 2. Enrich sales with project and flat info (more reliably)
+
+        // 3. Enrich sales with project and flat info
         const enrichedSales: EnrichedSale[] = [];
         for (const sale of salesData) {
             const projectRef = doc(firestore, 'projects', sale.projectId);
@@ -126,19 +134,19 @@ export default function CustomerDetailPage({
             });
         }
         
-        // 3. Calculate financials
+        // 4. Calculate financials
         const totalPrice = enrichedSales.reduce((sum, s) => {
             const basePrice = s.totalPrice || 0;
-            const extraCosts = s.extraCosts?.reduce((acc, cost) => acc + cost.amount, 0) || 0;
-            return sum + basePrice + extraCosts;
+            // The sale record's totalPrice already includes extra costs.
+            return sum + basePrice;
         }, 0);
-        const totalPaid = paymentsData.reduce((sum, p) => sum + p.amount, 0);
+        const totalPaid = allPayments.reduce((sum, p) => sum + p.amount, 0);
         const totalDue = totalPrice - totalPaid;
 
         setDetails({
           customer: customerData,
           sales: enrichedSales,
-          payments: paymentsData,
+          payments: allPayments,
           totalPaid,
           totalPrice,
           totalDue,
@@ -188,7 +196,6 @@ export default function CustomerDetailPage({
   }
 
   if (!details) {
-    // This case should ideally not be reached if notFound() is called, but as a fallback.
     return (
         <div className="flex justify-center items-center h-screen">
             <p>Customer not found.</p>
@@ -281,13 +288,12 @@ export default function CustomerDetailPage({
               </TableHeader>
               <TableBody>
                 {sales.map(sale => {
-                    const saleTotalPrice = (sale.totalPrice || 0) + (sale.extraCosts?.reduce((acc, cost) => acc + cost.amount, 0) || 0);
                     return (
                       <TableRow key={sale.id}>
                         <TableCell className="font-medium">{sale.flatNumber}</TableCell>
                         <TableCell>{sale.projectName}</TableCell>
                         <TableCell>{new Date(sale.saleDate).toLocaleDateString()}</TableCell>
-                        <TableCell className="text-right">{formatCurrency(saleTotalPrice)}</TableCell>
+                        <TableCell className="text-right">{formatCurrency(sale.totalPrice)}</TableCell>
                       </TableRow>
                     );
                 })}

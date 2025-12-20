@@ -109,6 +109,7 @@ export default function AddSalePage() {
   
   const watchBasePrice = form.watch('totalPrice');
   const watchExtraCosts = form.watch('extraCosts');
+  const watchDownpayment = form.watch('downpayment');
 
   const calculatedTotalPrice = (Number(watchBasePrice) || 0) + 
     (watchExtraCosts?.reduce((acc, cost) => acc + (Number(cost.amount) || 0), 0) || 0);
