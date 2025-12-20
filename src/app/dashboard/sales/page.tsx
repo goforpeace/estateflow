@@ -230,7 +230,7 @@ export default function SalesPage() {
                     <Input 
                         type="search" 
                         placeholder="Search sales..."
-                        className="pl-8 sm:w-[300px]"
+                        className="pl-8 sm:w-full lg:w-[300px]"
                         value={searchQuery}
                         onChange={(e) => {
                             setSearchQuery(e.target.value);
@@ -264,80 +264,82 @@ export default function SalesPage() {
           )}
           {!isLoading && paginatedSales.length > 0 && (
             <>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Customer</TableHead>
-                    <TableHead>Project</TableHead>
-                    <TableHead>Flat</TableHead>
-                    <TableHead>Date</TableHead>
-                    <TableHead className="text-right">Total Price</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {paginatedSales.map(sale => (
-                    <TableRow key={sale.id}>
-                      <TableCell className="font-medium">
-                        {sale.customerName}
-                      </TableCell>
-                      <TableCell>{sale.projectName}</TableCell>
-                      <TableCell>{sale.flatNumber}</TableCell>
-                      <TableCell>{new Date(sale.saleDate).toLocaleDateString()}</TableCell>
-                      <TableCell className="text-right">{formatCurrency(sale.totalPrice)}</TableCell>
-                      <TableCell className="text-right">
-                        <AlertDialog>
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" className="h-8 w-8 p-0">
-                                <span className="sr-only">Open menu</span>
-                                <MoreHorizontal className="h-4 w-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                                <DropdownMenuItem asChild>
-                                  <Link href={`/dashboard/sales/${sale.id}`}>
-                                      <View className="mr-2 h-4 w-4" />
-                                      View Details
-                                  </Link>
-                                </DropdownMenuItem>
-                                 <DropdownMenuItem onClick={() => handleEditClick(sale)}>
-                                    <Pencil className="mr-2 h-4 w-4" />
-                                    Edit
-                                </DropdownMenuItem>
-                                <DropdownMenuSeparator />
-                                <AlertDialogTrigger asChild>
-                                    <DropdownMenuItem className="text-red-600">
-                                        <Trash2 className="mr-2 h-4 w-4" />
-                                        Delete
-                                    </DropdownMenuItem>
-                                </AlertDialogTrigger>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                              <AlertDialogDescription>
-                                This will permanently delete this sale record and set the corresponding flat's status back to 'Available'.
-                              </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>Cancel</AlertDialogCancel>
-                              <AlertDialogAction
-                                onClick={() => handleDeleteSale(sale)}
-                                className="bg-destructive hover:bg-destructive/90"
-                              >
-                                Delete
-                              </AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
-                      </TableCell>
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Customer</TableHead>
+                      <TableHead>Project</TableHead>
+                      <TableHead>Flat</TableHead>
+                      <TableHead>Date</TableHead>
+                      <TableHead className="text-right">Total Price</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {paginatedSales.map(sale => (
+                      <TableRow key={sale.id}>
+                        <TableCell className="font-medium">
+                          {sale.customerName}
+                        </TableCell>
+                        <TableCell>{sale.projectName}</TableCell>
+                        <TableCell>{sale.flatNumber}</TableCell>
+                        <TableCell>{new Date(sale.saleDate).toLocaleDateString()}</TableCell>
+                        <TableCell className="text-right">{formatCurrency(sale.totalPrice)}</TableCell>
+                        <TableCell className="text-right">
+                          <AlertDialog>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" className="h-8 w-8 p-0">
+                                  <span className="sr-only">Open menu</span>
+                                  <MoreHorizontal className="h-4 w-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                                  <DropdownMenuItem asChild>
+                                    <Link href={`/dashboard/sales/${sale.id}`}>
+                                        <View className="mr-2 h-4 w-4" />
+                                        View Details
+                                    </Link>
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem onClick={() => handleEditClick(sale)}>
+                                      <Pencil className="mr-2 h-4 w-4" />
+                                      Edit
+                                  </DropdownMenuItem>
+                                  <DropdownMenuSeparator />
+                                  <AlertDialogTrigger asChild>
+                                      <DropdownMenuItem className="text-red-600">
+                                          <Trash2 className="mr-2 h-4 w-4" />
+                                          Delete
+                                      </DropdownMenuItem>
+                                  </AlertDialogTrigger>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  This will permanently delete this sale record and set the corresponding flat's status back to 'Available'.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction
+                                  onClick={() => handleDeleteSale(sale)}
+                                  className="bg-destructive hover:bg-destructive/90"
+                                >
+                                  Delete
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
               <div className="flex items-center justify-end space-x-2 py-4">
                 <div className="text-sm text-muted-foreground">
                     Page {currentPage} of {totalPages}

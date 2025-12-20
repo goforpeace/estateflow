@@ -172,16 +172,11 @@ export default function AddExpensePage() {
 
   // Fetch and enrich expenses for the log
   useEffect(() => {
-    // Guard: Don't run if data isn't dirty or if required collections are still loading.
-    if (!isDataDirty || vendorsLoading || projectsLoading || itemsLoading) {
+    // Definitive Guard: Ensure all data dependencies are loaded and available.
+    if (!isDataDirty || !vendors || !projects || !expenseItems) {
       return;
     }
     
-    // Definitive Guard: Also ensure the data arrays are actually populated before proceeding.
-    if (!vendors || !projects || !expenseItems) {
-        return;
-    }
-
     const fetchAndEnrichExpenses = async () => {
         setIsLoadingLog(true);
         try {
@@ -218,7 +213,7 @@ export default function AddExpensePage() {
     
     fetchAndEnrichExpenses();
 
-  }, [firestore, toast, isDataDirty, vendors, projects, expenseItems, vendorsLoading, projectsLoading, itemsLoading]);
+  }, [firestore, toast, isDataDirty, vendors, projects, expenseItems]);
 
 
   const form = useForm<AddExpenseFormValues>({
@@ -540,14 +535,14 @@ export default function AddExpensePage() {
                             A record of all project expenses.
                         </CardDescription>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-col sm:flex-row items-center gap-2">
                         <DateRangePicker date={dateRange} onDateChange={setDateRange} />
-                        <div className="relative">
+                        <div className="relative w-full sm:w-auto">
                             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                             <Input 
                                 type="search" 
                                 placeholder="Search by ID, vendor, project..."
-                                className="pl-8 sm:w-[200px] lg:w-[300px]"
+                                className="pl-8 sm:w-full lg:w-[300px]"
                                 value={searchQuery}
                                 onChange={(e) => {
                                     setSearchQuery(e.target.value);
@@ -555,7 +550,7 @@ export default function AddExpensePage() {
                                 }}
                             />
                         </div>
-                        <Button variant="outline" onClick={handleExport}>
+                        <Button variant="outline" onClick={handleExport} className="w-full sm:w-auto">
                             <Download className="mr-2 h-4 w-4" />
                             Export
                         </Button>
@@ -579,85 +574,87 @@ export default function AddExpensePage() {
                 )}
                 {!isLoadingLog && paginatedExpenses.length > 0 && (
                     <>
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>Expense ID</TableHead>
-                                    <TableHead>Vendor</TableHead>
-                                    <TableHead>Item</TableHead>
-                                    <TableHead>Date</TableHead>
-                                    <TableHead>Status</TableHead>
-                                    <TableHead className="text-right">Price</TableHead>
-                                    <TableHead className="text-right">Actions</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {paginatedExpenses.map(expense => (
-                                    <TableRow key={expense.id}>
-                                        <TableCell className="font-mono">{expense.expenseId}</TableCell>
-                                        <TableCell className="font-medium">{expense.vendorName}</TableCell>
-                                        <TableCell>{expense.itemName}</TableCell>
-                                        <TableCell>{new Date(expense.date).toLocaleDateString()}</TableCell>
-                                        <TableCell>
-                                            <Badge variant={
-                                                expense.status === 'Paid' ? 'default' :
-                                                expense.status === 'Partially Paid' ? 'secondary' : 'destructive'
-                                            }>
-                                                {expense.status}
-                                            </Badge>
-                                        </TableCell>
-                                        <TableCell className="text-right font-semibold">{formatCurrency(expense.price)}</TableCell>
-                                        <TableCell className="text-right">
-                                            <AlertDialog>
-                                                <DropdownMenu>
-                                                    <DropdownMenuTrigger asChild>
-                                                        <Button variant="ghost" className="h-8 w-8 p-0">
-                                                            <span className="sr-only">Open menu</span>
-                                                            <MoreHorizontal className="h-4 w-4" />
-                                                        </Button>
-                                                    </DropdownMenuTrigger>
-                                                    <DropdownMenuContent align="end">
-                                                        <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                                                        <DropdownMenuItem onClick={() => handleViewClick(expense)}>
-                                                            <Eye className="mr-2 h-4 w-4" />
-                                                            View
-                                                        </DropdownMenuItem>
-                                                        <DropdownMenuItem onClick={() => handleEditClick(expense)}>
-                                                            <Pencil className="mr-2 h-4 w-4" />
-                                                            Edit
-                                                        </DropdownMenuItem>
-                                                        <DropdownMenuSeparator />
-                                                        <AlertDialogTrigger asChild>
-                                                            <DropdownMenuItem className="text-red-600">
-                                                                <Trash2 className="mr-2 h-4 w-4" />
-                                                                Delete
-                                                            </DropdownMenuItem>
-                                                        </AlertDialogTrigger>
-                                                    </DropdownMenuContent>
-                                                </DropdownMenu>
-                                                <AlertDialogContent>
-                                                    <AlertDialogHeader>
-                                                        <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                                                        <AlertDialogDescription>
-                                                            This will permanently delete this expense record. This action cannot be undone.
-                                                        </AlertDialogDescription>
-                                                    </AlertDialogHeader>
-                                                    <AlertDialogFooter>
-                                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                                        <AlertDialogAction
-                                                          onClick={() => handleDeleteExpense(expense)}
-                                                          className="bg-destructive hover:bg-destructive/90"
-                                                        >
-                                                            Delete
-                                                        </AlertDialogAction>
-                                                    </AlertDialogFooter>
-                                                </AlertDialogContent>
-                                            </AlertDialog>
-                                        </TableCell>
+                        <div className="overflow-x-auto">
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead>Expense ID</TableHead>
+                                        <TableHead>Vendor</TableHead>
+                                        <TableHead>Item</TableHead>
+                                        <TableHead>Date</TableHead>
+                                        <TableHead>Status</TableHead>
+                                        <TableHead className="text-right">Price</TableHead>
+                                        <TableHead className="text-right">Actions</TableHead>
                                     </TableRow>
-                                ))}
-                            </TableBody>
-                        </Table>
+                                </TableHeader>
+                                <TableBody>
+                                    {paginatedExpenses.map(expense => (
+                                        <TableRow key={expense.id}>
+                                            <TableCell className="font-mono">{expense.expenseId}</TableCell>
+                                            <TableCell className="font-medium">{expense.vendorName}</TableCell>
+                                            <TableCell>{expense.itemName}</TableCell>
+                                            <TableCell>{new Date(expense.date).toLocaleDateString()}</TableCell>
+                                            <TableCell>
+                                                <Badge variant={
+                                                    expense.status === 'Paid' ? 'default' :
+                                                    expense.status === 'Partially Paid' ? 'secondary' : 'destructive'
+                                                }>
+                                                    {expense.status}
+                                                </Badge>
+                                            </TableCell>
+                                            <TableCell className="text-right font-semibold">{formatCurrency(expense.price)}</TableCell>
+                                            <TableCell className="text-right">
+                                                <AlertDialog>
+                                                    <DropdownMenu>
+                                                        <DropdownMenuTrigger asChild>
+                                                            <Button variant="ghost" className="h-8 w-8 p-0">
+                                                                <span className="sr-only">Open menu</span>
+                                                                <MoreHorizontal className="h-4 w-4" />
+                                                            </Button>
+                                                        </DropdownMenuTrigger>
+                                                        <DropdownMenuContent align="end">
+                                                            <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                                                            <DropdownMenuItem onClick={() => handleViewClick(expense)}>
+                                                                <Eye className="mr-2 h-4 w-4" />
+                                                                View
+                                                            </DropdownMenuItem>
+                                                            <DropdownMenuItem onClick={() => handleEditClick(expense)}>
+                                                                <Pencil className="mr-2 h-4 w-4" />
+                                                                Edit
+                                                            </DropdownMenuItem>
+                                                            <DropdownMenuSeparator />
+                                                            <AlertDialogTrigger asChild>
+                                                                <DropdownMenuItem className="text-red-600">
+                                                                    <Trash2 className="mr-2 h-4 w-4" />
+                                                                    Delete
+                                                                </DropdownMenuItem>
+                                                            </AlertDialogTrigger>
+                                                        </DropdownMenuContent>
+                                                    </DropdownMenu>
+                                                    <AlertDialogContent>
+                                                        <AlertDialogHeader>
+                                                            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                                                            <AlertDialogDescription>
+                                                                This will permanently delete this expense record. This action cannot be undone.
+                                                            </AlertDialogDescription>
+                                                        </AlertDialogHeader>
+                                                        <AlertDialogFooter>
+                                                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                                            <AlertDialogAction
+                                                            onClick={() => handleDeleteExpense(expense)}
+                                                            className="bg-destructive hover:bg-destructive/90"
+                                                            >
+                                                                Delete
+                                                            </AlertDialogAction>
+                                                        </AlertDialogFooter>
+                                                    </AlertDialogContent>
+                                                </AlertDialog>
+                                            </TableCell>
+                                        </TableRow>
+                                    ))}
+                                </TableBody>
+                            </Table>
+                        </div>
                          <div className="flex items-center justify-end space-x-2 py-4">
                             <div className="text-sm text-muted-foreground">
                                 Page {currentPage} of {totalPages}

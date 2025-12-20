@@ -37,7 +37,7 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
     AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
+} from "@/components/ui/alert-dialog"
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -162,7 +162,7 @@ export default function ProjectsPage() {
                     <Input 
                         type="search" 
                         placeholder="Search projects..."
-                        className="pl-8 sm:w-[300px]"
+                        className="pl-8 sm:w-full lg:w-[300px]"
                         value={searchQuery}
                         onChange={(e) => {
                             setSearchQuery(e.target.value);
@@ -204,88 +204,90 @@ export default function ProjectsPage() {
           )}
           {!isLoading && paginatedProjects && paginatedProjects.length > 0 && (
             <>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Project Name</TableHead>
-                    <TableHead>Location</TableHead>
-                    <TableHead>Target Sell</TableHead>
-                    <TableHead>Total Flats</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {paginatedProjects.map(project => (
-                    <TableRow key={project.id}>
-                      <TableCell className="font-medium">
-                        {project.projectName}
-                      </TableCell>
-                      <TableCell>{project.location}</TableCell>
-                      <TableCell>{formatCurrency(project.targetSell)}</TableCell>
-                      <TableCell>{project.totalFlats}</TableCell>
-                      <TableCell>
-                        <Badge
-                          variant={
-                            project.status === 'Ongoing' ? 'default' : 'secondary'
-                          }
-                          className={
-                            project.status === 'Completed'
-                              ? 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-400'
-                              : project.status === 'Ongoing'
-                                ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-400'
-                                : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/50 dark:text-yellow-400'
-                          }
-                        >
-                          {project.status}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-right">
-                      <AlertDialog>
-                        <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" className="h-8 w-8 p-0">
-                                <span className="sr-only">Open menu</span>
-                                <MoreHorizontal className="h-4 w-4" />
-                            </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                            <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                            <DropdownMenuItem asChild>
-                                <Link href={`/project/${project.id}`}>View Details</Link>
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => handleEditClick(project)}>
-                                Edit Project
-                            </DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            <AlertDialogTrigger asChild>
-                                <DropdownMenuItem className="text-red-600">Delete Project</DropdownMenuItem>
-                            </AlertDialogTrigger>
-                            </DropdownMenuContent>
-                        </DropdownMenu>
-                        <AlertDialogContent>
-                            <AlertDialogHeader>
-                            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                            <AlertDialogDescription>
-                                This action cannot be undone. This will permanently delete this project and all its associated data (flats, transactions, etc.).
-                            </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                            <AlertDialogCancel>Cancel</AlertDialogCancel>
-                            <AlertDialogAction
-                                onClick={() => handleDeleteProject(project.id)}
-                                className="bg-destructive hover:bg-destructive/90"
-                            >
-                                Delete
-                            </AlertDialogAction>
-                            </AlertDialogFooter>
-                        </AlertDialogContent>
-                        </AlertDialog>
-                      </TableCell>
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Project Name</TableHead>
+                      <TableHead>Location</TableHead>
+                      <TableHead>Target Sell</TableHead>
+                      <TableHead>Total Flats</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {paginatedProjects.map(project => (
+                      <TableRow key={project.id}>
+                        <TableCell className="font-medium">
+                          {project.projectName}
+                        </TableCell>
+                        <TableCell>{project.location}</TableCell>
+                        <TableCell>{formatCurrency(project.targetSell)}</TableCell>
+                        <TableCell>{project.totalFlats}</TableCell>
+                        <TableCell>
+                          <Badge
+                            variant={
+                              project.status === 'Ongoing' ? 'default' : 'secondary'
+                            }
+                            className={
+                              project.status === 'Completed'
+                                ? 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-400'
+                                : project.status === 'Ongoing'
+                                  ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-400'
+                                  : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/50 dark:text-yellow-400'
+                            }
+                          >
+                            {project.status}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-right">
+                        <AlertDialog>
+                          <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" className="h-8 w-8 p-0">
+                                  <span className="sr-only">Open menu</span>
+                                  <MoreHorizontal className="h-4 w-4" />
+                              </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                              <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                              <DropdownMenuItem asChild>
+                                  <Link href={`/project/${project.id}`}>View Details</Link>
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => handleEditClick(project)}>
+                                  Edit Project
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <AlertDialogTrigger asChild>
+                                  <DropdownMenuItem className="text-red-600">Delete Project</DropdownMenuItem>
+                              </AlertDialogTrigger>
+                              </DropdownMenuContent>
+                          </DropdownMenu>
+                          <AlertDialogContent>
+                              <AlertDialogHeader>
+                              <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                  This action cannot be undone. This will permanently delete this project and all its associated data (flats, transactions, etc.).
+                              </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction
+                                  onClick={() => handleDeleteProject(project.id)}
+                                  className="bg-destructive hover:bg-destructive/90"
+                              >
+                                  Delete
+                              </AlertDialogAction>
+                              </AlertDialogFooter>
+                          </AlertDialogContent>
+                          </AlertDialog>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
                <div className="flex items-center justify-end space-x-2 py-4">
                 <div className="text-sm text-muted-foreground">
                     Page {currentPage} of {totalPages}

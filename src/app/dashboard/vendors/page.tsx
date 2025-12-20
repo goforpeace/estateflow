@@ -139,7 +139,7 @@ export default function VendorsPage() {
                     <Input 
                         type="search" 
                         placeholder="Search vendors..."
-                        className="pl-8 sm:w-[300px]"
+                        className="pl-8 sm:w-full lg:w-[300px]"
                         value={searchQuery}
                         onChange={(e) => {
                             setSearchQuery(e.target.value);
@@ -147,7 +147,7 @@ export default function VendorsPage() {
                         }}
                     />
                 </div>
-                 <Button variant="outline" onClick={handleExport}>
+                 <Button variant="outline" onClick={handleExport} className="w-full sm:w-auto">
                     <Download className="mr-2 h-4 w-4" />
                     Export
                 </Button>
@@ -185,78 +185,80 @@ export default function VendorsPage() {
           )}
           {!isLoading && paginatedVendors && paginatedVendors.length > 0 && (
             <>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Vendor Name</TableHead>
-                    <TableHead>Phone Number</TableHead>
-                    <TableHead>Enterprise</TableHead>
-                    <TableHead>Details</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {paginatedVendors.map(vendor => (
-                    <TableRow key={vendor.id}>
-                      <TableCell className="font-medium">
-                        {vendor.vendorName}
-                      </TableCell>
-                      <TableCell>{vendor.phoneNumber}</TableCell>
-                      <TableCell>{vendor.enterpriseName}</TableCell>
-                      <TableCell className="max-w-[200px] truncate">{vendor.details}</TableCell>
-                      <TableCell className="text-right">
-                         <AlertDialog>
-                            <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" className="h-8 w-8 p-0">
-                                    <span className="sr-only">Open menu</span>
-                                    <MoreHorizontal className="h-4 w-4" />
-                                </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end">
-                                <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                                <DropdownMenuItem asChild>
-                                    <Link href={`/dashboard/vendors/${vendor.id}`}>
-                                        <Eye className="mr-2 h-4 w-4" />
-                                        View Details
-                                    </Link>
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => handleEditClick(vendor)}>
-                                    <Pencil className="mr-2 h-4 w-4" />
-                                    Edit
-                                </DropdownMenuItem>
-                                <DropdownMenuSeparator />
-                                <AlertDialogTrigger asChild>
-                                    <DropdownMenuItem className="text-red-600">
-                                        <Trash2 className="mr-2 h-4 w-4" />
-                                        Delete
-                                    </DropdownMenuItem>
-                                </AlertDialogTrigger>
-                                </DropdownMenuContent>
-                            </DropdownMenu>
-                            <AlertDialogContent>
-                              <AlertDialogHeader>
-                                <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                                <AlertDialogDescription>
-                                  This action cannot be undone. This will permanently delete this vendor.
-                                </AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter>
-                                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                <AlertDialogAction
-                                  onClick={() => handleDeleteVendor(vendor.id)}
-                                  className="bg-destructive hover:bg-destructive/90"
-                                >
-                                  Delete
-                                </AlertDialogAction>
-                              </AlertDialogFooter>
-                            </AlertDialogContent>
-                          </AlertDialog>
-                      </TableCell>
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Vendor Name</TableHead>
+                      <TableHead>Phone Number</TableHead>
+                      <TableHead>Enterprise</TableHead>
+                      <TableHead>Details</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {paginatedVendors.map(vendor => (
+                      <TableRow key={vendor.id}>
+                        <TableCell className="font-medium">
+                          {vendor.vendorName}
+                        </TableCell>
+                        <TableCell>{vendor.phoneNumber}</TableCell>
+                        <TableCell>{vendor.enterpriseName}</TableCell>
+                        <TableCell className="max-w-[200px] truncate">{vendor.details}</TableCell>
+                        <TableCell className="text-right">
+                          <AlertDialog>
+                              <DropdownMenu>
+                                  <DropdownMenuTrigger asChild>
+                                  <Button variant="ghost" className="h-8 w-8 p-0">
+                                      <span className="sr-only">Open menu</span>
+                                      <MoreHorizontal className="h-4 w-4" />
+                                  </Button>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent align="end">
+                                  <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                                  <DropdownMenuItem asChild>
+                                      <Link href={`/dashboard/vendors/${vendor.id}`}>
+                                          <Eye className="mr-2 h-4 w-4" />
+                                          View Details
+                                      </Link>
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem onClick={() => handleEditClick(vendor)}>
+                                      <Pencil className="mr-2 h-4 w-4" />
+                                      Edit
+                                  </DropdownMenuItem>
+                                  <DropdownMenuSeparator />
+                                  <AlertDialogTrigger asChild>
+                                      <DropdownMenuItem className="text-red-600">
+                                          <Trash2 className="mr-2 h-4 w-4" />
+                                          Delete
+                                      </DropdownMenuItem>
+                                  </AlertDialogTrigger>
+                                  </DropdownMenuContent>
+                              </DropdownMenu>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    This action cannot be undone. This will permanently delete this vendor.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                  <AlertDialogAction
+                                    onClick={() => handleDeleteVendor(vendor.id)}
+                                    className="bg-destructive hover:bg-destructive/90"
+                                  >
+                                    Delete
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
               <div className="flex items-center justify-end space-x-2 py-4">
                 <div className="text-sm text-muted-foreground">
                     Page {currentPage} of {totalPages}

@@ -486,19 +486,19 @@ export default function MakePaymentPage() {
                     <CardTitle>Vendor Payment Log</CardTitle>
                     <CardDescription>A record of all cash outflows to vendors.</CardDescription>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-col sm:flex-row items-center gap-2">
                     <DateRangePicker date={dateRange} onDateChange={setDateRange} />
-                    <div className="relative">
+                    <div className="relative w-full sm:w-auto">
                         <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                         <Input
                             type="search"
                             placeholder="Search payments..."
-                            className="pl-8 sm:w-[200px] lg:w-[300px]"
+                            className="pl-8 sm:w-full lg:w-[300px]"
                             value={searchQuery}
                             onChange={e => setSearchQuery(e.target.value)}
                         />
                     </div>
-                     <Button variant="outline" onClick={handleExport}>
+                     <Button variant="outline" onClick={handleExport} className="w-full sm:w-auto">
                         <Download className="mr-2 h-4 w-4" />
                         Export
                     </Button>
@@ -515,69 +515,71 @@ export default function MakePaymentPage() {
                 </div>
             ) : (
                 <>
-                <Table>
-                    <TableHeader>
-                        <TableRow>
-                            <TableHead>Vendor</TableHead>
-                            <TableHead>Project</TableHead>
-                            <TableHead>Date</TableHead>
-                            <TableHead>Expense ID</TableHead>
-                            <TableHead className="text-right">Amount</TableHead>
-                            <TableHead className="text-right">Actions</TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {paginatedTransactions.map(tx => (
-                            <TableRow key={tx.id}>
-                                <TableCell className="font-medium">{tx.supplierVendor}</TableCell>
-                                <TableCell>{tx.projectName}</TableCell>
-                                <TableCell>{new Date(tx.date).toLocaleDateString()}</TableCell>
-                                <TableCell className="font-mono">{tx.expenseId || 'N/A'}</TableCell>
-                                <TableCell className="text-right font-semibold">{formatCurrency(tx.amount)}</TableCell>
-                                <TableCell className="text-right">
-                                     <AlertDialog>
-                                        <DropdownMenu>
-                                            <DropdownMenuTrigger asChild>
-                                                <Button variant="ghost" className="h-8 w-8 p-0">
-                                                    <MoreHorizontal className="h-4 w-4" />
-                                                </Button>
-                                            </DropdownMenuTrigger>
-                                            <DropdownMenuContent align="end">
-                                                <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                                                <DropdownMenuItem disabled>View</DropdownMenuItem>
-                                                <DropdownMenuItem disabled>Edit</DropdownMenuItem>
-                                                <DropdownMenuSeparator />
-                                                 <AlertDialogTrigger asChild>
-                                                    <DropdownMenuItem className="text-destructive">
-                                                        <Trash2 className="mr-2 h-4 w-4" />
-                                                        Delete
-                                                    </DropdownMenuItem>
-                                                </AlertDialogTrigger>
-                                            </DropdownMenuContent>
-                                        </DropdownMenu>
-                                        <AlertDialogContent>
-                                            <AlertDialogHeader>
-                                                <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                                                <AlertDialogDescription>
-                                                    This will permanently delete this payment. If linked to an expense, the expense's paid amount will be updated. This action cannot be undone.
-                                                </AlertDialogDescription>
-                                            </AlertDialogHeader>
-                                            <AlertDialogFooter>
-                                                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                                <AlertDialogAction
-                                                    onClick={() => handleDeletePayment(tx)}
-                                                    className="bg-destructive hover:bg-destructive/90"
-                                                >
-                                                    Delete Payment
-                                                </AlertDialogAction>
-                                            </AlertDialogFooter>
-                                        </AlertDialogContent>
-                                    </AlertDialog>
-                                </TableCell>
+                <div className="overflow-x-auto">
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>Vendor</TableHead>
+                                <TableHead>Project</TableHead>
+                                <TableHead>Date</TableHead>
+                                <TableHead>Expense ID</TableHead>
+                                <TableHead className="text-right">Amount</TableHead>
+                                <TableHead className="text-right">Actions</TableHead>
                             </TableRow>
-                        ))}
-                    </TableBody>
-                </Table>
+                        </TableHeader>
+                        <TableBody>
+                            {paginatedTransactions.map(tx => (
+                                <TableRow key={tx.id}>
+                                    <TableCell className="font-medium">{tx.supplierVendor}</TableCell>
+                                    <TableCell>{tx.projectName}</TableCell>
+                                    <TableCell>{new Date(tx.date).toLocaleDateString()}</TableCell>
+                                    <TableCell className="font-mono">{tx.expenseId || 'N/A'}</TableCell>
+                                    <TableCell className="text-right font-semibold">{formatCurrency(tx.amount)}</TableCell>
+                                    <TableCell className="text-right">
+                                        <AlertDialog>
+                                            <DropdownMenu>
+                                                <DropdownMenuTrigger asChild>
+                                                    <Button variant="ghost" className="h-8 w-8 p-0">
+                                                        <MoreHorizontal className="h-4 w-4" />
+                                                    </Button>
+                                                </DropdownMenuTrigger>
+                                                <DropdownMenuContent align="end">
+                                                    <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                                                    <DropdownMenuItem disabled>View</DropdownMenuItem>
+                                                    <DropdownMenuItem disabled>Edit</DropdownMenuItem>
+                                                    <DropdownMenuSeparator />
+                                                    <AlertDialogTrigger asChild>
+                                                        <DropdownMenuItem className="text-destructive">
+                                                            <Trash2 className="mr-2 h-4 w-4" />
+                                                            Delete
+                                                        </DropdownMenuItem>
+                                                    </AlertDialogTrigger>
+                                                </DropdownMenuContent>
+                                            </DropdownMenu>
+                                            <AlertDialogContent>
+                                                <AlertDialogHeader>
+                                                    <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                                                    <AlertDialogDescription>
+                                                        This will permanently delete this payment. If linked to an expense, the expense's paid amount will be updated. This action cannot be undone.
+                                                    </AlertDialogDescription>
+                                                </AlertDialogHeader>
+                                                <AlertDialogFooter>
+                                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                                    <AlertDialogAction
+                                                        onClick={() => handleDeletePayment(tx)}
+                                                        className="bg-destructive hover:bg-destructive/90"
+                                                    >
+                                                        Delete Payment
+                                                    </AlertDialogAction>
+                                                </AlertDialogFooter>
+                                            </AlertDialogContent>
+                                        </AlertDialog>
+                                    </TableCell>
+                                </TableRow>
+                            ))}
+                        </TableBody>
+                    </Table>
+                </div>
                  <div className="flex items-center justify-end space-x-2 py-4">
                     <div className="text-sm text-muted-foreground">
                       Page {currentPage} of {totalPages}

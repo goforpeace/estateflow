@@ -147,7 +147,7 @@ export default function CustomersPage() {
                         }}
                     />
                 </div>
-                 <Button variant="outline" onClick={handleExport}>
+                 <Button variant="outline" onClick={handleExport} className="w-full sm:w-auto">
                     <Download className="mr-2 h-4 w-4" />
                     Export
                 </Button>
@@ -185,6 +185,7 @@ export default function CustomersPage() {
           )}
           {!isLoading && paginatedCustomers && paginatedCustomers.length > 0 && (
             <>
+            <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -257,6 +258,7 @@ export default function CustomersPage() {
                   ))}
                 </TableBody>
               </Table>
+              </div>
               <div className="flex items-center justify-end space-x-2 py-4">
                 <div className="text-sm text-muted-foreground">
                     Page {currentPage} of {totalPages}

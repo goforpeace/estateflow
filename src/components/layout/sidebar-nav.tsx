@@ -30,7 +30,6 @@ const navItems = [
   { href: '/dashboard/add-payment', icon: DollarSign, label: 'Add Payment' },
   { href: '/dashboard/expense', icon: Receipt, label: 'Add Expense' },
   { href: '/dashboard/make-payment', icon: Banknote, label: 'Make Payment' },
-  { href: '/dashboard/forecasting', icon: BrainCircuit, label: 'Forecasting', isNew: true },
 ];
 
 export function SidebarNav() {
@@ -85,5 +84,3 @@ export function SidebarNav() {
     </div>
   );
 }
-
-    

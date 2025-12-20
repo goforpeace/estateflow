@@ -78,7 +78,7 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-6">
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <StatCard 
                 title="Total Revenue"
                 value={isLoading ? "Loading..." : formatCurrency(stats.totalRevenue)}
@@ -104,7 +104,7 @@ export default function DashboardPage() {
                 description="Inflow - Outflow"
             />
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
              <StatCard 
                 title="Total Expenses"
                 value={isLoading ? "Loading..." : formatCurrency(stats.totalExpenses)}
