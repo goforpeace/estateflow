@@ -44,10 +44,10 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
   } from "@/components/ui/dropdown-menu"
-import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
+import { useFirestore } from '@/firebase';
 import { collection, query, getDocs, doc, writeBatch } from 'firebase/firestore';
 import type { Sale, Project, Flat, Customer } from '@/lib/types';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { EditSaleForm } from '@/components/dashboard/sales/edit-sale-form';
 
@@ -60,75 +60,82 @@ type EnrichedSale = Sale & {
 export default function SalesPage() {
   const firestore = useFirestore();
   const { toast } = useToast();
-  const salesQuery = useMemoFirebase(
-    () => query(collection(firestore, 'sales')),
-    [firestore]
-  );
-  const { data: sales, isLoading } = useCollection<Sale>(salesQuery);
+  const [sales, setSales] = useState<Sale[]>([]);
   const [enrichedSales, setEnrichedSales] = useState<EnrichedSale[]>([]);
-  const [isDataLoading, setIsDataLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(true);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [editingSale, setEditingSale] = useState<Sale | null>(null);
 
-  const handleEditClick = (sale: Sale) => {
-    setEditingSale(sale);
-    setIsEditDialogOpen(true);
+  const handleEditClick = (sale: EnrichedSale) => {
+    // Find the original sale object to pass to the form
+    const originalSale = sales.find(s => s.id === sale.id);
+    if (originalSale) {
+        setEditingSale(originalSale);
+        setIsEditDialogOpen(true);
+    } else {
+        toast({
+            variant: "destructive",
+            title: "Error",
+            description: "Could not find the original sale record to edit.",
+        });
+    }
   };
 
-
   useEffect(() => {
-    const enrichSales = async () => {
-        setIsDataLoading(true);
-        if (!sales) {
-          setEnrichedSales([]);
-          setIsDataLoading(false);
-          return;
-        };
+    const fetchAndEnrichSales = async () => {
+      setIsLoading(true);
+      try {
+        // 1. Fetch all data concurrently
+        const salesQuery = query(collection(firestore, 'sales'));
+        const projectsQuery = query(collection(firestore, 'projects'));
+        const customersQuery = query(collection(firestore, 'customers'));
 
-        try {
-            const projectIds = [...new Set(sales.map(s => s.projectId))];
-            const customerIds = [...new Set(sales.map(s => s.customerId))];
-            
-            const projectsPromise = projectIds.length > 0 ? getDocs(query(collection(firestore, 'projects'), where('id', 'in', projectIds))) : Promise.resolve({ docs: [] });
-            const customersPromise = customerIds.length > 0 ? getDocs(query(collection(firestore, 'customers'), where('id', 'in', customerIds))) : Promise.resolve({ docs: [] });
+        const [salesSnap, projectsSnap, customersSnap] = await Promise.all([
+          getDocs(salesQuery),
+          getDocs(projectsQuery),
+          getDocs(customersQuery),
+        ]);
 
-            const [projectsSnap, customersSnap] = await Promise.all([projectsPromise, customersPromise]);
+        const salesData = salesSnap.docs.map(doc => ({ ...doc.data(), id: doc.id } as Sale));
+        setSales(salesData);
 
-            const projectsMap = new Map(projectsSnap.docs.map(d => [d.id, d.data() as Project]));
-            const customersMap = new Map(customersSnap.docs.map(d => [d.id, d.data() as Customer]));
-            
-            const flatsMap = new Map<string, Flat>();
-            for (const projectId of projectIds) {
-                const flatsQuery = query(collection(firestore, `projects/${projectId}/flats`));
-                const flatSnaps = await getDocs(flatsQuery);
-                flatSnaps.forEach(doc => {
-                    if (!flatsMap.has(doc.id)) {
-                        flatsMap.set(doc.id, doc.data() as Flat);
-                    }
-                });
-            }
-
-            const enriched = sales.map(sale => ({
-                ...sale,
-                projectName: projectsMap.get(sale.projectId)?.projectName || 'N/A',
-                flatNumber: flatsMap.get(sale.flatId)?.flatNumber || 'N/A',
-                customerName: customersMap.get(sale.customerId)?.fullName || 'N/A',
-            }));
-
-            setEnrichedSales(enriched);
-        } catch (error) {
-            console.error("Error enriching sales:", error);
-            toast({
-                variant: 'destructive',
-                title: "Error loading sale details",
-                description: "Could not fetch all related project and customer data."
-            })
+        // 2. Create lookup maps
+        const projectsMap = new Map(projectsSnap.docs.map(d => [d.id, d.data() as Project]));
+        const customersMap = new Map(customersSnap.docs.map(d => [d.id, d.data() as Customer]));
+        
+        // 3. Fetch all flats from all projects
+        const allFlatsMap = new Map<string, Flat>();
+        for (const project of projectsMap.values()) {
+            const flatsQuery = query(collection(firestore, `projects/${project.id}/flats`));
+            const flatsSnap = await getDocs(flatsQuery);
+            flatsSnap.forEach(doc => {
+                allFlatsMap.set(doc.id, doc.data() as Flat);
+            });
         }
-        setIsDataLoading(false);
+
+        // 4. Synchronously enrich sales data
+        const enriched = salesData.map(sale => ({
+          ...sale,
+          projectName: projectsMap.get(sale.projectId)?.projectName || 'N/A',
+          flatNumber: allFlatsMap.get(sale.flatId)?.flatNumber || 'N/A',
+          customerName: customersMap.get(sale.customerId)?.fullName || 'N/A',
+        }));
+
+        setEnrichedSales(enriched);
+      } catch (error) {
+        console.error("Error fetching and enriching sales:", error);
+        toast({
+          variant: 'destructive',
+          title: "Error loading sales",
+          description: "Could not fetch all required data from the database."
+        });
+        setEnrichedSales([]); // Clear data on error
+      }
+      setIsLoading(false);
     };
 
-    enrichSales();
-  }, [sales, firestore, toast]);
+    fetchAndEnrichSales();
+  }, [firestore, toast]);
   
   const handleDeleteSale = async (sale: Sale) => {
     try {
@@ -143,6 +150,9 @@ export default function SalesPage() {
         batch.update(flatRef, { status: 'Available' });
         
         await batch.commit();
+
+        // Optimistically update UI
+        setEnrichedSales(prev => prev.filter(s => s.id !== sale.id));
 
         toast({
             title: "Sale Deleted",
@@ -170,8 +180,6 @@ export default function SalesPage() {
     return `৳${value.toLocaleString('en-IN')}`;
   };
 
-  const finalIsLoading = isLoading || isDataLoading;
-
   return (
     <div className="space-y-6">
       <Card>
@@ -192,12 +200,12 @@ export default function SalesPage() {
           </div>
         </CardHeader>
         <CardContent>
-          {finalIsLoading && (
+          {isLoading && (
             <div className="flex justify-center items-center h-60">
               <p>Loading sales...</p>
             </div>
           )}
-          {!finalIsLoading && !enrichedSales?.length && (
+          {!isLoading && !enrichedSales.length && (
             <div className="flex flex-col items-center justify-center h-60 text-center text-muted-foreground border-2 border-dashed rounded-lg">
               <Ban className="h-12 w-12 mb-2" />
               <p className="text-lg font-semibold">No sales found.</p>
@@ -206,7 +214,7 @@ export default function SalesPage() {
               </p>
             </div>
           )}
-          {!finalIsLoading && enrichedSales && enrichedSales.length > 0 && (
+          {!isLoading && enrichedSales.length > 0 && (
               <Table>
                 <TableHeader>
                   <TableRow>
