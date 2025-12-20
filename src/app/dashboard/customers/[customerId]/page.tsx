@@ -131,7 +131,7 @@ export default function CustomerDetailPage({
         const totalPrice = enrichedSales.reduce((sum, s) => {
             const basePrice = s.totalPrice || 0;
             const extra = s.extraCosts?.reduce((acc, cost) => acc + cost.amount, 0) || 0;
-            return sum + basePrice;
+            return sum + basePrice + extra;
         }, 0);
         const totalPaid = paymentsData.reduce((sum, p) => sum + p.amount, 0);
         const totalDue = totalPrice - totalPaid;
@@ -276,7 +276,7 @@ export default function CustomerDetailPage({
               </TableHeader>
               <TableBody>
                 {sales.map(sale => {
-                    const saleTotalPrice = sale.totalPrice || 0;
+                    const saleTotalPrice = sale.totalPrice + (sale.extraCosts?.reduce((acc, cost) => acc + cost.amount, 0) || 0);
                     return (
                       <TableRow key={sale.id}>
                         <TableCell className="font-medium">{sale.flatNumber}</TableCell>
@@ -355,4 +355,6 @@ export default function CustomerDetailPage({
   );
 }
     
+    
+
     
