@@ -1,7 +1,7 @@
 
 'use client';
 
-import { Ban, PlusCircle, Pencil, ArrowUpRight, Trash2 } from 'lucide-react';
+import { Ban, PlusCircle, ArrowUpRight, MoreHorizontal } from 'lucide-react';
 import Link from 'next/link';
 import {
   Card,
@@ -38,6 +38,14 @@ import {
     AlertDialogTitle,
     AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuLabel,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+  } from "@/components/ui/dropdown-menu"
 import { useCollection, useFirestore, useMemoFirebase, deleteDocumentNonBlocking } from '@/firebase';
 import { collection, query, doc, writeBatch, getDocs } from 'firebase/firestore';
 import type { Project } from '@/lib/types';
@@ -45,12 +53,6 @@ import { AddProjectForm } from '@/components/dashboard/projects/add-project-form
 import { EditProjectForm } from '@/components/dashboard/projects/edit-project-form';
 import { useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 
 
 export default function ProjectsPage() {
@@ -158,7 +160,6 @@ export default function ProjectsPage() {
             </div>
           )}
           {!isLoading && projects && projects.length > 0 && (
-            <TooltipProvider>
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -195,63 +196,52 @@ export default function ProjectsPage() {
                           {project.status}
                         </Badge>
                       </TableCell>
-                      <TableCell className="text-right space-x-2">
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Button variant="outline" size="icon" asChild>
-                              <Link href={`/project/${project.id}`}>
-                                  <ArrowUpRight className="h-4 w-4" />
-                                  <span className="sr-only">View Project</span>
-                              </Link>
+                      <TableCell className="text-right">
+                      <AlertDialog>
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" className="h-8 w-8 p-0">
+                                <span className="sr-only">Open menu</span>
+                                <MoreHorizontal className="h-4 w-4" />
                             </Button>
-                          </TooltipTrigger>
-                          <TooltipContent>View Project</TooltipContent>
-                        </Tooltip>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Button variant="outline" size="icon" onClick={() => handleEditClick(project)}>
-                              <Pencil className="h-4 w-4" />
-                              <span className="sr-only">Edit Project</span>
-                            </Button>
-                          </TooltipTrigger>
-                          <TooltipContent>Edit Project</TooltipContent>
-                        </Tooltip>
-                        <AlertDialog>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <AlertDialogTrigger asChild>
-                                  <Button variant="destructive" size="icon">
-                                      <Trash2 className="h-4 w-4" />
-                                      <span className="sr-only">Delete Project</span>
-                                  </Button>
-                                </AlertDialogTrigger>
-                              </TooltipTrigger>
-                              <TooltipContent>Delete Project</TooltipContent>
-                            </Tooltip>
-                            <AlertDialogContent>
-                              <AlertDialogHeader>
-                                <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                                <AlertDialogDescription>
-                                  This action cannot be undone. This will permanently delete this project and all its associated data (flats, transactions, etc.).
-                                </AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter>
-                                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                <AlertDialogAction
-                                  onClick={() => handleDeleteProject(project.id)}
-                                  className="bg-destructive hover:bg-destructive/90"
-                                >
-                                  Delete
-                                </AlertDialogAction>
-                              </AlertDialogFooter>
-                            </AlertDialogContent>
-                          </AlertDialog>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                            <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                            <DropdownMenuItem asChild>
+                                <Link href={`/project/${project.id}`}>View Details</Link>
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleEditClick(project)}>
+                                Edit Project
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <AlertDialogTrigger asChild>
+                                <DropdownMenuItem className="text-red-600">Delete Project</DropdownMenuItem>
+                            </AlertDialogTrigger>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+                        <AlertDialogContent>
+                            <AlertDialogHeader>
+                            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                                This action cannot be undone. This will permanently delete this project and all its associated data (flats, transactions, etc.).
+                            </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction
+                                onClick={() => handleDeleteProject(project.id)}
+                                className="bg-destructive hover:bg-destructive/90"
+                            >
+                                Delete
+                            </AlertDialogAction>
+                            </AlertDialogFooter>
+                        </AlertDialogContent>
+                        </AlertDialog>
                       </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
               </Table>
-            </TooltipProvider>
           )}
         </CardContent>
       </Card>
@@ -268,5 +258,3 @@ export default function ProjectsPage() {
     </div>
   );
 }
-
-    
