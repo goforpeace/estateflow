@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -43,6 +42,7 @@ type CustomerSummaryData = {
   totalPaid: number;
   totalDue: number;
   lastPaymentDate: string | null;
+  lastPaymentAmount: number | null;
 };
 
 export function CustomerSummary() {
@@ -123,7 +123,7 @@ export function CustomerSummary() {
         const paymentsForFlat = allPayments.filter(p => p.flatId === selectedFlatId);
         
         const totalPaid = paymentsForFlat.reduce((sum, p) => sum + p.amount, 0);
-        const lastPaymentDate = allPayments.length > 0 ? new Date(allPayments[0].date).toLocaleDateString() : null;
+        const lastPayment = allPayments.length > 0 ? allPayments[0] : null;
 
         setSummary({
           customerName: customerData?.fullName || 'N/A',
@@ -131,7 +131,8 @@ export function CustomerSummary() {
           totalPrice: saleData.totalPrice,
           totalPaid: totalPaid,
           totalDue: saleData.totalPrice - totalPaid,
-          lastPaymentDate: lastPaymentDate,
+          lastPaymentDate: lastPayment ? new Date(lastPayment.date).toLocaleDateString() : null,
+          lastPaymentAmount: lastPayment ? lastPayment.amount : null,
         });
 
       } catch (error) {
@@ -215,7 +216,10 @@ export function CustomerSummary() {
                 </div>
                  <div className="p-3 bg-muted rounded-md">
                     <p className="text-muted-foreground">Last Payment</p>
-                    <p className="font-bold">{summary.lastPaymentDate || 'N/A'}</p>
+                    <p className="font-bold">
+                        {summary.lastPaymentAmount ? formatCurrency(summary.lastPaymentAmount) : 'N/A'}
+                        {summary.lastPaymentDate && <span className="text-xs font-normal"> on {summary.lastPaymentDate}</span>}
+                    </p>
                 </div>
             </div>
           </div>
