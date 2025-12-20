@@ -3,12 +3,14 @@
 import { DollarSign, Briefcase, TrendingUp, TrendingDown, ArrowLeftRight, Banknote } from "lucide-react";
 import { StatCard } from "@/components/dashboard/stat-card";
 import { CashflowChart } from "@/components/dashboard/cashflow-chart";
-import { RecentTransactions } from "@/components/dashboard/recent-transactions";
 import { ProjectStatus } from "@/components/dashboard/project-status";
 import { useCollection, useFirestore, useMemoFirebase } from "@/firebase";
 import { collection, collectionGroup, getDocs, query } from "firebase/firestore";
 import { useEffect, useState } from "react";
 import type { InflowTransaction, OutflowTransaction, Project, Sale } from "@/lib/types";
+import { ProjectSummary } from "@/components/dashboard/project-summary";
+import { CustomerSummary } from "@/components/dashboard/customer-summary";
+
 
 export default function DashboardPage() {
   const firestore = useFirestore();
@@ -119,8 +121,9 @@ export default function DashboardPage() {
                 <ProjectStatus />
             </div>
         </div>
-        <div>
-          <RecentTransactions />
+        <div className="grid gap-6 md:grid-cols-1 lg:grid-cols-2">
+            <ProjectSummary />
+            <CustomerSummary />
         </div>
     </div>
   );
