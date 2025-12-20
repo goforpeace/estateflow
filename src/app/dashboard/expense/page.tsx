@@ -166,7 +166,8 @@ export default function AddExpensePage() {
 
   // Fetch and enrich expenses for the log
   useEffect(() => {
-    if (!isDataDirty) return;
+    // Only proceed if data is dirty and all dependent collections are loaded.
+    if (!isDataDirty || vendorsLoading || projectsLoading || itemsLoading) return;
 
     const fetchAndEnrichExpenses = async () => {
         setIsLoadingLog(true);
@@ -174,10 +175,7 @@ export default function AddExpensePage() {
             // 1. Fetch all data concurrently
             const expensesSnap = await getDocs(query(collection(firestore, 'expenses')));
             
-            // Assuming vendors, projects, and expenseItems are already fetched by their hooks.
-            // If not, they should be fetched here. For this example, we'll assume they are loaded.
-            
-            // 2. Create lookup maps from the hook data
+            // 2. Create lookup maps from the hook data which is now confirmed to be loaded
             const vendorsMap = new Map(vendors?.map(d => [d.id, d.vendorName]));
             const projectsMap = new Map(projects?.map(d => [d.id, d.projectName]));
             const itemsMap = new Map(expenseItems?.map(d => [d.id, d.name]));
@@ -207,8 +205,9 @@ export default function AddExpensePage() {
         setIsLoadingLog(false);
         setIsDataDirty(false);
     };
-
-    if (!vendorsLoading && !projectsLoading && !itemsLoading) {
+    
+    // This condition ensures the effect runs only when all data is ready.
+    if (vendors && projects && expenseItems) {
         fetchAndEnrichExpenses();
     }
 
