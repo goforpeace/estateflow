@@ -197,5 +197,14 @@ service cloud.firestore {
     match /officeExpenses/{officeExpenseId} {
       allow read, write: if canAccessBusinessData();
     }
+    
+    /**
+     * @description Manages system counters for auto-incrementing values.
+     * @path /counters/{counterId}
+     * @principle Allows authenticated users to read and write to counters, which is necessary for transactions.
+     */
+    match /counters/{counterId} {
+      allow read, write: if canAccessBusinessData();
+    }
   }
 }
