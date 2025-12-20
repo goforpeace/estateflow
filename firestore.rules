@@ -199,6 +199,15 @@ service cloud.firestore {
     }
     
     /**
+     * @description Manages vendor data. Access is granted to any authenticated user.
+     * @path /vendors/{vendorId}
+     * @principle Enforces authenticated access for all business data.
+     */
+    match /vendors/{vendorId} {
+      allow read, write: if canAccessBusinessData();
+    }
+    
+    /**
      * @description Manages sales data. Access is granted to any authenticated user.
      * @path /sales/{saleId}
      * @principle Enforces authenticated access for all business data.
@@ -226,3 +235,4 @@ service cloud.firestore {
     }
   }
 }
+

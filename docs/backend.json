@@ -161,6 +161,40 @@
         "nidNumber"
       ]
     },
+    "Vendor": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Vendor",
+      "type": "object",
+      "description": "Represents a supplier or service provider.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the vendor entity."
+        },
+        "vendorName": {
+          "type": "string",
+          "description": "The name of the vendor."
+        },
+        "phoneNumber": {
+          "type": "string",
+          "description": "The vendor's contact phone number."
+        },
+        "enterpriseName": {
+          "type": "string",
+          "description": "The name of the vendor's company or enterprise."
+        },
+        "details": {
+          "type": "string",
+          "description": "Additional details or notes about the vendor."
+        }
+      },
+      "required": [
+        "id",
+        "vendorName",
+        "phoneNumber",
+        "enterpriseName"
+      ]
+    },
     "InflowTransaction": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "InflowTransaction",
@@ -485,6 +519,22 @@
             {
               "name": "customerId",
               "description": "The unique identifier for the customer."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/vendors/{vendorId}",
+        "definition": {
+          "entityName": "Vendor",
+          "schema": {
+            "$ref": "#/backend/entities/Vendor"
+          },
+          "description": "Stores vendor and supplier information.",
+          "params": [
+            {
+              "name": "vendorId",
+              "description": "The unique identifier for the vendor."
             }
           ]
         }

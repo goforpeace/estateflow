@@ -12,6 +12,7 @@ import {
   Users,
   ShoppingCart,
   DollarSign,
+  Truck,
 } from 'lucide-react';
 import { Logo } from '../icons';
 import { cn } from '@/lib/utils';
@@ -22,6 +23,7 @@ const navItems = [
   { href: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
   { href: '/dashboard/projects', icon: Briefcase, label: 'Projects' },
   { href: '/dashboard/customers', icon: Users, label: 'Customers' },
+  { href: '/dashboard/vendors', icon: Truck, label: 'Vendors' },
   { href: '/dashboard/sales', icon: ShoppingCart, label: 'Sales' },
   { href: '/dashboard/add-payment', icon: DollarSign, label: 'Add Payment' },
   { href: '/dashboard/forecasting', icon: BrainCircuit, label: 'Forecasting', isNew: true },
@@ -79,3 +81,4 @@ export function SidebarNav() {
     </div>
   );
 }
+

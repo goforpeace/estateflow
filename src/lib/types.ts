@@ -46,6 +46,14 @@ export interface Customer {
   nidNumber: string;
 }
 
+export interface Vendor {
+  id: string;
+  vendorName: string;
+  phoneNumber: string;
+  enterpriseName: string;
+  details?: string;
+}
+
 export interface InflowTransaction {
   id: string;
   projectId: string;
@@ -90,3 +98,4 @@ export interface Sale {
 export interface Counter {
     current: number;
 }
+
