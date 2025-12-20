@@ -1,7 +1,7 @@
 
 'use client';
 
-import { Ban, PlusCircle, Trash2, MoreHorizontal } from 'lucide-react';
+import { Ban, PlusCircle, Trash2, MoreHorizontal, View } from 'lucide-react';
 import Link from 'next/link';
 import {
   Card,
@@ -35,6 +35,7 @@ import {
     DropdownMenuContent,
     DropdownMenuItem,
     DropdownMenuLabel,
+    DropdownMenuSeparator,
     DropdownMenuTrigger,
   } from "@/components/ui/dropdown-menu"
 import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
@@ -208,6 +209,13 @@ export default function SalesPage() {
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
                               <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                                <DropdownMenuItem asChild>
+                                  <Link href={`/dashboard/sales/${sale.id}`}>
+                                      <View className="mr-2 h-4 w-4" />
+                                      View Details
+                                  </Link>
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
                                 <AlertDialogTrigger asChild>
                                     <DropdownMenuItem className="text-red-600">
                                         <Trash2 className="mr-2 h-4 w-4" />
