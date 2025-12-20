@@ -79,7 +79,7 @@ export default function CustomerDetailPage({
       setIsLoading(true);
       setError(null);
       try {
-        // 1. Fetch customer, sales, and payments concurrently
+        // 1. Fetch customer, all sales, all projects, and customer-specific payments concurrently
         const customerRef = doc(firestore, 'customers', customerId);
         const salesQuery = query(
           collection(firestore, 'sales'),
@@ -100,6 +100,7 @@ export default function CustomerDetailPage({
           notFound();
           return;
         }
+
         const customerData = customerSnap.data() as Customer;
         const salesData = salesSnap.docs.map(
           d => ({ ...d.data(), id: d.id } as Sale)
@@ -107,8 +108,7 @@ export default function CustomerDetailPage({
         const paymentsData = paymentsSnap.docs.map(d => d.data() as InflowTransaction)
             .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
-
-        // 4. Enrich sales with project and flat info
+        // 2. Enrich sales with project and flat info
         const enrichedSales: EnrichedSale[] = await Promise.all(
           salesData.map(async sale => {
             const projectRef = doc(firestore, 'projects', sale.projectId);
@@ -140,10 +140,11 @@ export default function CustomerDetailPage({
           })
         );
         
-        // 5. Calculate financials
+        // 3. Calculate financials
         const totalPrice = enrichedSales.reduce((sum, s) => {
             const basePrice = s.totalPrice || 0;
-            return sum + basePrice;
+            const extra = s.extraCosts?.reduce((acc, cost) => acc + cost.amount, 0) || 0;
+            return sum + basePrice + extra;
         }, 0);
         const totalPaid = paymentsData.reduce((sum, p) => sum + p.amount, 0);
         const totalDue = totalPrice - totalPaid;
@@ -288,7 +289,7 @@ export default function CustomerDetailPage({
               </TableHeader>
               <TableBody>
                 {sales.map(sale => {
-                    const saleTotalPrice = sale.totalPrice || 0;
+                    const saleTotalPrice = (sale.totalPrice || 0) + (sale.extraCosts?.reduce((acc, cost) => acc + cost.amount, 0) || 0);
                     return (
                       <TableRow key={sale.id}>
                         <TableCell className="font-medium">{sale.flatNumber}</TableCell>
