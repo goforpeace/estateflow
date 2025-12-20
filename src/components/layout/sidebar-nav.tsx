@@ -1,24 +1,25 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import {
   LayoutDashboard,
   Briefcase,
-  ArrowRightLeft,
-  Building,
-  BrainCircuit,
-  Settings,
   Users,
+  Truck,
   ShoppingCart,
   DollarSign,
-  Truck,
   Receipt,
   Banknote,
+  Settings,
+  LogOut,
 } from 'lucide-react';
+import { useAuth } from '@/firebase';
+import { signOut } from 'firebase/auth';
 import { Logo } from '../icons';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 
 
 const navItems = [
@@ -34,6 +35,13 @@ const navItems = [
 
 export function SidebarNav() {
   const pathname = usePathname();
+  const auth = useAuth();
+  const router = useRouter();
+
+  const handleLogout = async () => {
+    await signOut(auth);
+    router.push('/login');
+  };
 
   return (
     <div className="hidden border-r bg-muted/40 md:block">
@@ -67,7 +75,7 @@ export function SidebarNav() {
           </nav>
         </div>
         <div className="mt-auto p-4">
-          <nav className="grid items-start px-2 text-sm font-medium lg:px-4">
+          <nav className="grid items-start px-2 text-sm font-medium lg:px-4 gap-2">
              <Link
                 href="/dashboard/settings"
                 className={cn(
@@ -78,6 +86,10 @@ export function SidebarNav() {
                 <Settings className="h-4 w-4" />
                 Settings
               </Link>
+              <Button variant="ghost" className="justify-start px-3" onClick={handleLogout}>
+                 <LogOut className="h-4 w-4 mr-3" />
+                 Logout
+              </Button>
           </nav>
         </div>
       </div>
