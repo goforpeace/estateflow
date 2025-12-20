@@ -60,6 +60,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { EditExpenseForm } from '@/components/dashboard/expenses/edit-expense-form';
 import { ExpenseDetails } from '@/components/dashboard/expenses/expense-details';
+import { Badge } from '@/components/ui/badge';
 
 
 const addExpenseFormSchema = z.object({
@@ -166,21 +167,17 @@ export default function AddExpensePage() {
 
   // Fetch and enrich expenses for the log
   useEffect(() => {
-    // Only proceed if data is dirty and all dependent collections are loaded.
     if (!isDataDirty || vendorsLoading || projectsLoading || itemsLoading) return;
 
     const fetchAndEnrichExpenses = async () => {
         setIsLoadingLog(true);
         try {
-            // 1. Fetch all data concurrently
             const expensesSnap = await getDocs(query(collection(firestore, 'expenses')));
             
-            // 2. Create lookup maps from the hook data which is now confirmed to be loaded
             const vendorsMap = new Map(vendors?.map(d => [d.id, d.vendorName]));
             const projectsMap = new Map(projects?.map(d => [d.id, d.projectName]));
             const itemsMap = new Map(expenseItems?.map(d => [d.id, d.name]));
 
-            // 3. Enrich expenses data
             const enriched = expensesSnap.docs.map(doc => {
                 const expense = { ...doc.data(), id: doc.id } as Expense;
                 return {
@@ -206,7 +203,6 @@ export default function AddExpensePage() {
         setIsDataDirty(false);
     };
     
-    // This condition ensures the effect runs only when all data is ready.
     if (vendors && projects && expenseItems) {
         fetchAndEnrichExpenses();
     }
@@ -249,42 +245,26 @@ export default function AddExpensePage() {
 
   async function onSubmit(data: AddExpenseFormValues) {
     try {
-      const batch = writeBatch(firestore);
       const expenseId = await getNextExpenseId();
 
-      // 1. Create the main expense record
       const expenseRef = doc(collection(firestore, 'expenses'));
-      batch.set(expenseRef, {
+      const newExpense = {
         ...data,
         id: expenseRef.id,
         expenseId: expenseId,
         date: new Date(data.date).toISOString(),
-      });
-
-      // 2. Create the corresponding outflow transaction for financial tracking
-      const outflowRef = doc(collection(firestore, 'projects', data.projectId, 'outflowTransactions'));
-      const vendorName = vendors?.find(v => v.id === data.vendorId)?.vendorName || 'N/A';
-      const itemName = expenseItems?.find(i => i.id === data.itemId)?.name || 'N/A';
+        paidAmount: 0,
+        status: 'Unpaid' as 'Unpaid',
+      };
       
-      batch.set(outflowRef, {
-        id: outflowRef.id,
-        projectId: data.projectId,
-        amount: data.price,
-        date: new Date(data.date).toISOString(),
-        expenseCategory: 'Material', // Defaulting, could be enhanced
-        supplierVendor: vendorName,
-        description: `Expense for ${data.quantity} x ${itemName}. ${data.description || ''}`.trim(),
-        expenseId: expenseId,
-      });
-      
-      await batch.commit();
+      addDocumentNonBlocking(collection(firestore, 'expenses'), newExpense);
 
       toast({
         title: 'Expense Recorded',
-        description: `Expense ${expenseId} of ${data.price} has been successfully logged.`,
+        description: `Expense ${expenseId} of ${data.price} has been logged as unpaid.`,
       });
       form.reset();
-      setIsDataDirty(true); // Mark data as dirty to trigger a re-fetch for the log
+      setIsDataDirty(true);
     } catch (error: any) {
       console.error('Error recording expense: ', error);
       toast({
@@ -296,7 +276,6 @@ export default function AddExpensePage() {
   }
 
   const handleDeleteExpense = (expense: EnrichedExpense) => {
-    // This is a simplified deletion. A robust implementation would also delete the related outflow transaction.
     const expenseRef = doc(firestore, 'expenses', expense.id);
     deleteDocumentNonBlocking(expenseRef);
     toast({
@@ -350,7 +329,7 @@ export default function AddExpensePage() {
         <Card>
         <CardHeader>
             <CardTitle>Add New Expense</CardTitle>
-            <CardDescription>Record a new project expense and cash outflow.</CardDescription>
+            <CardDescription>Record a new project expense. Payments are handled separately.</CardDescription>
         </CardHeader>
         <CardContent>
             <Form {...form}>
@@ -553,9 +532,9 @@ export default function AddExpensePage() {
                                 <TableRow>
                                     <TableHead>Expense ID</TableHead>
                                     <TableHead>Vendor</TableHead>
-                                    <TableHead>Project</TableHead>
                                     <TableHead>Item</TableHead>
                                     <TableHead>Date</TableHead>
+                                    <TableHead>Status</TableHead>
                                     <TableHead className="text-right">Price</TableHead>
                                     <TableHead className="text-right">Actions</TableHead>
                                 </TableRow>
@@ -565,9 +544,16 @@ export default function AddExpensePage() {
                                     <TableRow key={expense.id}>
                                         <TableCell className="font-mono">{expense.expenseId}</TableCell>
                                         <TableCell className="font-medium">{expense.vendorName}</TableCell>
-                                        <TableCell>{expense.projectName}</TableCell>
                                         <TableCell>{expense.itemName}</TableCell>
                                         <TableCell>{new Date(expense.date).toLocaleDateString()}</TableCell>
+                                        <TableCell>
+                                            <Badge variant={
+                                                expense.status === 'Paid' ? 'default' :
+                                                expense.status === 'Partially Paid' ? 'secondary' : 'destructive'
+                                            }>
+                                                {expense.status}
+                                            </Badge>
+                                        </TableCell>
                                         <TableCell className="text-right font-semibold">{formatCurrency(expense.price)}</TableCell>
                                         <TableCell className="text-right">
                                             <AlertDialog>
@@ -677,3 +663,5 @@ export default function AddExpensePage() {
     </div>
   );
 }
+
+    

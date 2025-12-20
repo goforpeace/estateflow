@@ -1,5 +1,6 @@
 
 
+
 export type ProjectStatus = 'Planning' | 'Ongoing' | 'Completed';
 export type FlatOwnership = 'Developer' | 'Landowner';
 export type FlatStatus = 'Available' | 'Sold' | 'Reserved';
@@ -8,6 +9,7 @@ export type TransactionType = 'Inflow' | 'Outflow';
 export type InflowType = 'Booking' | 'Installment';
 export type OutflowCategory = 'Material' | 'Labor' | 'Utility' | 'Office';
 export type PaymentPurpose = 'Booking Money' | 'Installment' | 'Other';
+export type ExpenseStatus = 'Unpaid' | 'Partially Paid' | 'Paid';
 
 
 export interface User {
@@ -114,6 +116,10 @@ export interface Expense {
   itemId: string;
   quantity?: number;
   price: number;
+  paidAmount: number;
+  status: ExpenseStatus;
   date: string;
   description?: string;
 }
+
+    

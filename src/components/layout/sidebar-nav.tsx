@@ -14,6 +14,7 @@ import {
   DollarSign,
   Truck,
   Receipt,
+  Banknote,
 } from 'lucide-react';
 import { Logo } from '../icons';
 import { cn } from '@/lib/utils';
@@ -28,6 +29,7 @@ const navItems = [
   { href: '/dashboard/sales', icon: ShoppingCart, label: 'Sales' },
   { href: '/dashboard/add-payment', icon: DollarSign, label: 'Add Payment' },
   { href: '/dashboard/expense', icon: Receipt, label: 'Add Expense' },
+  { href: '/dashboard/make-payment', icon: Banknote, label: 'Make Payment' },
   { href: '/dashboard/forecasting', icon: BrainCircuit, label: 'Forecasting', isNew: true },
 ];
 
