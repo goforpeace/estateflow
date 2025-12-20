@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useFirestore } from '@/firebase';
 import {
   doc,
@@ -37,11 +37,9 @@ import {
 } from '@/components/ui/table';
 import {
   ArrowLeft,
-  Mail,
   Phone,
   User as UserIcon,
   Home,
-  MapPin,
   Landmark,
   Ban,
 } from 'lucide-react';
@@ -82,64 +80,58 @@ export default function CustomerDetailPage({
       setIsLoading(true);
       setError(null);
       try {
-        // 1. Fetch Customer Details
+        // 1. Fetch customer, sales, and payments concurrently
         const customerRef = doc(firestore, 'customers', customerId);
-        const customerSnap = await getDoc(customerRef);
+        const salesQuery = query(
+          collection(firestore, 'sales'),
+          where('customerId', '==', customerId)
+        );
+        const paymentsQuery = query(
+          collectionGroup(firestore, 'inflowTransactions'),
+          where('customerId', '==', customerId)
+        );
+
+        const [customerSnap, salesSnap, paymentsSnap] = await Promise.all([
+          getDoc(customerRef),
+          getDocs(salesQuery),
+          getDocs(paymentsQuery),
+        ]);
 
         if (!customerSnap.exists()) {
           notFound();
           return;
         }
         const customerData = customerSnap.data() as Customer;
-
-        // 2. Fetch all sales for this customer
-        const salesQuery = query(
-          collection(firestore, 'sales'),
-          where('customerId', '==', customerId)
-        );
-        const salesSnap = await getDocs(salesQuery);
         const salesData = salesSnap.docs.map(
           d => ({ ...d.data(), id: d.id } as Sale)
         );
-
-        if (salesData.length === 0) {
-          setDetails({
-            customer: customerData,
-            sales: [],
-            payments: [],
-            totalPaid: 0,
-            totalPrice: 0,
-            totalDue: 0,
-          });
-          setIsLoading(false);
-          return;
-        }
-
-        // 3. Fetch all payments for this customer
-        const paymentsQuery = query(
-            collectionGroup(firestore, 'inflowTransactions'),
-            where('customerId', '==', customerId)
-        );
-        const paymentsSnap = await getDocs(paymentsQuery);
-        const paymentsData = paymentsSnap.docs.map(d => d.data() as InflowTransaction).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+        const paymentsData = paymentsSnap.docs.map(d => d.data() as InflowTransaction)
+            .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
 
         // 4. Enrich sales with project and flat info
         const enrichedSales: EnrichedSale[] = [];
-        for (const sale of salesData) {
-            const projectRef = doc(firestore, 'projects', sale.projectId);
-            const flatRef = doc(firestore, `projects/${sale.projectId}/flats`, sale.flatId);
-
-            const [projectSnap, flatSnap] = await Promise.all([
-                getDoc(projectRef),
-                getDoc(flatRef)
-            ]);
+        if (salesData.length > 0) {
+            // Collect all unique project and flat IDs
+            const projectIds = [...new Set(salesData.map(s => s.projectId))];
             
-            enrichedSales.push({
-                ...sale,
-                projectName: (projectSnap.data() as Project)?.projectName || 'N/A',
-                flatNumber: (flatSnap.data() as Flat)?.flatNumber || 'N/A',
-            });
+            // Fetch all projects and flats in batches
+            const projectDocs = projectIds.length > 0 ? await getDocs(query(collection(firestore, 'projects'), where('id', 'in', projectIds))) : { docs: [] };
+            const flatDocsPromises = projectIds.map(pId => getDocs(query(collection(firestore, `projects/${pId}/flats`))));
+            const flatDocsSnaps = await Promise.all(flatDocsPromises);
+
+            // Create lookup maps
+            const projectsMap = new Map(projectDocs.docs.map(d => [d.id, d.data() as Project]));
+            const flatsMap = new Map<string, Flat>();
+            flatDocsSnaps.forEach(snap => snap.docs.forEach(d => flatsMap.set(d.id, d.data() as Flat)));
+
+            for (const sale of salesData) {
+                enrichedSales.push({
+                    ...sale,
+                    projectName: projectsMap.get(sale.projectId)?.projectName || 'N/A',
+                    flatNumber: flatsMap.get(sale.flatId)?.flatNumber || 'N/A',
+                });
+            }
         }
         
         // 5. Calculate financials
@@ -324,10 +316,10 @@ export default function CustomerDetailPage({
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {payments.map(payment => {
+                {payments.map((payment, index) => {
                     const sale = sales.find(s => s.flatId === payment.flatId);
                     return (
-                        <TableRow key={payment.id}>
+                        <TableRow key={`${payment.id}-${index}`}>
                             <TableCell>{new Date(payment.date).toLocaleDateString()}</TableCell>
                             <TableCell>{sale?.projectName || 'N/A'}</TableCell>
                             <TableCell>
