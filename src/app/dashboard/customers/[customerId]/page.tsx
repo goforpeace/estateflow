@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -79,7 +80,7 @@ export default function CustomerDetailPage({
       setIsLoading(true);
       setError(null);
       try {
-        // 1. Fetch customer, all sales, all projects, and customer-specific payments concurrently
+        // 1. Fetch customer, all sales for that customer, and all payments for that customer concurrently
         const customerRef = doc(firestore, 'customers', customerId);
         const salesQuery = query(
           collection(firestore, 'sales'),
@@ -108,43 +109,29 @@ export default function CustomerDetailPage({
         const paymentsData = paymentsSnap.docs.map(d => d.data() as InflowTransaction)
             .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
-        // 2. Enrich sales with project and flat info
-        const enrichedSales: EnrichedSale[] = await Promise.all(
-          salesData.map(async sale => {
+        // 2. Enrich sales with project and flat info (more reliably)
+        const enrichedSales: EnrichedSale[] = [];
+        for (const sale of salesData) {
             const projectRef = doc(firestore, 'projects', sale.projectId);
-            const flatRef = doc(
-              firestore,
-              'projects',
-              sale.projectId,
-              'flats',
-              sale.flatId
-            );
-
+            const flatRef = doc(firestore, 'projects', sale.projectId, 'flats', sale.flatId);
+            
             const [projectSnap, flatSnap] = await Promise.all([
-              getDoc(projectRef),
-              getDoc(flatRef),
+                getDoc(projectRef),
+                getDoc(flatRef),
             ]);
 
-            const projectName = projectSnap.exists()
-              ? (projectSnap.data() as Project).projectName
-              : 'N/A';
-            const flatNumber = flatSnap.exists()
-              ? (flatSnap.data() as Flat).flatNumber
-              : 'N/A';
-
-            return {
-              ...sale,
-              projectName,
-              flatNumber,
-            };
-          })
-        );
+            enrichedSales.push({
+                ...sale,
+                projectName: projectSnap.exists() ? (projectSnap.data() as Project).projectName : 'N/A',
+                flatNumber: flatSnap.exists() ? (flatSnap.data() as Flat).flatNumber : 'N/A',
+            });
+        }
         
         // 3. Calculate financials
         const totalPrice = enrichedSales.reduce((sum, s) => {
             const basePrice = s.totalPrice || 0;
             const extra = s.extraCosts?.reduce((acc, cost) => acc + cost.amount, 0) || 0;
-            return sum + basePrice + extra;
+            return sum + basePrice;
         }, 0);
         const totalPaid = paymentsData.reduce((sum, p) => sum + p.amount, 0);
         const totalDue = totalPrice - totalPaid;
@@ -289,7 +276,7 @@ export default function CustomerDetailPage({
               </TableHeader>
               <TableBody>
                 {sales.map(sale => {
-                    const saleTotalPrice = (sale.totalPrice || 0) + (sale.extraCosts?.reduce((acc, cost) => acc + cost.amount, 0) || 0);
+                    const saleTotalPrice = sale.totalPrice || 0;
                     return (
                       <TableRow key={sale.id}>
                         <TableCell className="font-medium">{sale.flatNumber}</TableCell>
@@ -367,4 +354,5 @@ export default function CustomerDetailPage({
     </div>
   );
 }
+    
     
