@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -217,8 +218,8 @@ export default function CustomerDetailPage({
         const date = new Date(p.date).toLocaleDateString();
         const searchTerm = searchQuery.toLowerCase();
         return (
-            p.paymentType.toLowerCase().includes(searchTerm) ||
-            p.paymentMethod.toLowerCase().includes(searchTerm) ||
+            (p.paymentType || '').toLowerCase().includes(searchTerm) ||
+            (p.paymentMethod || '').toLowerCase().includes(searchTerm) ||
             p.amount.toString().includes(searchTerm) ||
             date.includes(searchTerm)
         )
