@@ -11,6 +11,9 @@ import {
   getDocs,
   getDoc,
   collectionGroup,
+  writeBatch,
+  runTransaction,
+  limit,
 } from 'firebase/firestore';
 import type {
   Vendor,
@@ -42,15 +45,39 @@ import {
   Briefcase,
   Ban,
   Search,
+  MoreHorizontal,
+  Pencil,
+  Trash2,
+  Eye,
 } from 'lucide-react';
 import { notFound, useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuLabel,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+  } from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { useToast } from '@/hooks/use-toast';
+import { ExpenseDetails } from '@/components/dashboard/expenses/expense-details';
+import { EditExpenseForm } from '@/components/dashboard/expenses/edit-expense-form';
+import type { EnrichedExpense } from '@/app/dashboard/expense/page';
 
-type EnrichedExpense = Expense & {
-    projectName: string;
-    itemName: string;
-}
 
 type EnrichedOutflow = OutflowTransaction & {
     projectName: string;
@@ -74,20 +101,27 @@ export default function VendorDetailPage({
 }) {
   const firestore = useFirestore();
   const router = useRouter();
+  const { toast } = useToast();
   const { vendorId } = params;
 
   const [details, setDetails] = useState<VendorDetails | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isDataDirty, setIsDataDirty] = useState(true);
   
   const [expenseSearch, setExpenseSearch] = useState('');
   const [paymentSearch, setPaymentSearch] = useState('');
   const [expensePage, setExpensePage] = useState(1);
   const [paymentPage, setPaymentPage] = useState(1);
 
+  const [editingExpense, setEditingExpense] = useState<EnrichedExpense | null>(null);
+  const [viewingExpense, setViewingExpense] = useState<EnrichedExpense | null>(null);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
+
 
   useEffect(() => {
-    if (!vendorId || !firestore) return;
+    if (!vendorId || !firestore || !isDataDirty) return;
 
     const fetchData = async () => {
       setIsLoading(true);
@@ -123,7 +157,7 @@ export default function VendorDetailPage({
         const expensesSnap = await getDocs(expensesQuery);
         const vendorExpenses = expensesSnap.docs.map(d => ({ ...d.data(), id: d.id } as Expense));
         
-        const enrichedExpenses = vendorExpenses.map(exp => ({
+        const enrichedExpenses: EnrichedExpense[] = vendorExpenses.map(exp => ({
             ...exp,
             projectName: projectsMap.get(exp.projectId)?.projectName || 'N/A',
             itemName: itemsMap.get(exp.itemId)?.name || 'N/A',
@@ -157,11 +191,12 @@ export default function VendorDetailPage({
         setError('Could not load vendor data. Please try again.');
       } finally {
         setIsLoading(false);
+        setIsDataDirty(false);
       }
     };
 
     fetchData();
-  }, [vendorId, firestore]);
+  }, [vendorId, firestore, isDataDirty]);
   
   const filteredExpenses = useMemo(() => {
     if (!details) return [];
@@ -186,6 +221,75 @@ export default function VendorDetailPage({
 
   const paginatedPayments = filteredPayments.slice((paymentPage - 1) * ITEMS_PER_PAGE, paymentPage * ITEMS_PER_PAGE);
   const totalPaymentPages = Math.ceil(filteredPayments.length / ITEMS_PER_PAGE);
+
+  const handleEditExpenseClick = (expense: EnrichedExpense) => {
+    setEditingExpense(expense);
+    setIsEditDialogOpen(true);
+  };
+  
+  const handleViewExpenseClick = (expense: EnrichedExpense) => {
+    setViewingExpense(expense);
+    setIsViewDialogOpen(true);
+  };
+  
+  const handleDeleteExpense = async (expense: EnrichedExpense) => {
+    if (expense.paidAmount > 0) {
+        toast({
+            variant: "destructive",
+            title: "Cannot Delete Expense",
+            description: "This expense has payments made against it. Please delete the payments first.",
+        });
+        return;
+    }
+
+    const expenseRef = doc(firestore, 'expenses', expense.id);
+    deleteDocumentNonBlocking(expenseRef);
+    toast({
+        title: "Expense Deleted",
+        description: "The expense record has been successfully deleted.",
+    });
+    setIsDataDirty(true);
+  };
+  
+  const handleDeletePayment = async (payment: EnrichedOutflow) => {
+    if (!payment.projectId) {
+         toast({ variant: 'destructive', title: 'Cannot Delete', description: 'This payment is not associated with a project.' });
+         return;
+    }
+    const paymentRef = doc(firestore, 'projects', payment.projectId, 'outflowTransactions', payment.id);
+
+    try {
+        if (payment.expenseId) {
+            await runTransaction(firestore, async (transaction) => {
+                const expenseQuery = query(collection(firestore, 'expenses'), where('expenseId', '==', payment.expenseId), limit(1));
+                const expenseSnap = await transaction.get(expenseQuery);
+
+                if (expenseSnap.empty) {
+                    throw new Error(`Expense with ID ${payment.expenseId} not found.`);
+                }
+
+                const expenseDoc = expenseSnap.docs[0];
+                const expenseData = expenseDoc.data() as Expense;
+
+                const newPaidAmount = expenseData.paidAmount - payment.amount;
+                const newStatus = newPaidAmount <= 0 ? 'Unpaid' : 'Partially Paid';
+                
+                transaction.update(expenseDoc.ref, {
+                    paidAmount: newPaidAmount,
+                    status: newStatus,
+                });
+                transaction.delete(paymentRef);
+            });
+            toast({ title: 'Payment Deleted', description: 'Payment reversed and expense status updated.' });
+        } else {
+            await deleteDoc(paymentRef);
+            toast({ title: 'Payment Deleted', description: 'The standalone payment has been deleted.' });
+        }
+        setIsDataDirty(true);
+    } catch (error: any) {
+        toast({ variant: 'destructive', title: 'Error Deleting Payment', description: error.message });
+    }
+  };
 
 
   const formatCurrency = (value: number) => {
@@ -228,7 +332,7 @@ export default function VendorDetailPage({
     );
   }
 
-  const { vendor, expenses, payments, totalBilled, totalPaid, totalDue } = details;
+  const { vendor, totalBilled, totalPaid, totalDue } = details;
 
   return (
     <div className="space-y-6 container mx-auto py-6">
@@ -321,6 +425,7 @@ export default function VendorDetailPage({
                     <TableHead>Item</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead className="text-right">Amount</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -338,6 +443,50 @@ export default function VendorDetailPage({
                             </Badge>
                         </TableCell>
                         <TableCell className="text-right font-semibold">{formatCurrency(expense.price)}</TableCell>
+                        <TableCell className="text-right">
+                            <AlertDialog>
+                                <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                        <Button variant="ghost" className="h-8 w-8 p-0">
+                                            <span className="sr-only">Open menu</span>
+                                            <MoreHorizontal className="h-4 w-4" />
+                                        </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end">
+                                        <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                                        <DropdownMenuItem onClick={() => handleViewExpenseClick(expense)}>
+                                            <Eye className="mr-2 h-4 w-4" /> View
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem onClick={() => handleEditExpenseClick(expense)}>
+                                            <Pencil className="mr-2 h-4 w-4" /> Edit
+                                        </DropdownMenuItem>
+                                        <DropdownMenuSeparator />
+                                        <AlertDialogTrigger asChild>
+                                            <DropdownMenuItem className="text-red-600">
+                                                <Trash2 className="mr-2 h-4 w-4" /> Delete
+                                            </DropdownMenuItem>
+                                        </AlertDialogTrigger>
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
+                                <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                        <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                        <AlertDialogDescription>
+                                            This will permanently delete this expense. This action cannot be undone. You can only delete expenses with no payments.
+                                        </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                        <AlertDialogAction
+                                            onClick={() => handleDeleteExpense(expense)}
+                                            className="bg-destructive hover:bg-destructive/90"
+                                        >
+                                            Delete
+                                        </AlertDialogAction>
+                                    </AlertDialogFooter>
+                                </AlertDialogContent>
+                            </AlertDialog>
+                        </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -389,6 +538,7 @@ export default function VendorDetailPage({
                     <TableHead>Method</TableHead>
                     <TableHead>Expense ID</TableHead>
                     <TableHead className="text-right">Amount</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -402,6 +552,42 @@ export default function VendorDetailPage({
                           <TableCell className="font-mono">{payment.expenseId || 'N/A'}</TableCell>
                           <TableCell className="text-right font-semibold text-green-600">
                               {formatCurrency(payment.amount)}
+                          </TableCell>
+                          <TableCell className="text-right">
+                                <AlertDialog>
+                                    <DropdownMenu>
+                                        <DropdownMenuTrigger asChild>
+                                            <Button variant="ghost" className="h-8 w-8 p-0">
+                                                <MoreHorizontal className="h-4 w-4" />
+                                            </Button>
+                                        </DropdownMenuTrigger>
+                                        <DropdownMenuContent align="end">
+                                            <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                                            <AlertDialogTrigger asChild>
+                                                <DropdownMenuItem className="text-destructive">
+                                                    <Trash2 className="mr-2 h-4 w-4" /> Delete
+                                                </DropdownMenuItem>
+                                            </AlertDialogTrigger>
+                                        </DropdownMenuContent>
+                                    </DropdownMenu>
+                                    <AlertDialogContent>
+                                        <AlertDialogHeader>
+                                            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                            <AlertDialogDescription>
+                                                This will permanently delete this payment. If linked to an expense, the expense's paid amount will be updated.
+                                            </AlertDialogDescription>
+                                        </AlertDialogHeader>
+                                        <AlertDialogFooter>
+                                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                            <AlertDialogAction
+                                                onClick={() => handleDeletePayment(payment)}
+                                                className="bg-destructive hover:bg-destructive/90"
+                                            >
+                                                Delete Payment
+                                            </AlertDialogAction>
+                                        </AlertDialogFooter>
+                                    </AlertDialogContent>
+                                </AlertDialog>
                           </TableCell>
                       </TableRow>
                   ))}
@@ -423,6 +609,34 @@ export default function VendorDetailPage({
           )}
         </CardContent>
       </Card>
+
+      {viewingExpense && (
+            <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
+                <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>Expense Details</DialogTitle>
+                        <DialogDescription>Viewing details for expense ID: {viewingExpense.expenseId}</DialogDescription>
+                    </DialogHeader>
+                    <ExpenseDetails expense={viewingExpense} />
+                </DialogContent>
+            </Dialog>
+        )}
+
+        {editingExpense && (
+            <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+                <DialogContent className="sm:max-w-2xl">
+                    <DialogHeader>
+                        <DialogTitle>Edit Expense</DialogTitle>
+                        <DialogDescription>Updating details for expense ID: {editingExpense.expenseId}</DialogDescription>
+                    </DialogHeader>
+                    <EditExpenseForm 
+                        expense={editingExpense} 
+                        setDialogOpen={setIsEditDialogOpen}
+                        onUpdate={() => setIsDataDirty(true)}
+                    />
+                </DialogContent>
+            </Dialog>
+        )}
     </div>
   );
 }
