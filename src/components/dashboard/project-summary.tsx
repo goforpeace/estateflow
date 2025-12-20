@@ -40,8 +40,10 @@ type ProjectSummaryData = {
   soldFlats: number;
   unsoldFlats: number;
   totalRevenue: number;
+  targetSell: number;
   totalInflow: number;
   totalOutflow: number;
+  totalExpense: number; // For future use
 };
 
 export function ProjectSummary() {
@@ -99,8 +101,10 @@ export function ProjectSummary() {
           soldFlats: soldFlats,
           unsoldFlats: projectData.totalFlats - soldFlats,
           totalRevenue: totalRevenue,
+          targetSell: projectData.targetSell,
           totalInflow: totalInflow,
           totalOutflow: totalOutflow,
+          totalExpense: totalOutflow, // Placeholder for now
         });
 
       } catch (error) {
@@ -151,13 +155,13 @@ export function ProjectSummary() {
         {isLoading && (
           <div className="space-y-4 pt-4">
              <Skeleton className="h-8 w-3/4" />
-             <div className="grid grid-cols-2 gap-4">
-                <Skeleton className="h-12 w-full" />
-                <Skeleton className="h-12 w-full" />
-                <Skeleton className="h-12 w-full" />
-                <Skeleton className="h-12 w-full" />
-                <Skeleton className="h-12 w-full" />
-                <Skeleton className="h-12 w-full" />
+             <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                <Skeleton className="h-20 w-full" />
+                <Skeleton className="h-20 w-full" />
+                <Skeleton className="h-20 w-full" />
+                <Skeleton className="h-20 w-full" />
+                <Skeleton className="h-20 w-full" />
+                <Skeleton className="h-20 w-full" />
              </div>
           </div>
         )}
@@ -165,22 +169,31 @@ export function ProjectSummary() {
         {!isLoading && summary && (
           <div className="pt-4">
             <h3 className="text-lg font-semibold mb-4">{summary.projectName}</h3>
-            <div className="grid grid-cols-2 gap-4 text-sm">
-                <div className="p-3 bg-muted rounded-md">
-                    <p className="text-muted-foreground">Flats</p>
-                    <p><span className="font-bold">{summary.soldFlats}</span> Sold / <span className="font-bold">{summary.unsoldFlats}</span> Unsold ({summary.totalFlats} Total)</p>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
+                <div className="p-3 bg-muted rounded-md space-y-1">
+                    <p className="text-muted-foreground">Flat Status</p>
+                    <p><span className="font-bold">{summary.soldFlats}</span> Sold</p>
+                    <p><span className="font-bold">{summary.unsoldFlats}</span> Unsold ({summary.totalFlats} Total)</p>
                 </div>
-                 <div className="p-3 bg-muted rounded-md">
+                 <div className="p-3 bg-muted rounded-md space-y-1">
                     <p className="text-muted-foreground">Total Revenue</p>
                     <p className="font-bold">{formatCurrency(summary.totalRevenue)}</p>
                 </div>
-                 <div className="p-3 bg-muted rounded-md">
+                <div className="p-3 bg-muted rounded-md space-y-1">
+                    <p className="text-muted-foreground">Target Sell</p>
+                    <p className="font-bold">{formatCurrency(summary.targetSell)}</p>
+                </div>
+                 <div className="p-3 bg-muted rounded-md space-y-1">
                     <p className="text-muted-foreground">Total Inflow</p>
                     <p className="font-bold text-green-600">{formatCurrency(summary.totalInflow)}</p>
                 </div>
-                 <div className="p-3 bg-muted rounded-md">
-                    <p className="text-muted-foreground">Total Outflow/Expense</p>
-                    <p className="font-bold text-red-600">{formatCurrency(summary.totalOutflow)}</p>
+                 <div className="p-3 bg-muted rounded-md space-y-1">
+                    <p className="text-muted-foreground">Total Outflow</p>
+                    <p className="font-bold text-orange-600">{formatCurrency(summary.totalOutflow)}</p>
+                </div>
+                <div className="p-3 bg-muted rounded-md space-y-1">
+                    <p className="text-muted-foreground">Total Expense</p>
+                    <p className="font-bold text-red-600">{formatCurrency(summary.totalExpense)}</p>
                 </div>
             </div>
           </div>
