@@ -1,3 +1,4 @@
+
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -49,7 +50,7 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
     AlertDialogTrigger,
-  } from "@/components/ui/alert-dialog";
+  } from "@/components/ui/alert-dialog"
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -167,17 +168,15 @@ export default function AddExpensePage() {
 
   // Fetch and enrich expenses for the log
   useEffect(() => {
-    if (!isDataDirty || vendorsLoading || projectsLoading || itemsLoading) return;
+    if (!isDataDirty || !vendors || !projects || !expenseItems) {
+        // Wait until all dependency data is loaded.
+        return;
+    }
 
     const fetchAndEnrichExpenses = async () => {
         setIsLoadingLog(true);
         try {
             const expensesSnap = await getDocs(query(collection(firestore, 'expenses')));
-            
-            if (!vendors || !projects || !expenseItems) {
-                // This case should be rare given the guard condition, but it's a safeguard
-                throw new Error("Dependency data not available for enrichment.");
-            }
             
             const vendorsMap = new Map(vendors.map(d => [d.id, d.vendorName]));
             const projectsMap = new Map(projects.map(d => [d.id, d.projectName]));
@@ -195,12 +194,12 @@ export default function AddExpensePage() {
 
             setExpenses(enriched);
 
-        } catch (error) {
+        } catch (error: any) {
             console.error("Error fetching and enriching expenses:", error);
             toast({
               variant: 'destructive',
               title: "Error loading expenses",
-              description: "Could not fetch expense data from the database."
+              description: error.message || "Could not fetch expense data from the database."
             });
             setExpenses([]);
         }
@@ -210,7 +209,7 @@ export default function AddExpensePage() {
     
     fetchAndEnrichExpenses();
 
-  }, [firestore, toast, isDataDirty, vendors, projects, expenseItems, vendorsLoading, projectsLoading, itemsLoading]);
+  }, [firestore, toast, isDataDirty, vendors, projects, expenseItems]);
 
 
   const form = useForm<AddExpenseFormValues>({
@@ -674,3 +673,5 @@ export default function AddExpensePage() {
     </div>
   );
 }
+
+    
