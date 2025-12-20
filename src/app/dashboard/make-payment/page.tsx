@@ -17,7 +17,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Combobox } from '@/components/ui/combobox';
 import { useFirestore, useCollection, useMemoFirebase, addDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase';
-import { collection, query, where, doc, writeBatch, getDocs, runTransaction, collectionGroup } from 'firebase/firestore';
+import { collection, query, where, doc, writeBatch, getDocs, runTransaction, collectionGroup, getDoc, limit } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { useState, useEffect, useMemo } from 'react';
 import type { Vendor, Expense, OutflowTransaction } from '@/lib/types';
@@ -116,7 +116,7 @@ export default function MakePaymentPage() {
     };
 
     fetchUnpaidExpenses();
-  }, [vendorId, firestore, form]);
+  }, [vendorId, firestore, form, isDataDirty]);
 
   // Set the selected expense details when an expense ID is chosen
   useEffect(() => {
@@ -133,38 +133,50 @@ export default function MakePaymentPage() {
 
     const fetchOutflows = async () => {
         setIsLoadingLog(true);
-        const outflowsQuery = query(collectionGroup(firestore, 'outflowTransactions'));
-        const [outflowSnap, projectsSnap, itemsSnap] = await Promise.all([
-            getDocs(outflowsQuery),
-            getDocs(collection(firestore, 'projects')),
-            getDocs(collection(firestore, 'expenseItems')),
-        ]);
-        
-        const projectsMap = new Map(projectsSnap.docs.map(d => [d.id, d.data().projectName]));
-        const expensesQuery = query(collection(firestore, 'expenses'));
-        const expensesSnap = await getDocs(expensesQuery);
-        const expensesMap = new Map(expensesSnap.docs.map(d => {
-            const data = d.data() as Expense;
-            return [data.expenseId, data.itemId];
-        }));
-        const itemsMap = new Map(itemsSnap.docs.map(d => [d.id, d.data().name]));
+        try {
+            const outflowsQuery = query(collectionGroup(firestore, 'outflowTransactions'));
+            const [outflowSnap, projectsSnap, itemsSnap] = await Promise.all([
+                getDocs(outflowsQuery),
+                getDocs(collection(firestore, 'projects')),
+                getDocs(collection(firestore, 'expenseItems')),
+            ]);
+            
+            const projectsMap = new Map(projectsSnap.docs.map(d => [d.id, d.data().projectName]));
+            const expensesQuery = query(collection(firestore, 'expenses'));
+            const expensesSnap = await getDocs(expensesQuery);
+            const expensesMap = new Map(expensesSnap.docs.map(d => {
+                const data = d.data() as Expense;
+                return [data.expenseId, { itemId: data.itemId, projectId: data.projectId }];
+            }));
+            const itemsMap = new Map(itemsSnap.docs.map(d => [d.id, d.data().name]));
 
-        const enriched = outflowSnap.docs.map(doc => {
-            const data = { ...doc.data(), id: doc.id } as OutflowTransaction;
-            const itemId = data.expenseId ? expensesMap.get(data.expenseId) : undefined;
-            return {
-                ...data,
-                projectName: data.projectId ? projectsMap.get(data.projectId) : 'Office',
-                itemName: itemId ? itemsMap.get(itemId) : 'N/A',
-            };
-        }).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+            const enriched = outflowSnap.docs.map(doc => {
+                const data = { ...doc.data(), id: doc.id } as OutflowTransaction;
+                const expenseDetails = data.expenseId ? expensesMap.get(data.expenseId) : undefined;
+                const itemName = expenseDetails ? itemsMap.get(expenseDetails.itemId) : 'N/A';
+                const projectName = expenseDetails ? projectsMap.get(expenseDetails.projectId) : 'Office';
 
-        setOutflowTransactions(enriched);
+                return {
+                    ...data,
+                    projectName: projectName,
+                    itemName: itemName,
+                };
+            }).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+            setOutflowTransactions(enriched);
+        } catch (error) {
+            console.error("Error fetching outflow data:", error);
+            toast({
+                variant: 'destructive',
+                title: 'Error Loading Payments',
+                description: 'Could not fetch vendor payment data.',
+            })
+        }
         setIsLoadingLog(false);
         setIsDataDirty(false);
     };
     fetchOutflows();
-  }, [firestore, isDataDirty]);
+  }, [firestore, isDataDirty, toast]);
 
   async function onSubmit(data: MakePaymentFormValues) {
     if (!selectedExpense) {
@@ -208,13 +220,61 @@ export default function MakePaymentPage() {
         await batch.commit();
 
         toast({ title: 'Payment Successful', description: `Paid ${formatCurrency(data.amountToPay)} for expense ${selectedExpense.expenseId}` });
-        form.reset();
+        form.reset({
+            vendorId: data.vendorId,
+            expenseId: '',
+            amountToPay: 0,
+            paymentDate: new Date().toISOString().split('T')[0],
+            paymentMethod: 'Cash',
+            reference: '',
+        });
         setSelectedExpense(null);
-        setUnpaidExpenses(prev => prev.filter(e => e.id !== selectedExpense.id));
         setIsDataDirty(true);
 
     } catch (error: any) {
         toast({ variant: 'destructive', title: 'Error processing payment', description: error.message });
+    }
+  }
+
+  const handleDeletePayment = async (payment: EnrichedOutflow) => {
+    if (!payment.expenseId) {
+        toast({ variant: 'destructive', title: 'Cannot Delete', description: 'This payment is not linked to a specific expense and cannot be reversed automatically.' });
+        return;
+    }
+
+    try {
+        await runTransaction(firestore, async (transaction) => {
+            // 1. Find the original expense document
+            const expenseQuery = query(collection(firestore, 'expenses'), where('expenseId', '==', payment.expenseId), limit(1));
+            const expenseSnap = await getDocs(expenseQuery);
+
+            if (expenseSnap.empty) {
+                throw new Error(`Expense with ID ${payment.expenseId} not found.`);
+            }
+
+            const expenseDoc = expenseSnap.docs[0];
+            const expenseData = expenseDoc.data() as Expense;
+
+            // 2. Calculate new paid amount and status
+            const newPaidAmount = expenseData.paidAmount - payment.amount;
+            const newStatus = newPaidAmount <= 0 ? 'Unpaid' : 'Partially Paid';
+            
+            // 3. Update the expense document
+            transaction.update(expenseDoc.ref, {
+                paidAmount: newPaidAmount,
+                status: newStatus,
+            });
+
+            // 4. Delete the outflow transaction
+            const paymentRef = doc(firestore, 'projects', expenseData.projectId, 'outflowTransactions', payment.id);
+            transaction.delete(paymentRef);
+        });
+
+        toast({ title: 'Payment Deleted', description: 'The payment has been reversed and the expense status updated.' });
+        setIsDataDirty(true);
+
+    } catch (error: any) {
+        toast({ variant: 'destructive', title: 'Error Deleting Payment', description: error.message });
     }
   }
   
@@ -232,11 +292,11 @@ export default function MakePaymentPage() {
     );
   }, [outflowTransactions, searchQuery]);
 
+  const totalPages = Math.ceil(filteredTransactions.length / PAYMENTS_PER_PAGE);
   const paginatedTransactions = filteredTransactions.slice(
     (currentPage - 1) * PAYMENTS_PER_PAGE,
     currentPage * PAYMENTS_PER_PAGE
   );
-  const totalPages = Math.ceil(filteredTransactions.length / PAYMENTS_PER_PAGE);
 
   return (
     <div className="space-y-6">
@@ -439,14 +499,36 @@ export default function MakePaymentPage() {
                                                     <MoreHorizontal className="h-4 w-4" />
                                                 </Button>
                                             </DropdownMenuTrigger>
-                                            <DropdownMenuContent>
+                                            <DropdownMenuContent align="end">
+                                                <DropdownMenuLabel>Actions</DropdownMenuLabel>
                                                 <DropdownMenuItem disabled>View</DropdownMenuItem>
                                                 <DropdownMenuItem disabled>Edit</DropdownMenuItem>
+                                                <DropdownMenuSeparator />
                                                  <AlertDialogTrigger asChild>
-                                                    <DropdownMenuItem className="text-red-600" disabled>Delete</DropdownMenuItem>
+                                                    <DropdownMenuItem className="text-destructive" disabled={!tx.expenseId}>
+                                                        <Trash2 className="mr-2 h-4 w-4" />
+                                                        Delete
+                                                    </DropdownMenuItem>
                                                 </AlertDialogTrigger>
                                             </DropdownMenuContent>
                                         </DropdownMenu>
+                                        <AlertDialogContent>
+                                            <AlertDialogHeader>
+                                                <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                                                <AlertDialogDescription>
+                                                    This will permanently delete this payment and update the original expense record. This action cannot be undone.
+                                                </AlertDialogDescription>
+                                            </AlertDialogHeader>
+                                            <AlertDialogFooter>
+                                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                                <AlertDialogAction
+                                                    onClick={() => handleDeletePayment(tx)}
+                                                    className="bg-destructive hover:bg-destructive/90"
+                                                >
+                                                    Delete Payment
+                                                </AlertDialogAction>
+                                            </AlertDialogFooter>
+                                        </AlertDialogContent>
                                     </AlertDialog>
                                 </TableCell>
                             </TableRow>
@@ -454,8 +536,11 @@ export default function MakePaymentPage() {
                     </TableBody>
                 </Table>
                  <div className="flex items-center justify-end space-x-2 py-4">
-                    <Button variant="outline" size="sm" onClick={() => setCurrentPage(p => p - 1)} disabled={currentPage === 1}>Previous</Button>
-                    <Button variant="outline" size="sm" onClick={() => setCurrentPage(p => p + 1)} disabled={currentPage === totalPages}>Next</Button>
+                    <div className="text-sm text-muted-foreground">
+                      Page {currentPage} of {totalPages}
+                    </div>
+                    <Button variant="outline" size="sm" onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1}>Previous</Button>
+                    <Button variant="outline" size="sm" onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages}>Next</Button>
                  </div>
                 </>
             )}
