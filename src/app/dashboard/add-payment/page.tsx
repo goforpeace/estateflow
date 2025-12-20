@@ -25,6 +25,7 @@ import {
   useFirestore,
   useCollection,
   useMemoFirebase,
+  deleteDocumentNonBlocking,
 } from '@/firebase';
 import {
   collection,
@@ -34,7 +35,6 @@ import {
   doc,
   runTransaction,
   collectionGroup,
-  orderBy,
   limit,
 } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
@@ -55,6 +55,32 @@ import {
   CardDescription,
   CardContent,
 } from '@/components/ui/card';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuLabel,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+  } from "@/components/ui/dropdown-menu"
 import { Separator } from '@/components/ui/separator';
 import {
   Table,
@@ -65,9 +91,10 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Ban, Printer } from 'lucide-react';
+import { Ban, Printer, MoreHorizontal, Pencil, Trash2 } from 'lucide-react';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Receipt } from '@/components/dashboard/receipt';
+import { EditPaymentForm } from '@/components/dashboard/payments/edit-payment-form';
 
 const addPaymentFormSchema = z.object({
   customerId: z.string().min(1, { message: 'Please select a customer.' }),
@@ -94,7 +121,7 @@ const addPaymentFormSchema = z.object({
 
 type AddPaymentFormValues = z.infer<typeof addPaymentFormSchema>;
 
-type EnrichedTransaction = InflowTransaction & {
+export type EnrichedTransaction = InflowTransaction & {
   customerName: string;
   projectName: string;
   flatNumber: string;
@@ -110,6 +137,8 @@ export default function AddPaymentPage() {
   const [recentTransactions, setRecentTransactions] = useState<EnrichedTransaction[]>([]);
   const [isLogLoading, setIsLogLoading] = useState(true);
   const [lastPayment, setLastPayment] = useState<EnrichedTransaction | null>(null);
+  const [editingPayment, setEditingPayment] = useState<InflowTransaction | null>(null);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
 
   // Data fetching for form dropdowns
   const customersQuery = useMemoFirebase(
@@ -312,11 +341,11 @@ export default function AddPaymentPage() {
             customerId: data.customerId,
             amount: data.amount,
             paymentMethod: data.paymentMethod,
+            paymentType: data.paymentPurpose === 'Booking Money' ? 'Booking' : 'Installment',
             paymentPurpose: data.paymentPurpose,
             otherPurpose: data.otherPurpose,
             reference: data.reference,
             date: new Date(data.date).toISOString(),
-            paymentType: data.paymentPurpose === 'Booking Money' ? 'Booking' : 'Installment',
         };
 
         await runTransaction(firestore, async (transaction) => {
@@ -358,6 +387,21 @@ export default function AddPaymentPage() {
         });
     }
   }
+
+  const handleEditClick = (payment: InflowTransaction) => {
+    setEditingPayment(payment);
+    setIsEditDialogOpen(true);
+  };
+
+  const handleDeletePayment = async (payment: InflowTransaction) => {
+    const paymentRef = doc(firestore, 'projects', payment.projectId, 'inflowTransactions', payment.id);
+    deleteDocumentNonBlocking(paymentRef);
+    toast({
+        title: "Payment Deleted",
+        description: "The payment has been successfully deleted.",
+    });
+    fetchRecentTransactions(); // Refresh the list
+  };
 
   const handlePrintReceipt = () => {
     if (!lastPayment) return;
@@ -696,6 +740,7 @@ export default function AddPaymentPage() {
                   <TableHead>Date</TableHead>
                   <TableHead>Method</TableHead>
                   <TableHead className="text-right">Amount</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -715,6 +760,49 @@ export default function AddPaymentPage() {
                     <TableCell className="text-right font-semibold text-green-600">
                       {formatCurrency(tx.amount)}
                     </TableCell>
+                     <TableCell className="text-right">
+                        <AlertDialog>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" className="h-8 w-8 p-0">
+                                <span className="sr-only">Open menu</span>
+                                <MoreHorizontal className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                              <DropdownMenuItem onClick={() => handleEditClick(tx)}>
+                                <Pencil className="mr-2 h-4 w-4" />
+                                Edit
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <AlertDialogTrigger asChild>
+                                <DropdownMenuItem className="text-red-600">
+                                  <Trash2 className="mr-2 h-4 w-4" />
+                                  Delete
+                                </DropdownMenuItem>
+                              </AlertDialogTrigger>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                This action cannot be undone. This will permanently delete this payment record.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction
+                                onClick={() => handleDeletePayment(tx)}
+                                className="bg-destructive hover:bg-destructive/90"
+                              >
+                                Delete
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -722,8 +810,22 @@ export default function AddPaymentPage() {
           )}
         </CardContent>
       </Card>
+
+        {editingPayment && (
+            <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+                <DialogContent className="sm:max-w-xl">
+                    <DialogHeader>
+                        <DialogTitle>Edit Payment</DialogTitle>
+                        <CardDescription>Update the details for this payment record.</CardDescription>
+                    </DialogHeader>
+                    <EditPaymentForm 
+                        payment={editingPayment} 
+                        setDialogOpen={setIsEditDialogOpen}
+                        onUpdate={fetchRecentTransactions}
+                    />
+                </DialogContent>
+            </Dialog>
+        )}
     </div>
   );
 }
-
-    
