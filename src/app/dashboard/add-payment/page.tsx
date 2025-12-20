@@ -36,6 +36,7 @@ import {
   runTransaction,
   collectionGroup,
   limit,
+  getDoc,
 } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
