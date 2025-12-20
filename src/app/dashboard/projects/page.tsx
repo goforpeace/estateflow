@@ -1,6 +1,6 @@
 'use client';
 
-import { Ban, PlusCircle, Pencil, ArrowUpRight } from 'lucide-react';
+import { Ban, PlusCircle, Pencil, ArrowUpRight, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 import {
   Card,
@@ -26,15 +26,28 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
-import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
-import { collection, query } from 'firebase/firestore';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+    AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { useCollection, useFirestore, useMemoFirebase, deleteDocumentNonBlocking } from '@/firebase';
+import { collection, query, doc, writeBatch, getDocs } from 'firebase/firestore';
 import type { Project } from '@/lib/types';
 import { AddProjectForm } from '@/components/dashboard/projects/add-project-form';
 import { EditProjectForm } from '@/components/dashboard/projects/edit-project-form';
 import { useState } from 'react';
+import { useToast } from '@/hooks/use-toast';
 
 export default function ProjectsPage() {
   const firestore = useFirestore();
+  const { toast } = useToast();
   const projectsQuery = useMemoFirebase(
     () => query(collection(firestore, 'projects')),
     [firestore]
@@ -47,6 +60,40 @@ export default function ProjectsPage() {
   const handleEditClick = (project: Project) => {
     setEditingProject(project);
     setIsEditDialogOpen(true);
+  };
+  
+  const handleDeleteProject = async (projectId: string) => {
+    try {
+        const batch = writeBatch(firestore);
+
+        // Reference to the main project document
+        const projectRef = doc(firestore, 'projects', projectId);
+
+        // Delete all subcollections first
+        const subcollections = ['flats', 'inflowTransactions', 'outflowTransactions', 'officeCostAllocations'];
+        for (const sub of subcollections) {
+            const subcollectionRef = collection(firestore, 'projects', projectId, sub);
+            const snapshot = await getDocs(subcollectionRef);
+            snapshot.docs.forEach(doc => batch.delete(doc.ref));
+        }
+
+        // Finally, delete the project document itself
+        batch.delete(projectRef);
+
+        await batch.commit();
+
+        toast({
+            title: "Project Deleted",
+            description: "The project and all its associated data have been deleted.",
+        });
+    } catch (error: any) {
+        console.error("Error deleting project:", error);
+        toast({
+            variant: "destructive",
+            title: "Error Deleting Project",
+            description: error.message,
+        });
+    }
   };
 
   const formatCurrency = (value: number) => {
@@ -150,6 +197,31 @@ export default function ProjectsPage() {
                         <Pencil className="mr-2 h-4 w-4" />
                         Edit
                       </Button>
+                      <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button variant="destructive" size="sm">
+                                <Trash2 className="mr-2 h-4 w-4" />
+                                Delete
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                This action cannot be undone. This will permanently delete this project and all its associated data (flats, transactions, etc.).
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction
+                                onClick={() => handleDeleteProject(project.id)}
+                                className="bg-destructive hover:bg-destructive/90"
+                              >
+                                Delete
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
                     </TableCell>
                   </TableRow>
                 ))}

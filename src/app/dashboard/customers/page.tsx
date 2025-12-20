@@ -1,6 +1,6 @@
 'use client';
 
-import { Ban, PlusCircle, Pencil } from 'lucide-react';
+import { Ban, PlusCircle, Pencil, Trash2 } from 'lucide-react';
 import {
   Card,
   CardContent,
@@ -24,15 +24,28 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
-import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
-import { collection, query } from 'firebase/firestore';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
+import { useCollection, useFirestore, useMemoFirebase, deleteDocumentNonBlocking } from '@/firebase';
+import { collection, query, doc } from 'firebase/firestore';
 import type { Customer } from '@/lib/types';
 import { AddCustomerForm } from '@/components/dashboard/customers/add-customer-form';
 import { EditCustomerForm } from '@/components/dashboard/customers/edit-customer-form';
 import { useState } from 'react';
+import { useToast } from '@/hooks/use-toast';
 
 export default function CustomersPage() {
   const firestore = useFirestore();
+  const { toast } = useToast();
   const customersQuery = useMemoFirebase(
     () => query(collection(firestore, 'customers')),
     [firestore]
@@ -45,6 +58,15 @@ export default function CustomersPage() {
   const handleEditClick = (customer: Customer) => {
     setEditingCustomer(customer);
     setIsEditDialogOpen(true);
+  };
+  
+  const handleDeleteCustomer = (customerId: string) => {
+    const customerRef = doc(firestore, 'customers', customerId);
+    deleteDocumentNonBlocking(customerRef);
+    toast({
+        title: "Customer Deleted",
+        description: "The customer has been successfully deleted.",
+    });
   };
 
   return (
@@ -109,11 +131,36 @@ export default function CustomersPage() {
                     <TableCell>{customer.mobile}</TableCell>
                     <TableCell>{customer.address}</TableCell>
                     <TableCell>{customer.nidNumber}</TableCell>
-                    <TableCell className="text-right">
+                    <TableCell className="text-right space-x-2">
                       <Button variant="outline" size="sm" onClick={() => handleEditClick(customer)}>
                         <Pencil className="mr-2 h-4 w-4" />
                         Edit
                       </Button>
+                      <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button variant="destructive" size="sm">
+                                <Trash2 className="mr-2 h-4 w-4" />
+                                Delete
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                This action cannot be undone. This will permanently delete this customer.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction
+                                onClick={() => handleDeleteCustomer(customer.id)}
+                                className="bg-destructive hover:bg-destructive/90"
+                              >
+                                Delete
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -135,5 +182,3 @@ export default function CustomersPage() {
     </div>
   );
 }
-
-    

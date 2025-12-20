@@ -1,6 +1,6 @@
 'use client';
 
-import { Ban, PlusCircle, ArrowUpRight } from 'lucide-react';
+import { Ban, PlusCircle, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 import {
   Card,
@@ -18,10 +18,22 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+    AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
-import { collection, query, getDocs } from 'firebase/firestore';
+import { collection, query, getDocs, doc, writeBatch } from 'firebase/firestore';
 import type { Sale, Project, Flat, Customer } from '@/lib/types';
 import { useEffect, useState } from 'react';
+import { useToast } from '@/hooks/use-toast';
 
 type EnrichedSale = Sale & {
     projectName: string;
@@ -31,6 +43,7 @@ type EnrichedSale = Sale & {
 
 export default function SalesPage() {
   const firestore = useFirestore();
+  const { toast } = useToast();
   const salesQuery = useMemoFirebase(
     () => query(collection(firestore, 'sales')),
     [firestore]
@@ -40,10 +53,12 @@ export default function SalesPage() {
 
   useEffect(() => {
     const enrichSales = async () => {
-        if (!sales) return;
+        if (!sales) {
+          setEnrichedSales([]);
+          return;
+        };
 
         const projectIds = [...new Set(sales.map(s => s.projectId))];
-        const flatIds = [...new Set(sales.map(s => s.flatId))];
         const customerIds = [...new Set(sales.map(s => s.customerId))];
 
         const projectsPromise = projectIds.length ? getDocs(query(collection(firestore, 'projects'))) : Promise.resolve({ docs: [] });
@@ -54,12 +69,15 @@ export default function SalesPage() {
         const projectsMap = new Map(projectsSnap.docs.map(d => [d.id, d.data() as Project]));
         const customersMap = new Map(customersSnap.docs.map(d => [d.id, d.data() as Customer]));
         
-        // This is not perfectly efficient, but necessary due to subcollections
         const flatPromises = sales.map(sale => getDocs(query(collection(firestore, `projects/${sale.projectId}/flats`))));
         const flatSnaps = await Promise.all(flatPromises);
         const flatsMap = new Map<string, Flat>();
         flatSnaps.forEach(snap => {
-            snap.docs.forEach(doc => flatsMap.set(doc.id, doc.data() as Flat));
+            snap.docs.forEach(doc => {
+              if (!flatsMap.has(doc.id)) {
+                flatsMap.set(doc.id, doc.data() as Flat)
+              }
+            });
         });
 
         const enriched = sales.map(sale => ({
@@ -74,6 +92,35 @@ export default function SalesPage() {
 
     enrichSales();
   }, [sales, firestore]);
+  
+  const handleDeleteSale = async (sale: Sale) => {
+    try {
+        const batch = writeBatch(firestore);
+
+        // 1. Reference to the sale document to be deleted
+        const saleRef = doc(firestore, 'sales', sale.id);
+        batch.delete(saleRef);
+
+        // 2. Reference to the flat to update its status
+        const flatRef = doc(firestore, 'projects', sale.projectId, 'flats', sale.flatId);
+        batch.update(flatRef, { status: 'Available' });
+        
+        await batch.commit();
+
+        toast({
+            title: "Sale Deleted",
+            description: "The sale has been successfully deleted and the flat status is now 'Available'.",
+        });
+    } catch (error: any) {
+        console.error("Error deleting sale:", error);
+        toast({
+            variant: "destructive",
+            title: "Error Deleting Sale",
+            description: error.message,
+        });
+    }
+  };
+
 
   const formatCurrency = (value: number) => {
     if (!value) return 'N/A';
@@ -129,6 +176,7 @@ export default function SalesPage() {
                   <TableHead>Flat</TableHead>
                   <TableHead>Date</TableHead>
                   <TableHead className="text-right">Total Price</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -141,6 +189,33 @@ export default function SalesPage() {
                     <TableCell>{sale.flatNumber}</TableCell>
                      <TableCell>{new Date(sale.saleDate).toLocaleDateString()}</TableCell>
                     <TableCell className="text-right">{formatCurrency(sale.totalPrice)}</TableCell>
+                    <TableCell className="text-right">
+                       <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button variant="destructive" size="sm">
+                                <Trash2 className="mr-2 h-4 w-4" />
+                                Delete
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                This will permanently delete this sale record and set the corresponding flat's status back to 'Available'.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction
+                                onClick={() => handleDeleteSale(sale)}
+                                className="bg-destructive hover:bg-destructive/90"
+                              >
+                                Delete
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
