@@ -106,10 +106,14 @@ export default function AddSalePage() {
     name: "extraCosts",
   });
   
-  const watchTotalPrice = form.watch('totalPrice');
+  const watchBasePrice = form.watch('totalPrice');
   const watchExtraCosts = form.watch('extraCosts');
+  const watchDownpayment = form.watch('downpayment');
 
-  const calculatedTotalPrice = (watchTotalPrice || 0) + (watchExtraCosts?.reduce((acc, cost) => acc + (cost.amount || 0), 0) || 0);
+  const calculatedTotalPrice = (Number(watchBasePrice) || 0) + 
+    (watchExtraCosts?.reduce((acc, cost) => acc + (Number(cost.amount) || 0), 0) || 0);
+
+  const dueAmount = calculatedTotalPrice - (Number(watchDownpayment) || 0);
 
   async function onSubmit(data: AddSaleFormValues) {
     try {
@@ -120,8 +124,8 @@ export default function AddSalePage() {
         // 1. Create new sale document
         const saleRef = doc(collection(firestore, 'sales'));
         batch.set(saleRef, {
-            id: saleRef.id,
             ...data,
+            id: saleRef.id,
             totalPrice: finalTotalPrice,
             saleDate: new Date(data.saleDate).toISOString(),
         });
@@ -419,7 +423,7 @@ export default function AddSalePage() {
                         </div>
                          <div className="p-4 bg-muted rounded-lg">
                             <FormLabel>Due Amount</FormLabel>
-                            <p className="text-xl font-bold text-destructive">{formatCurrency(calculatedTotalPrice)}</p>
+                            <p className="text-xl font-bold text-destructive">{formatCurrency(dueAmount)}</p>
                         </div>
                     </div>
                 </div>
