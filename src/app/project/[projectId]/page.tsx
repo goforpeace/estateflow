@@ -72,7 +72,7 @@ export default function ProjectDetailPage({
       setIsLoading(true);
       setError(null);
       try {
-        // 1. Fetch Project
+        // 1. Fetch Project Details
         const projectRef = doc(firestore, 'projects', projectId);
         const projectSnap = await getDoc(projectRef);
 
@@ -83,7 +83,7 @@ export default function ProjectDetailPage({
         const projectData = projectSnap.data() as Project;
         setProject(projectData);
 
-        // 2. Fetch all data concurrently
+        // 2. Fetch all related data concurrently
         const flatsQuery = query(collection(firestore, `projects/${projectId}/flats`));
         const salesQuery = query(collection(firestore, 'sales'), where('projectId', '==', projectId));
 
@@ -91,56 +91,46 @@ export default function ProjectDetailPage({
           getDocs(flatsQuery),
           getDocs(salesQuery),
         ]);
-
+        
         const flats = flatsSnap.docs.map(d => ({ ...d.data(), id: d.id } as Flat));
         const sales = salesSnap.docs.map(d => d.data() as Sale);
-
-        if (flats.length === 0) {
-          setEnrichedFlats([]);
-          setIsLoading(false);
-          return;
-        }
-
-        // 3. Create a map of flatId -> customerId
-        const flatToCustomerMap = new Map<string, string>();
-        sales.forEach(sale => {
-          flatToCustomerMap.set(sale.flatId, sale.customerId);
-        });
         
-        const customerIds = [...new Set(sales.map(s => s.customerId))];
         const customersMap = new Map<string, Customer>();
+        const flatToCustomerMap = new Map<string, string>();
+        
+        // 3. Build maps and collect unique customer IDs from sales
+        if (sales.length > 0) {
+            const customerIds = [...new Set(sales.map(s => s.customerId))];
+            sales.forEach(sale => flatToCustomerMap.set(sale.flatId, sale.customerId));
 
-        if (customerIds.length > 0) {
-          const customerChunks = [];
-          for (let i = 0; i < customerIds.length; i += 30) {
-            customerChunks.push(customerIds.slice(i, i + 30));
-          }
-          
-          const customerPromises = customerChunks.map(chunk => 
-              getDocs(query(collection(firestore, 'customers'), where('id', 'in', chunk)))
-          );
-
-          const customerSnapshots = await Promise.all(customerPromises);
-          customerSnapshots.forEach(snap => {
-              snap.forEach(doc => {
-                  customersMap.set(doc.id, doc.data() as Customer);
-              });
-          });
+            // 4. Fetch all customers associated with the sales
+            if (customerIds.length > 0) {
+                const customerChunks = [];
+                for (let i = 0; i < customerIds.length; i += 30) {
+                  customerChunks.push(customerIds.slice(i, i + 30));
+                }
+                
+                const customerPromises = customerChunks.map(chunk => 
+                    getDocs(query(collection(firestore, 'customers'), where('id', 'in', chunk)))
+                );
+      
+                const customerSnapshots = await Promise.all(customerPromises);
+                customerSnapshots.forEach(snap => {
+                    snap.forEach(doc => {
+                        customersMap.set(doc.id, doc.data() as Customer);
+                    });
+                });
+            }
         }
         
-        // 4. Enrich the flat data
+        // 5. Enrich the flat data with customer info
         const enrichedData = flats.map(flat => {
           const customerId = flatToCustomerMap.get(flat.id);
-          if (customerId) {
-            const customer = customersMap.get(customerId);
-            return {
-              ...flat,
-              customer: customer
-                ? { fullName: customer.fullName, mobile: customer.mobile }
-                : undefined,
-            };
-          }
-          return flat;
+          const customer = customerId ? customersMap.get(customerId) : undefined;
+          return {
+            ...flat,
+            customer: customer ? { fullName: customer.fullName, mobile: customer.mobile } : undefined,
+          };
         });
 
         setEnrichedFlats(enrichedData.sort((a, b) => a.flatNumber.localeCompare(b.flatNumber, undefined, { numeric: true })));
