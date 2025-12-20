@@ -456,9 +456,10 @@ export default function AddPaymentPage() {
         <CardContent>
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+              
               <div className="space-y-4">
-                <h3 className="text-lg font-medium">Payment Details</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <h3 className="text-lg font-medium text-primary">Payment Details</h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <FormField
                     control={form.control}
                     name="customerId"
@@ -511,9 +512,6 @@ export default function AddPaymentPage() {
                             ))}
                           </SelectContent>
                         </Select>
-                        <FormDescription>
-                          Projects this customer has purchased in.
-                        </FormDescription>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -542,9 +540,6 @@ export default function AddPaymentPage() {
                             ))}
                           </SelectContent>
                         </Select>
-                        <FormDescription>
-                          Flats this customer owns in the selected project.
-                        </FormDescription>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -554,113 +549,109 @@ export default function AddPaymentPage() {
 
               <Separator />
 
-                <div className="space-y-4">
-                  <h3 className="text-lg font-medium">Purpose of Payment</h3>
-                   <FormField
+                <div className="grid md:grid-cols-2 gap-8">
+                  <div className="space-y-4">
+                    <h3 className="text-lg font-medium text-primary">Purpose of Payment</h3>
+                    <FormField
+                        control={form.control}
+                        name="paymentPurpose"
+                        render={({ field }) => (
+                          <FormItem className="space-y-3">
+                            <FormControl>
+                              <RadioGroup
+                                onValueChange={field.onChange}
+                                defaultValue={field.value}
+                                className="flex flex-col space-y-2"
+                              >
+                                <FormItem className="flex items-center space-x-3 space-y-0">
+                                  <FormControl>
+                                    <RadioGroupItem value="Booking Money" />
+                                  </FormControl>
+                                  <FormLabel className="font-normal">Booking Money</FormLabel>
+                                </FormItem>
+                                <FormItem className="flex items-center space-x-3 space-y-0">
+                                  <FormControl>
+                                    <RadioGroupItem value="Installment" />
+                                  </FormControl>
+                                  <FormLabel className="font-normal">Installment</FormLabel>
+                                </FormItem>
+                                <FormItem className="flex items-center space-x-3 space-y-0">
+                                  <FormControl>
+                                    <RadioGroupItem value="Other" />
+                                  </FormControl>
+                                  <FormLabel className="font-normal">Other</FormLabel>
+                                </FormItem>
+                              </RadioGroup>
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      {paymentPurpose === 'Other' && (
+                          <FormField
+                              control={form.control}
+                              name="otherPurpose"
+                              render={({ field }) => (
+                                  <FormItem>
+                                      <FormLabel>Please Specify</FormLabel>
+                                      <FormControl>
+                                          <Input placeholder="e.g., Parking Fee" {...field} />
+                                      </FormControl>
+                                      <FormMessage />
+                                  </FormItem>
+                              )}
+                          />
+                      )}
+                  </div>
+                  <div className="space-y-4">
+                    <h3 className="text-lg font-medium text-primary">Amount & Method</h3>
+                    <FormField
                       control={form.control}
-                      name="paymentPurpose"
+                      name="amount"
                       render={({ field }) => (
-                        <FormItem className="space-y-3">
+                        <FormItem>
+                          <FormLabel>Amount (৳)</FormLabel>
                           <FormControl>
-                            <RadioGroup
-                              onValueChange={field.onChange}
-                              defaultValue={field.value}
-                              className="flex flex-col space-y-1"
-                            >
-                              <FormItem className="flex items-center space-x-3 space-y-0">
-                                <FormControl>
-                                  <RadioGroupItem value="Booking Money" />
-                                </FormControl>
-                                <FormLabel className="font-normal">Booking Money</FormLabel>
-                              </FormItem>
-                              <FormItem className="flex items-center space-x-3 space-y-0">
-                                <FormControl>
-                                  <RadioGroupItem value="Installment" />
-                                </FormControl>
-                                <FormLabel className="font-normal">Installment</FormLabel>
-                              </FormItem>
-                              <FormItem className="flex items-center space-x-3 space-y-0">
-                                <FormControl>
-                                  <RadioGroupItem value="Other" />
-                                </FormControl>
-                                <FormLabel className="font-normal">Other</FormLabel>
-                              </FormItem>
-                            </RadioGroup>
+                            <Input type="number" placeholder="50000" {...field} />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
                       )}
                     />
-                    {paymentPurpose === 'Other' && (
-                        <FormField
-                            control={form.control}
-                            name="otherPurpose"
-                            render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel>Please Specify</FormLabel>
-                                    <FormControl>
-                                        <Input placeholder="e.g., Parking Fee" {...field} />
-                                    </FormControl>
-                                    <FormMessage />
-                                </FormItem>
-                            )}
-                        />
-                    )}
+                    <FormField
+                      control={form.control}
+                      name="paymentMethod"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Payment Method</FormLabel>
+                          <Select
+                            onValueChange={field.onChange}
+                            defaultValue={field.value}
+                          >
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select a payment method" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="Cash">Cash</SelectItem>
+                              <SelectItem value="Cheque">Cheque</SelectItem>
+                              <SelectItem value="Bank Transfer">
+                                Bank Transfer
+                              </SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
                 </div>
-
 
               <Separator />
 
               <div className="space-y-4">
-                <h3 className="text-lg font-medium">Amount & Method</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="amount"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Amount (৳)</FormLabel>
-                        <FormControl>
-                          <Input type="number" placeholder="50000" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="paymentMethod"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Payment Method</FormLabel>
-                        <Select
-                          onValueChange={field.onChange}
-                          defaultValue={field.value}
-                        >
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select a payment method" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <SelectItem value="Cash">Cash</SelectItem>
-                            <SelectItem value="Cheque">Cheque</SelectItem>
-                            <SelectItem value="Bank Transfer">
-                              Bank Transfer
-                            </SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-              </div>
-
-              <Separator />
-
-              <div className="space-y-4">
-                <h3 className="text-lg font-medium">Additional Info</h3>
+                <h3 className="text-lg font-medium text-primary">Additional Info</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <FormField
                     control={form.control}
@@ -770,7 +761,7 @@ export default function AddPaymentPage() {
                               <DropdownMenuLabel>Actions</DropdownMenuLabel>
                                <DropdownMenuItem onClick={() => handleViewClick(tx)}>
                                 <Eye className="mr-2 h-4 w-4" />
-                                View & Print
+                                View Receipt
                               </DropdownMenuItem>
                               <DropdownMenuItem onClick={() => handleEditClick(tx)}>
                                 <Pencil className="mr-2 h-4 w-4" />
@@ -778,7 +769,7 @@ export default function AddPaymentPage() {
                               </DropdownMenuItem>
                               <DropdownMenuSeparator />
                               <AlertDialogTrigger asChild>
-                                <DropdownMenuItem className="text-red-600">
+                                <DropdownMenuItem className="text-destructive">
                                   <Trash2 className="mr-2 h-4 w-4" />
                                   Delete
                                 </DropdownMenuItem>

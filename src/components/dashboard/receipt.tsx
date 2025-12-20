@@ -72,7 +72,7 @@ export const Receipt: React.FC<ReceiptProps> = ({ payment, customer, project }) 
     const amountInWords = numberToWords(payment.amount) + ' Taka Only';
 
     return (
-        <div id="receipt-printable-area" className="bg-white text-gray-800 font-body a4-page">
+        <div id="receipt-printable-area" className="bg-white text-gray-800 font-sans a4-page">
              <style jsx global>{`
                 @media print {
                     body * {
