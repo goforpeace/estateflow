@@ -100,44 +100,46 @@ export default function CustomerDetailPage({
           d => ({ ...d.data(), id: d.id } as Sale)
         );
         
-        // 2. Fetch payments for this customer from all relevant projects
-        const allPayments: InflowTransaction[] = [];
+        // 2. Get unique project IDs from sales to query for payments
         const projectIds = [...new Set(salesData.map(s => s.projectId))];
+        const allPayments: InflowTransaction[] = [];
+
+        // Fetch payments from each project's subcollection
         for (const projectId of projectIds) {
-            const paymentsQuery = query(
-                collection(firestore, `projects/${projectId}/inflowTransactions`),
-                where('customerId', '==', customerId)
-            );
-            const paymentsSnap = await getDocs(paymentsQuery);
-            paymentsSnap.forEach(doc => {
-                allPayments.push(doc.data() as InflowTransaction);
-            });
+          const paymentsQuery = query(
+            collection(firestore, `projects/${projectId}/inflowTransactions`),
+            where('customerId', '==', customerId)
+          );
+          const paymentsSnap = await getDocs(paymentsQuery);
+          paymentsSnap.forEach(doc => {
+            allPayments.push({ ...doc.data(), id: doc.id } as InflowTransaction);
+          });
         }
+        
         allPayments.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
 
         // 3. Enrich sales with project and flat info
         const enrichedSales: EnrichedSale[] = [];
         for (const sale of salesData) {
-            const projectRef = doc(firestore, 'projects', sale.projectId);
-            const flatRef = doc(firestore, 'projects', sale.projectId, 'flats', sale.flatId);
+          const projectRef = doc(firestore, 'projects', sale.projectId);
+          const flatRef = doc(firestore, 'projects', sale.projectId, 'flats', sale.flatId);
             
-            const [projectSnap, flatSnap] = await Promise.all([
-                getDoc(projectRef),
-                getDoc(flatRef),
-            ]);
+          const [projectSnap, flatSnap] = await Promise.all([
+            getDoc(projectRef),
+            getDoc(flatRef),
+          ]);
 
-            enrichedSales.push({
-                ...sale,
-                projectName: projectSnap.exists() ? (projectSnap.data() as Project).projectName : 'N/A',
-                flatNumber: flatSnap.exists() ? (flatSnap.data() as Flat).flatNumber : 'N/A',
-            });
+          enrichedSales.push({
+            ...sale,
+            projectName: projectSnap.exists() ? (projectSnap.data() as Project).projectName : 'N/A',
+            flatNumber: flatSnap.exists() ? (flatSnap.data() as Flat).flatNumber : 'N/A',
+          });
         }
         
         // 4. Calculate financials
         const totalPrice = enrichedSales.reduce((sum, s) => {
             const basePrice = s.totalPrice || 0;
-            // The sale record's totalPrice already includes extra costs.
             return sum + basePrice;
         }, 0);
         const totalPaid = allPayments.reduce((sum, p) => sum + p.amount, 0);
