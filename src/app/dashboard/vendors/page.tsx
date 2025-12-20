@@ -52,6 +52,7 @@ import { EditVendorForm } from '@/components/dashboard/vendors/edit-vendor-form'
 import { useState, useMemo } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { Input } from '@/components/ui/input';
+import Link from 'next/link';
 
 const ITEMS_PER_PAGE = 15;
 
@@ -198,6 +199,12 @@ export default function VendorsPage() {
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="end">
                                 <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                                <DropdownMenuItem asChild>
+                                    <Link href={`/dashboard/vendors/${vendor.id}`}>
+                                        <Eye className="mr-2 h-4 w-4" />
+                                        View Details
+                                    </Link>
+                                </DropdownMenuItem>
                                 <DropdownMenuItem onClick={() => handleEditClick(vendor)}>
                                     <Pencil className="mr-2 h-4 w-4" />
                                     Edit
@@ -272,4 +279,3 @@ export default function VendorsPage() {
     </div>
   );
 }
-
