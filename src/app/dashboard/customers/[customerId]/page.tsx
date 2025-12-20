@@ -58,6 +58,8 @@ type CustomerDetails = {
   totalDue: number;
 };
 
+const PAYMENTS_PER_PAGE = 10;
+
 export default function CustomerDetailPage({
   params,
 }: {
@@ -70,6 +72,7 @@ export default function CustomerDetailPage({
   const [details, setDetails] = useState<CustomerDetails | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
 
   useEffect(() => {
     if (!customerId || !firestore) return;
@@ -164,6 +167,25 @@ export default function CustomerDetailPage({
 
     fetchData();
   }, [customerId, firestore]);
+
+  // Pagination logic
+  const totalPages = details ? Math.ceil(details.payments.length / PAYMENTS_PER_PAGE) : 0;
+  const paginatedPayments = details ? details.payments.slice(
+      (currentPage - 1) * PAYMENTS_PER_PAGE,
+      currentPage * PAYMENTS_PER_PAGE
+  ) : [];
+
+  const handleNextPage = () => {
+    if (currentPage < totalPages) {
+      setCurrentPage(currentPage + 1);
+    }
+  };
+
+  const handlePrevPage = () => {
+    if (currentPage > 1) {
+      setCurrentPage(currentPage - 1);
+    }
+  };
 
   const formatCurrency = (value: number) => {
     if (Math.abs(value) >= 10000000) {
@@ -322,37 +344,60 @@ export default function CustomerDetailPage({
         </CardHeader>
         <CardContent>
           {payments.length > 0 ? (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Project</TableHead>
-                  <TableHead>Payment Type</TableHead>
-                  <TableHead>Method</TableHead>
-                  <TableHead className="text-right">Amount</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {payments.map((payment, index) => {
-                    const sale = sales.find(s => s.flatId === payment.flatId);
-                    return (
-                        <TableRow key={`${payment.id}-${index}`}>
-                            <TableCell>{new Date(payment.date).toLocaleDateString()}</TableCell>
-                            <TableCell>{sale?.projectName || 'N/A'}</TableCell>
-                            <TableCell>
-                                <Badge variant={payment.paymentType === 'Booking' ? 'default' : 'secondary'}>{payment.paymentType}</Badge>
-                            </TableCell>
-                            <TableCell>
-                                <Badge variant="outline">{payment.paymentMethod}</Badge>
-                            </TableCell>
-                            <TableCell className="text-right font-semibold text-green-600">
-                                {formatCurrency(payment.amount)}
-                            </TableCell>
-                        </TableRow>
-                    )
-                })}
-              </TableBody>
-            </Table>
+            <>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Date</TableHead>
+                    <TableHead>Project</TableHead>
+                    <TableHead>Payment Type</TableHead>
+                    <TableHead>Method</TableHead>
+                    <TableHead className="text-right">Amount</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {paginatedPayments.map((payment, index) => {
+                      const sale = sales.find(s => s.flatId === payment.flatId);
+                      return (
+                          <TableRow key={`${payment.id}-${index}`}>
+                              <TableCell>{new Date(payment.date).toLocaleDateString()}</TableCell>
+                              <TableCell>{sale?.projectName || 'N/A'}</TableCell>
+                              <TableCell>
+                                  <Badge variant={payment.paymentType === 'Booking' ? 'default' : 'secondary'}>{payment.paymentType}</Badge>
+                              </TableCell>
+                              <TableCell>
+                                  <Badge variant="outline">{payment.paymentMethod}</Badge>
+                              </TableCell>
+                              <TableCell className="text-right font-semibold text-green-600">
+                                  {formatCurrency(payment.amount)}
+                              </TableCell>
+                          </TableRow>
+                      )
+                  })}
+                </TableBody>
+              </Table>
+              <div className="flex items-center justify-end space-x-2 py-4">
+                <div className="text-sm text-muted-foreground">
+                    Page {currentPage} of {totalPages}
+                </div>
+                <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handlePrevPage}
+                    disabled={currentPage === 1}
+                >
+                    Previous
+                </Button>
+                <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleNextPage}
+                    disabled={currentPage === totalPages}
+                >
+                    Next
+                </Button>
+              </div>
+            </>
           ) : (
              <div className="flex flex-col items-center justify-center h-40 text-center text-muted-foreground border-2 border-dashed rounded-lg">
                 <Ban className="h-12 w-12 mb-2" />
@@ -367,9 +412,3 @@ export default function CustomerDetailPage({
     </div>
   );
 }
-    
-    
-
-    
-
-    
