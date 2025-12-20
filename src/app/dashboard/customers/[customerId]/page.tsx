@@ -108,7 +108,7 @@ export default function CustomerDetailPage({
             .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
 
-        // 4. Enrich sales with project and flat info (simplified, direct lookup)
+        // 4. Enrich sales with project and flat info
         const enrichedSales: EnrichedSale[] = await Promise.all(
           salesData.map(async sale => {
             const projectRef = doc(firestore, 'projects', sale.projectId);
@@ -192,8 +192,12 @@ export default function CustomerDetailPage({
   }
 
   if (!details) {
-    notFound();
-    return null;
+    // This case should ideally not be reached if notFound() is called, but as a fallback.
+    return (
+        <div className="flex justify-center items-center h-screen">
+            <p>Customer not found.</p>
+        </div>
+    );
   }
 
   const { customer, sales, payments, totalPaid, totalPrice, totalDue } = details;
@@ -356,5 +360,3 @@ export default function CustomerDetailPage({
     </div>
   );
 }
-
-    
