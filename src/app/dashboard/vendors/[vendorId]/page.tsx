@@ -97,11 +97,13 @@ export default function VendorDetailPage({
         const vendorRef = doc(firestore, 'vendors', vendorId);
         const projectsQuery = collection(firestore, 'projects');
         const itemsQuery = collection(firestore, 'expenseItems');
+        const allOutflowsQuery = collectionGroup(firestore, 'outflowTransactions');
         
-        const [vendorSnap, projectsSnap, itemsSnap] = await Promise.all([
+        const [vendorSnap, projectsSnap, itemsSnap, allOutflowsSnap] = await Promise.all([
             getDoc(vendorRef),
             getDocs(projectsQuery),
-            getDocs(itemsQuery)
+            getDocs(itemsQuery),
+            getDocs(allOutflowsQuery)
         ]);
 
         if (!vendorSnap.exists()) {
@@ -127,13 +129,10 @@ export default function VendorDetailPage({
             itemName: itemsMap.get(exp.itemId)?.name || 'N/A',
         })).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
-        // Fetch payments made to this vendor
-        const outflowQuery = query(
-            collectionGroup(firestore, 'outflowTransactions'),
-            where('supplierVendor', '==', vendorData.vendorName)
-        );
-        const outflowSnap = await getDocs(outflowQuery);
-        const vendorPayments = outflowSnap.docs.map(d => ({ ...d.data(), id: d.id } as OutflowTransaction));
+        // Filter all outflows for the current vendor on the client
+        const vendorPayments = allOutflowsSnap.docs
+            .map(d => ({ ...d.data(), id: d.id } as OutflowTransaction))
+            .filter(o => o.supplierVendor === vendorData.vendorName);
 
         const enrichedPayments = vendorPayments.map(p => ({
             ...p,
