@@ -216,7 +216,7 @@ export default function SalesPage() {
                                   </Link>
                                 </DropdownMenuItem>
                                  <DropdownMenuItem asChild>
-                                  <Link href={`/dashboard/sales/${sale.id}/edit`}>
+                                  <Link href={`/dashboard/sales/edit/${sale.id}`}>
                                     <Pencil className="mr-2 h-4 w-4" />
                                     Edit
                                   </Link>
