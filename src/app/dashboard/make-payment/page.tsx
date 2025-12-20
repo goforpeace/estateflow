@@ -1,3 +1,4 @@
+
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -16,7 +17,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Combobox } from '@/components/ui/combobox';
 import { useFirestore, useCollection, useMemoFirebase, addDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase';
-import { collection, query, where, doc, writeBatch, getDocs, runTransaction } from 'firebase/firestore';
+import { collection, query, where, doc, writeBatch, getDocs, runTransaction, collectionGroup } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { useState, useEffect, useMemo } from 'react';
 import type { Vendor, Expense, OutflowTransaction } from '@/lib/types';
