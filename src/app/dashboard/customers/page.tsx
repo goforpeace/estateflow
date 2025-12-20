@@ -1,7 +1,7 @@
 
 'use client';
 
-import { Ban, PlusCircle, Pencil, Trash2, MoreHorizontal } from 'lucide-react';
+import { Ban, PlusCircle, Pencil, Trash2, MoreHorizontal, View } from 'lucide-react';
 import {
   Card,
   CardContent,
@@ -51,6 +51,7 @@ import { AddCustomerForm } from '@/components/dashboard/customers/add-customer-f
 import { EditCustomerForm } from '@/components/dashboard/customers/edit-customer-form';
 import { useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
+import Link from 'next/link';
 
 
 export default function CustomersPage() {
@@ -152,6 +153,12 @@ export default function CustomersPage() {
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="end">
                                 <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                                <DropdownMenuItem asChild>
+                                    <Link href={`/dashboard/customers/${customer.id}`}>
+                                        <View className="mr-2 h-4 w-4" />
+                                        View Details
+                                    </Link>
+                                </DropdownMenuItem>
                                 <DropdownMenuItem onClick={() => handleEditClick(customer)}>
                                     <Pencil className="mr-2 h-4 w-4" />
                                     Edit
