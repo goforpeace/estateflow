@@ -1,7 +1,7 @@
 
 'use client';
 
-import { Ban, PlusCircle, ArrowUpRight, MoreHorizontal } from 'lucide-react';
+import { Ban, PlusCircle, ArrowUpRight, MoreHorizontal, Search } from 'lucide-react';
 import Link from 'next/link';
 import {
   Card,
@@ -51,9 +51,11 @@ import { collection, query, doc, writeBatch, getDocs } from 'firebase/firestore'
 import type { Project } from '@/lib/types';
 import { AddProjectForm } from '@/components/dashboard/projects/add-project-form';
 import { EditProjectForm } from '@/components/dashboard/projects/edit-project-form';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useToast } from '@/hooks/use-toast';
+import { Input } from '@/components/ui/input';
 
+const ITEMS_PER_PAGE = 15;
 
 export default function ProjectsPage() {
   const firestore = useFirestore();
@@ -66,6 +68,8 @@ export default function ProjectsPage() {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [editingProject, setEditingProject] = useState<Project | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
 
   const handleEditClick = (project: Project) => {
     setEditingProject(project);
@@ -117,31 +121,70 @@ export default function ProjectsPage() {
     return `৳${value.toLocaleString('en-IN')}`;
   };
 
+  const filteredProjects = useMemo(() => {
+    if (!projects) return [];
+    const searchTerm = searchQuery.toLowerCase();
+    return projects.filter(project =>
+        project.projectName.toLowerCase().includes(searchTerm) ||
+        project.location.toLowerCase().includes(searchTerm) ||
+        project.status.toLowerCase().includes(searchTerm)
+    );
+  }, [projects, searchQuery]);
+
+  const totalPages = Math.ceil(filteredProjects.length / ITEMS_PER_PAGE);
+  const paginatedProjects = filteredProjects.slice(
+      (currentPage - 1) * ITEMS_PER_PAGE,
+      currentPage * ITEMS_PER_PAGE
+  );
+
+  const handleNextPage = () => {
+    if (currentPage < totalPages) setCurrentPage(currentPage + 1);
+  };
+
+  const handlePrevPage = () => {
+    if (currentPage > 1) setCurrentPage(currentPage - 1);
+  };
+
   return (
     <div className="space-y-6">
       <Card>
         <CardHeader>
-          <div className="flex justify-between items-center">
+          <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
             <div>
               <CardTitle>Projects</CardTitle>
               <CardDescription>
                 Manage all your real estate projects.
               </CardDescription>
             </div>
-            <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-              <DialogTrigger asChild>
-                <Button>
-                  <PlusCircle className="mr-2 h-4 w-4" />
-                  Add Project
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="sm:max-w-[625px]">
-                <DialogHeader>
-                  <DialogTitle>Add New Project</DialogTitle>
-                </DialogHeader>
-                <AddProjectForm setDialogOpen={setIsAddDialogOpen} />
-              </DialogContent>
-            </Dialog>
+             <div className="flex flex-col-reverse sm:flex-row items-center gap-2">
+                 <div className="relative w-full sm:w-auto">
+                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                    <Input 
+                        type="search" 
+                        placeholder="Search projects..."
+                        className="pl-8 sm:w-[300px]"
+                        value={searchQuery}
+                        onChange={(e) => {
+                            setSearchQuery(e.target.value);
+                            setCurrentPage(1);
+                        }}
+                    />
+                </div>
+                <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+                <DialogTrigger asChild>
+                    <Button className="w-full sm:w-auto">
+                    <PlusCircle className="mr-2 h-4 w-4" />
+                    Add Project
+                    </Button>
+                </DialogTrigger>
+                <DialogContent className="sm:max-w-[625px]">
+                    <DialogHeader>
+                    <DialogTitle>Add New Project</DialogTitle>
+                    </DialogHeader>
+                    <AddProjectForm setDialogOpen={setIsAddDialogOpen} />
+                </DialogContent>
+                </Dialog>
+            </div>
           </div>
         </CardHeader>
         <CardContent>
@@ -150,16 +193,17 @@ export default function ProjectsPage() {
               <p>Loading projects...</p>
             </div>
           )}
-          {!isLoading && !projects?.length && (
+          {!isLoading && !paginatedProjects?.length && (
             <div className="flex flex-col items-center justify-center h-60 text-center text-muted-foreground border-2 border-dashed rounded-lg">
               <Ban className="h-12 w-12 mb-2" />
               <p className="text-lg font-semibold">No projects found.</p>
               <p className="text-sm">
-                Click &quot;Add Project&quot; to get started.
+                 {searchQuery ? 'Try a different search term or' : 'Click "Add Project" to'} get started.
               </p>
             </div>
           )}
-          {!isLoading && projects && projects.length > 0 && (
+          {!isLoading && paginatedProjects && paginatedProjects.length > 0 && (
+            <>
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -172,7 +216,7 @@ export default function ProjectsPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {projects.map(project => (
+                  {paginatedProjects.map(project => (
                     <TableRow key={project.id}>
                       <TableCell className="font-medium">
                         {project.projectName}
@@ -242,6 +286,28 @@ export default function ProjectsPage() {
                   ))}
                 </TableBody>
               </Table>
+               <div className="flex items-center justify-end space-x-2 py-4">
+                <div className="text-sm text-muted-foreground">
+                    Page {currentPage} of {totalPages}
+                </div>
+                <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handlePrevPage}
+                    disabled={currentPage === 1}
+                >
+                    Previous
+                </Button>
+                <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleNextPage}
+                    disabled={currentPage === totalPages}
+                >
+                    Next
+                </Button>
+              </div>
+            </>
           )}
         </CardContent>
       </Card>

@@ -1,7 +1,7 @@
 
 'use client';
 
-import { Ban, PlusCircle, Trash2, MoreHorizontal, View, Pencil } from 'lucide-react';
+import { Ban, PlusCircle, Trash2, MoreHorizontal, View, Pencil, Search } from 'lucide-react';
 import Link from 'next/link';
 import {
   Card,
@@ -50,12 +50,15 @@ import type { Sale, Project, Flat, Customer } from '@/lib/types';
 import { useEffect, useState, useMemo } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { EditSaleForm } from '@/components/dashboard/sales/edit-sale-form';
+import { Input } from '@/components/ui/input';
 
 type EnrichedSale = Sale & {
     projectName: string;
     flatNumber: string;
     customerName: string;
 };
+
+const ITEMS_PER_PAGE = 15;
 
 export default function SalesPage() {
   const firestore = useFirestore();
@@ -65,6 +68,9 @@ export default function SalesPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [editingSale, setEditingSale] = useState<Sale | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [isDataDirty, setIsDataDirty] = useState(true); // Start as true to trigger initial fetch
 
   const handleEditClick = (sale: EnrichedSale) => {
     // Find the original sale object to pass to the form
@@ -82,6 +88,8 @@ export default function SalesPage() {
   };
 
   useEffect(() => {
+    if (!isDataDirty) return;
+
     const fetchAndEnrichSales = async () => {
       setIsLoading(true);
       try {
@@ -119,7 +127,7 @@ export default function SalesPage() {
           projectName: projectsMap.get(sale.projectId)?.projectName || 'N/A',
           flatNumber: allFlatsMap.get(sale.flatId)?.flatNumber || 'N/A',
           customerName: customersMap.get(sale.customerId)?.fullName || 'N/A',
-        }));
+        })).sort((a, b) => new Date(b.saleDate).getTime() - new Date(a.saleDate).getTime());
 
         setEnrichedSales(enriched);
       } catch (error) {
@@ -132,10 +140,11 @@ export default function SalesPage() {
         setEnrichedSales([]); // Clear data on error
       }
       setIsLoading(false);
+      setIsDataDirty(false);
     };
 
     fetchAndEnrichSales();
-  }, [firestore, toast]);
+  }, [firestore, toast, isDataDirty]);
   
   const handleDeleteSale = async (sale: Sale) => {
     try {
@@ -180,23 +189,62 @@ export default function SalesPage() {
     return `৳${value.toLocaleString('en-IN')}`;
   };
 
+  const filteredSales = useMemo(() => {
+    if (!enrichedSales) return [];
+    const searchTerm = searchQuery.toLowerCase();
+    return enrichedSales.filter(sale =>
+        sale.customerName.toLowerCase().includes(searchTerm) ||
+        sale.projectName.toLowerCase().includes(searchTerm) ||
+        sale.flatNumber.toLowerCase().includes(searchTerm)
+    );
+  }, [enrichedSales, searchQuery]);
+
+  const totalPages = Math.ceil(filteredSales.length / ITEMS_PER_PAGE);
+  const paginatedSales = filteredSales.slice(
+      (currentPage - 1) * ITEMS_PER_PAGE,
+      currentPage * ITEMS_PER_PAGE
+  );
+
+  const handleNextPage = () => {
+    if (currentPage < totalPages) setCurrentPage(currentPage + 1);
+  };
+
+  const handlePrevPage = () => {
+    if (currentPage > 1) setCurrentPage(currentPage - 1);
+  };
+
   return (
     <div className="space-y-6">
       <Card>
         <CardHeader>
-          <div className="flex justify-between items-center">
+          <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
             <div>
               <CardTitle>Sales</CardTitle>
               <CardDescription>
                 Manage all your property sales.
               </CardDescription>
             </div>
-            <Button asChild>
-                <Link href="/dashboard/sales/add">
-                    <PlusCircle className="mr-2 h-4 w-4" />
-                    Add Sale
-                </Link>
-            </Button>
+            <div className="flex flex-col-reverse sm:flex-row items-center gap-2">
+                 <div className="relative w-full sm:w-auto">
+                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                    <Input 
+                        type="search" 
+                        placeholder="Search sales..."
+                        className="pl-8 sm:w-[300px]"
+                        value={searchQuery}
+                        onChange={(e) => {
+                            setSearchQuery(e.target.value);
+                            setCurrentPage(1);
+                        }}
+                    />
+                </div>
+                 <Button asChild className="w-full sm:w-auto">
+                    <Link href="/dashboard/sales/add">
+                        <PlusCircle className="mr-2 h-4 w-4" />
+                        Add Sale
+                    </Link>
+                </Button>
+            </div>
           </div>
         </CardHeader>
         <CardContent>
@@ -205,16 +253,17 @@ export default function SalesPage() {
               <p>Loading sales...</p>
             </div>
           )}
-          {!isLoading && !enrichedSales.length && (
+          {!isLoading && !paginatedSales.length && (
             <div className="flex flex-col items-center justify-center h-60 text-center text-muted-foreground border-2 border-dashed rounded-lg">
               <Ban className="h-12 w-12 mb-2" />
               <p className="text-lg font-semibold">No sales found.</p>
               <p className="text-sm">
-                Click &quot;Add Sale&quot; to record a new sale.
+                {searchQuery ? 'Try a different search term or' : 'Click "Add Sale" to'} record a new sale.
               </p>
             </div>
           )}
-          {!isLoading && enrichedSales.length > 0 && (
+          {!isLoading && paginatedSales.length > 0 && (
+            <>
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -227,7 +276,7 @@ export default function SalesPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {enrichedSales.map(sale => (
+                  {paginatedSales.map(sale => (
                     <TableRow key={sale.id}>
                       <TableCell className="font-medium">
                         {sale.customerName}
@@ -289,6 +338,28 @@ export default function SalesPage() {
                   ))}
                 </TableBody>
               </Table>
+              <div className="flex items-center justify-end space-x-2 py-4">
+                <div className="text-sm text-muted-foreground">
+                    Page {currentPage} of {totalPages}
+                </div>
+                <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handlePrevPage}
+                    disabled={currentPage === 1}
+                >
+                    Previous
+                </Button>
+                <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleNextPage}
+                    disabled={currentPage === totalPages}
+                >
+                    Next
+                </Button>
+              </div>
+            </>
           )}
         </CardContent>
       </Card>
@@ -298,7 +369,11 @@ export default function SalesPage() {
                 <DialogHeader>
                 <DialogTitle>Edit Sale</DialogTitle>
                 </DialogHeader>
-                <EditSaleForm sale={editingSale} setDialogOpen={setIsEditDialogOpen} />
+                <EditSaleForm 
+                    sale={editingSale} 
+                    setDialogOpen={setIsEditDialogOpen} 
+                    onSaleUpdated={() => setIsDataDirty(true)}
+                />
             </DialogContent>
             </Dialog>
         )}

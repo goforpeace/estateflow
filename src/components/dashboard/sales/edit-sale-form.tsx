@@ -57,9 +57,10 @@ type EditSaleFormValues = z.infer<typeof editSaleFormSchema>;
 interface EditSaleFormProps {
     sale: Sale;
     setDialogOpen: (open: boolean) => void;
+    onSaleUpdated: () => void;
 }
 
-export function EditSaleForm({ sale, setDialogOpen }: EditSaleFormProps) {
+export function EditSaleForm({ sale, setDialogOpen, onSaleUpdated }: EditSaleFormProps) {
   const firestore = useFirestore();
   const { toast } = useToast();
   
@@ -86,7 +87,7 @@ export function EditSaleForm({ sale, setDialogOpen }: EditSaleFormProps) {
     resolver: zodResolver(editSaleFormSchema),
     defaultValues: {
         ...sale,
-        totalPrice: sale.totalPrice - (sale.extraCosts?.reduce((acc, cost) => acc + cost.amount, 0) || 0),
+        totalPrice: sale.totalPrice - (sale.parkingCharge || 0) - (sale.utilityCharge || 0) - (sale.extraCosts?.reduce((acc, cost) => acc + cost.amount, 0) || 0),
         saleDate: new Date(sale.saleDate).toISOString().split('T')[0],
     },
   });
@@ -98,21 +99,23 @@ export function EditSaleForm({ sale, setDialogOpen }: EditSaleFormProps) {
   
   const watchBasePrice = form.watch('totalPrice');
   const watchExtraCosts = form.watch('extraCosts');
+  const watchParkingCharge = form.watch('parkingCharge');
+  const watchUtilityCharge = form.watch('utilityCharge');
   
   const calculatedTotalPrice = (Number(watchBasePrice) || 0) + 
+    (Number(watchParkingCharge) || 0) +
+    (Number(watchUtilityCharge) || 0) +
     (watchExtraCosts?.reduce((acc, cost) => acc + (Number(cost.amount) || 0), 0) || 0);
 
   async function onSubmit(data: EditSaleFormValues) {
     try {
         const batch = writeBatch(firestore);
         
-        const finalTotalPrice = calculatedTotalPrice;
-
         // 1. Update the sale document
         const saleDocRef = doc(firestore, 'sales', sale.id);
         batch.update(saleDocRef, {
             ...data,
-            totalPrice: finalTotalPrice,
+            totalPrice: calculatedTotalPrice,
             saleDate: new Date(data.saleDate).toISOString(),
         });
         
@@ -133,6 +136,7 @@ export function EditSaleForm({ sale, setDialogOpen }: EditSaleFormProps) {
         title: 'Sale Updated',
         description: `The sale has been successfully updated.`,
       });
+      onSaleUpdated();
       setDialogOpen(false);
     } catch (error: any) {
       console.error('Error updating sale: ', error);
