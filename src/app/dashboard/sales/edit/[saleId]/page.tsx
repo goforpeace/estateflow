@@ -117,10 +117,8 @@ export default function EditSalePage() {
   const calculatedTotalPrice = (Number(watchBasePrice) || 0) + 
     (watchExtraCosts?.reduce((acc, cost) => acc + (Number(cost.amount) || 0), 0) || 0);
 
-  const dueAmount = calculatedTotalPrice;
-
   async function onSubmit(data: EditSaleFormValues) {
-    if (!saleId) return;
+    if (!saleId || !sale) return;
 
     try {
         const batch = writeBatch(firestore);
@@ -128,15 +126,15 @@ export default function EditSalePage() {
         const finalTotalPrice = calculatedTotalPrice;
 
         // 1. Update the sale document
-        const saleRef = doc(firestore, 'sales', saleId);
-        batch.update(saleRef, {
+        const saleDocRef = doc(firestore, 'sales', saleId);
+        batch.update(saleDocRef, {
             ...data,
             totalPrice: finalTotalPrice,
             saleDate: new Date(data.saleDate).toISOString(),
         });
         
         // Handle flat status change if flat is changed
-        if (sale && data.flatId !== sale.flatId) {
+        if (data.flatId !== sale.flatId) {
             // Mark original flat as 'Available'
             const oldFlatRef = doc(firestore, 'projects', sale.projectId, 'flats', sale.flatId);
             batch.update(oldFlatRef, { status: 'Available' });
@@ -165,14 +163,17 @@ export default function EditSalePage() {
   
   const formatCurrency = (value: number) => `৳${value.toLocaleString('en-IN')}`;
   
-  if (saleLoading) {
-      return <div>Loading sale data...</div>
+  if (saleLoading || projectsLoading || customersLoading) {
+      return <div className="flex justify-center items-center h-screen"><p>Loading sale data...</p></div>
   }
   
   if (!sale) {
       notFound();
       return null;
   }
+  
+  const dueAmount = calculatedTotalPrice - (sale?.downpayment || 0);
+
 
   return (
     <Card>
