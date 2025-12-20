@@ -20,6 +20,13 @@ import {
 } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+    DialogTrigger,
+} from '@/components/ui/dialog';
+import {
     AlertDialog,
     AlertDialogAction,
     AlertDialogCancel,
@@ -43,6 +50,7 @@ import { collection, query, getDocs, doc, writeBatch } from 'firebase/firestore'
 import type { Sale, Project, Flat, Customer } from '@/lib/types';
 import { useEffect, useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
+import { EditSaleForm } from '@/components/dashboard/sales/edit-sale-form';
 
 type EnrichedSale = Sale & {
     projectName: string;
@@ -60,6 +68,14 @@ export default function SalesPage() {
   const { data: sales, isLoading } = useCollection<Sale>(salesQuery);
   const [enrichedSales, setEnrichedSales] = useState<EnrichedSale[]>([]);
   const [isDataLoading, setIsDataLoading] = useState(true);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [editingSale, setEditingSale] = useState<Sale | null>(null);
+
+  const handleEditClick = (sale: Sale) => {
+    setEditingSale(sale);
+    setIsEditDialogOpen(true);
+  };
+
 
   useEffect(() => {
     const enrichSales = async () => {
@@ -73,10 +89,9 @@ export default function SalesPage() {
         try {
             const projectIds = [...new Set(sales.map(s => s.projectId))];
             const customerIds = [...new Set(sales.map(s => s.customerId))];
-            const flatIdProjectMap = new Map(sales.map(s => [s.flatId, s.projectId]));
-
-            const projectsPromise = projectIds.length ? getDocs(query(collection(firestore, 'projects'))) : Promise.resolve({ docs: [] });
-            const customersPromise = customerIds.length ? getDocs(query(collection(firestore, 'customers'))) : Promise.resolve({ docs: [] });
+            
+            const projectsPromise = projectIds.length > 0 ? getDocs(query(collection(firestore, 'projects'), where('id', 'in', projectIds))) : Promise.resolve({ docs: [] });
+            const customersPromise = customerIds.length > 0 ? getDocs(query(collection(firestore, 'customers'), where('id', 'in', customerIds))) : Promise.resolve({ docs: [] });
 
             const [projectsSnap, customersSnap] = await Promise.all([projectsPromise, customersPromise]);
 
@@ -231,11 +246,9 @@ export default function SalesPage() {
                                       View Details
                                   </Link>
                                 </DropdownMenuItem>
-                                 <DropdownMenuItem asChild>
-                                  <Link href={`/dashboard/sales/edit/${sale.id}`}>
+                                 <DropdownMenuItem onClick={() => handleEditClick(sale)}>
                                     <Pencil className="mr-2 h-4 w-4" />
                                     Edit
-                                  </Link>
                                 </DropdownMenuItem>
                                 <DropdownMenuSeparator />
                                 <AlertDialogTrigger asChild>
@@ -251,7 +264,7 @@ export default function SalesPage() {
                               <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
                               <AlertDialogDescription>
                                 This will permanently delete this sale record and set the corresponding flat's status back to 'Available'.
-                              </AlertDialogDescription>
+                              </Aler tDialogDescription>
                             </AlertDialogHeader>
                             <AlertDialogFooter>
                               <AlertDialogCancel>Cancel</AlertDialogCancel>
@@ -272,6 +285,16 @@ export default function SalesPage() {
           )}
         </CardContent>
       </Card>
+        {editingSale && (
+            <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+            <DialogContent className="sm:max-w-[625px]">
+                <DialogHeader>
+                <DialogTitle>Edit Sale</DialogTitle>
+                </DialogHeader>
+                <EditSaleForm sale={editingSale} setDialogOpen={setIsEditDialogOpen} />
+            </DialogContent>
+            </Dialog>
+        )}
     </div>
   );
 }
