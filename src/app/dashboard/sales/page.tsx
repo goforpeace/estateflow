@@ -59,48 +59,62 @@ export default function SalesPage() {
   );
   const { data: sales, isLoading } = useCollection<Sale>(salesQuery);
   const [enrichedSales, setEnrichedSales] = useState<EnrichedSale[]>([]);
+  const [isDataLoading, setIsDataLoading] = useState(true);
 
   useEffect(() => {
     const enrichSales = async () => {
+        setIsDataLoading(true);
         if (!sales) {
           setEnrichedSales([]);
+          setIsDataLoading(false);
           return;
         };
 
-        const projectIds = [...new Set(sales.map(s => s.projectId))];
-        const customerIds = [...new Set(sales.map(s => s.customerId))];
+        try {
+            const projectIds = [...new Set(sales.map(s => s.projectId))];
+            const customerIds = [...new Set(sales.map(s => s.customerId))];
+            const flatIdProjectMap = new Map(sales.map(s => [s.flatId, s.projectId]));
 
-        const projectsPromise = projectIds.length ? getDocs(query(collection(firestore, 'projects'))) : Promise.resolve({ docs: [] });
-        const customersPromise = customerIds.length ? getDocs(query(collection(firestore, 'customers'))) : Promise.resolve({ docs: [] });
+            const projectsPromise = projectIds.length ? getDocs(query(collection(firestore, 'projects'))) : Promise.resolve({ docs: [] });
+            const customersPromise = customerIds.length ? getDocs(query(collection(firestore, 'customers'))) : Promise.resolve({ docs: [] });
 
-        const [projectsSnap, customersSnap] = await Promise.all([projectsPromise, customersPromise]);
+            const [projectsSnap, customersSnap] = await Promise.all([projectsPromise, customersPromise]);
 
-        const projectsMap = new Map(projectsSnap.docs.map(d => [d.id, d.data() as Project]));
-        const customersMap = new Map(customersSnap.docs.map(d => [d.id, d.data() as Customer]));
-        
-        const flatPromises = sales.map(sale => getDocs(query(collection(firestore, `projects/${sale.projectId}/flats`))));
-        const flatSnaps = await Promise.all(flatPromises);
-        const flatsMap = new Map<string, Flat>();
-        flatSnaps.forEach(snap => {
-            snap.docs.forEach(doc => {
-              if (!flatsMap.has(doc.id)) {
-                flatsMap.set(doc.id, doc.data() as Flat)
-              }
-            });
-        });
+            const projectsMap = new Map(projectsSnap.docs.map(d => [d.id, d.data() as Project]));
+            const customersMap = new Map(customersSnap.docs.map(d => [d.id, d.data() as Customer]));
+            
+            const flatsMap = new Map<string, Flat>();
+            for (const projectId of projectIds) {
+                const flatsQuery = query(collection(firestore, `projects/${projectId}/flats`));
+                const flatSnaps = await getDocs(flatsQuery);
+                flatSnaps.forEach(doc => {
+                    if (!flatsMap.has(doc.id)) {
+                        flatsMap.set(doc.id, doc.data() as Flat);
+                    }
+                });
+            }
 
-        const enriched = sales.map(sale => ({
-            ...sale,
-            projectName: projectsMap.get(sale.projectId)?.projectName || 'N/A',
-            flatNumber: flatsMap.get(sale.flatId)?.flatNumber || 'N/A',
-            customerName: customersMap.get(sale.customerId)?.fullName || 'N/A',
-        }));
+            const enriched = sales.map(sale => ({
+                ...sale,
+                projectName: projectsMap.get(sale.projectId)?.projectName || 'N/A',
+                flatNumber: flatsMap.get(sale.flatId)?.flatNumber || 'N/A',
+                customerName: customersMap.get(sale.customerId)?.fullName || 'N/A',
+            }));
 
-        setEnrichedSales(enriched);
+            setEnrichedSales(enriched);
+        } catch (error) {
+            console.error("Error enriching sales:", error);
+            toast({
+                variant: 'destructive',
+                title: "Error loading sale details",
+                description: "Could not fetch all related project and customer data."
+            })
+        }
+        setIsDataLoading(false);
     };
 
     enrichSales();
-  }, [sales, firestore]);
+  }, [sales, firestore, toast]);
   
   const handleDeleteSale = async (sale: Sale) => {
     try {
@@ -142,6 +156,8 @@ export default function SalesPage() {
     return `৳${value.toLocaleString('en-IN')}`;
   };
 
+  const finalIsLoading = isLoading || isDataLoading;
+
   return (
     <div className="space-y-6">
       <Card>
@@ -162,12 +178,12 @@ export default function SalesPage() {
           </div>
         </CardHeader>
         <CardContent>
-          {isLoading && (
+          {finalIsLoading && (
             <div className="flex justify-center items-center h-60">
               <p>Loading sales...</p>
             </div>
           )}
-          {!isLoading && !enrichedSales?.length && (
+          {!finalIsLoading && !enrichedSales?.length && (
             <div className="flex flex-col items-center justify-center h-60 text-center text-muted-foreground border-2 border-dashed rounded-lg">
               <Ban className="h-12 w-12 mb-2" />
               <p className="text-lg font-semibold">No sales found.</p>
@@ -176,7 +192,7 @@ export default function SalesPage() {
               </p>
             </div>
           )}
-          {!isLoading && enrichedSales && enrichedSales.length > 0 && (
+          {!finalIsLoading && enrichedSales && enrichedSales.length > 0 && (
               <Table>
                 <TableHeader>
                   <TableRow>
