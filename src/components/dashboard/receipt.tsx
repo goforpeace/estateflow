@@ -72,13 +72,9 @@ export const Receipt: React.FC<ReceiptProps> = ({ payment, customer, project }) 
     const amountInWords = numberToWords(payment.amount) + ' Taka Only';
 
     return (
-        <div id="receipt-printable-area" className="p-8 bg-white text-gray-800 font-body a4-page mx-auto shadow-lg">
+        <div id="receipt-printable-area" className="bg-white text-gray-800 font-body a4-page">
              <style jsx global>{`
                 @media print {
-                    @page {
-                        size: A4;
-                        margin: 0;
-                    }
                     body * {
                         visibility: hidden;
                     }
@@ -90,14 +86,29 @@ export const Receipt: React.FC<ReceiptProps> = ({ payment, customer, project }) 
                         left: 0;
                         top: 0;
                         width: 100%;
+                        height: 100%;
                         border: none;
                         box-shadow: none;
+                        margin: 0;
+                        padding: 0;
+                    }
+                    .a4-page {
+                        width: 210mm;
+                        min-height: 297mm;
+                        margin: 0;
+                        box-shadow: none;
+                        border: none;
                     }
                 }
                 .a4-page {
                     width: 210mm;
                     min-height: 297mm;
-                    margin: 0 auto;
+                    padding: 20mm;
+                    margin: 1rem auto;
+                    border: 1px #D1D1D1 solid;
+                    border-radius: 5px;
+                    background: white;
+                    box-shadow: 0 0 5px rgba(0, 0, 0, 0.1);
                 }
             `}</style>
             

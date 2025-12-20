@@ -838,10 +838,10 @@ export default function AddPaymentPage() {
                             project={viewingPayment.project}
                         />
                     </ScrollArea>
-                     <DialogFooter className="p-4 border-t bg-muted">
+                     <DialogFooter className="p-4 border-t bg-muted print:hidden">
                         <Button type="button" variant="outline" onClick={() => setIsViewDialogOpen(false)}>Close</Button>
                         <Button type="button" onClick={handlePrint}>
-                            <Printer className="mr-2 h-4 w-4" /> Print
+                            <Printer className="mr-2 h-4 w-4" /> Print / Save PDF
                         </Button>
                     </DialogFooter>
                 </DialogContent>
