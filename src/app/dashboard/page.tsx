@@ -118,7 +118,7 @@ export default function DashboardPage() {
                 <CashflowChart />
             </div>
             <div className="lg:col-span-3">
-                <ProjectStatus />
+                 <ProjectStatus />
             </div>
         </div>
         <div className="grid gap-6 md:grid-cols-1 lg:grid-cols-2">
