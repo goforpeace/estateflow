@@ -62,6 +62,7 @@ export function CustomerSummary() {
   useEffect(() => {
     setSoldFlats([]);
     setSelectedFlatId(null);
+    setSummary(null);
     if (!selectedProjectId) return;
 
     const fetchSoldFlats = async () => {
@@ -106,18 +107,20 @@ export function CustomerSummary() {
         const customerSnap = await getDoc(customerRef);
         const customerData = customerSnap.exists() ? customerSnap.data() as Customer : null;
         
-        // 3. Get all payments for this customer for this flat
+        // 3. Get all payments for this customer for this project
         const paymentsQuery = query(
           collection(firestore, `projects/${selectedProjectId}/inflowTransactions`),
           where('customerId', '==', customerId),
-          where('flatId', '==', selectedFlatId),
           orderBy('date', 'desc')
         );
         const paymentsSnap = await getDocs(paymentsQuery);
-        const payments = paymentsSnap.docs.map(d => d.data() as InflowTransaction);
-
-        const totalPaid = payments.reduce((sum, p) => sum + p.amount, 0);
-        const lastPaymentDate = payments.length > 0 ? new Date(payments[0].date).toLocaleDateString() : null;
+        
+        // Filter payments specifically for the selected flat and get the most recent date overall
+        const allPayments = paymentsSnap.docs.map(d => d.data() as InflowTransaction);
+        const paymentsForFlat = allPayments.filter(p => p.flatId === selectedFlatId);
+        
+        const totalPaid = paymentsForFlat.reduce((sum, p) => sum + p.amount, 0);
+        const lastPaymentDate = allPayments.length > 0 ? new Date(allPayments[0].date).toLocaleDateString() : null;
 
         setSummary({
           customerName: customerData?.fullName || 'N/A',
@@ -162,7 +165,7 @@ export function CustomerSummary() {
                 ))}
               </SelectContent>
             </Select>
-            <Select onValueChange={value => setSelectedFlatId(value)} disabled={!selectedProjectId || soldFlats.length === 0}>
+            <Select onValueChange={value => setSelectedFlatId(value)} disabled={!selectedProjectId || soldFlats.length === 0} value={selectedFlatId || ""}>
               <SelectTrigger>
                 <SelectValue placeholder="Select Flat" />
               </SelectTrigger>
