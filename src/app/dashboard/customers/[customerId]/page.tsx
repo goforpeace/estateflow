@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useFirestore } from '@/firebase';
+import { useState, useEffect, useMemo } from 'react';
+import { useFirestore, deleteDocumentNonBlocking } from '@/firebase';
 import {
   doc,
   collection,
@@ -40,9 +40,42 @@ import {
   Home,
   Landmark,
   Ban,
+  MoreHorizontal,
+  Pencil,
+  Trash2,
+  Eye,
+  Search,
+  FileDown,
+  Printer
 } from 'lucide-react';
 import { notFound, useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuLabel,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+  } from "@/components/ui/dropdown-menu"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { EditPaymentForm } from '@/components/dashboard/payments/edit-payment-form';
+import { Receipt } from '@/components/dashboard/receipt';
+import type { EnrichedTransaction } from '@/app/dashboard/add-payment/page';
+
 
 type EnrichedSale = Sale & {
   projectName: string;
@@ -72,7 +105,15 @@ export default function CustomerDetailPage({
   const [details, setDetails] = useState<CustomerDetails | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  
+  // State for payment history management
+  const [searchQuery, setSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
+  const [editingPayment, setEditingPayment] = useState<InflowTransaction | null>(null);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [viewingPayment, setViewingPayment] = useState<{payment: EnrichedTransaction, customer: Customer, project: Project} | null>(null);
+  const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
+  const [isDataDirty, setIsDataDirty] = useState(false);
 
   useEffect(() => {
     if (!customerId || !firestore) return;
@@ -162,18 +203,33 @@ export default function CustomerDetailPage({
         setError('Could not load customer data. Please try again.');
       } finally {
         setIsLoading(false);
+        setIsDataDirty(false);
       }
     };
 
     fetchData();
-  }, [customerId, firestore]);
+  }, [customerId, firestore, isDataDirty]);
 
-  // Pagination logic
-  const totalPages = details ? Math.ceil(details.payments.length / PAYMENTS_PER_PAGE) : 0;
-  const paginatedPayments = details ? details.payments.slice(
+  // Derived state for filtered and paginated payments
+  const filteredPayments = useMemo(() => {
+    if (!details) return [];
+    return details.payments.filter(p => {
+        const date = new Date(p.date).toLocaleDateString();
+        const searchTerm = searchQuery.toLowerCase();
+        return (
+            p.paymentType.toLowerCase().includes(searchTerm) ||
+            p.paymentMethod.toLowerCase().includes(searchTerm) ||
+            p.amount.toString().includes(searchTerm) ||
+            date.includes(searchTerm)
+        )
+    });
+  }, [details, searchQuery]);
+
+  const totalPages = Math.ceil(filteredPayments.length / PAYMENTS_PER_PAGE);
+  const paginatedPayments = filteredPayments.slice(
       (currentPage - 1) * PAYMENTS_PER_PAGE,
       currentPage * PAYMENTS_PER_PAGE
-  ) : [];
+  );
 
   const handleNextPage = () => {
     if (currentPage < totalPages) {
@@ -185,6 +241,46 @@ export default function CustomerDetailPage({
     if (currentPage > 1) {
       setCurrentPage(currentPage - 1);
     }
+  };
+
+  // Action handlers for payments
+  const handleEditClick = (payment: InflowTransaction) => {
+    setEditingPayment(payment);
+    setIsEditDialogOpen(true);
+  };
+  
+  const handleDeletePayment = async (payment: InflowTransaction) => {
+    const paymentRef = doc(firestore, 'projects', payment.projectId, 'inflowTransactions', payment.id);
+    deleteDocumentNonBlocking(paymentRef);
+    setIsDataDirty(true); // Mark data as dirty to trigger re-fetch
+  };
+
+  const handleViewClick = async (payment: InflowTransaction) => {
+    if (!details) return;
+    
+    const sale = details.sales.find(s => s.flatId === payment.flatId);
+    if (!sale) return;
+    
+    const projectSnap = await getDoc(doc(firestore, 'projects', sale.projectId));
+    if (!projectSnap.exists()) return;
+
+    const enrichedPayment: EnrichedTransaction = {
+      ...payment,
+      customerName: details.customer.fullName,
+      projectName: sale.projectName,
+      flatNumber: sale.flatNumber,
+    };
+    
+    setViewingPayment({
+        payment: enrichedPayment,
+        customer: details.customer,
+        project: projectSnap.data() as Project,
+    });
+    setIsViewDialogOpen(true);
+  };
+
+  const handlePrint = () => {
+      window.print();
   };
 
   const formatCurrency = (value: number) => {
@@ -337,10 +433,24 @@ export default function CustomerDetailPage({
 
       <Card>
         <CardHeader>
-          <CardTitle>Payment History</CardTitle>
-          <CardDescription>
-            Log of all payments made by {customer.fullName}.
-          </CardDescription>
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+              <div>
+                <CardTitle>Payment History</CardTitle>
+                <CardDescription>
+                    Log of all payments made by {customer.fullName}.
+                </CardDescription>
+              </div>
+              <div className="relative">
+                  <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                  <Input 
+                      type="search" 
+                      placeholder="Search payments..."
+                      className="pl-8 sm:w-[300px]"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                  />
+              </div>
+          </div>
         </CardHeader>
         <CardContent>
           {payments.length > 0 ? (
@@ -353,6 +463,7 @@ export default function CustomerDetailPage({
                     <TableHead>Payment Type</TableHead>
                     <TableHead>Method</TableHead>
                     <TableHead className="text-right">Amount</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -370,6 +481,53 @@ export default function CustomerDetailPage({
                               </TableCell>
                               <TableCell className="text-right font-semibold text-green-600">
                                   {formatCurrency(payment.amount)}
+                              </TableCell>
+                              <TableCell className="text-right">
+                                <AlertDialog>
+                                    <DropdownMenu>
+                                        <DropdownMenuTrigger asChild>
+                                        <Button variant="ghost" className="h-8 w-8 p-0">
+                                            <span className="sr-only">Open menu</span>
+                                            <MoreHorizontal className="h-4 w-4" />
+                                        </Button>
+                                        </DropdownMenuTrigger>
+                                        <DropdownMenuContent align="end">
+                                        <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                                        <DropdownMenuItem onClick={() => handleViewClick(payment)}>
+                                            <Eye className="mr-2 h-4 w-4" />
+                                            View Receipt
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem onClick={() => handleEditClick(payment)}>
+                                            <Pencil className="mr-2 h-4 w-4" />
+                                            Edit
+                                        </DropdownMenuItem>
+                                        <DropdownMenuSeparator />
+                                        <AlertDialogTrigger asChild>
+                                            <DropdownMenuItem className="text-destructive">
+                                            <Trash2 className="mr-2 h-4 w-4" />
+                                            Delete
+                                            </DropdownMenuItem>
+                                        </AlertDialogTrigger>
+                                        </DropdownMenuContent>
+                                    </DropdownMenu>
+                                    <AlertDialogContent>
+                                        <AlertDialogHeader>
+                                        <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                                        <AlertDialogDescription>
+                                            This action cannot be undone. This will permanently delete this payment record.
+                                        </AlertDialogDescription>
+                                        </AlertDialogHeader>
+                                        <AlertDialogFooter>
+                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                        <AlertDialogAction
+                                            onClick={() => handleDeletePayment(payment)}
+                                            className="bg-destructive hover:bg-destructive/90"
+                                        >
+                                            Delete
+                                        </AlertDialogAction>
+                                        </AlertDialogFooter>
+                                    </AlertDialogContent>
+                                </AlertDialog>
                               </TableCell>
                           </TableRow>
                       )
@@ -409,6 +567,45 @@ export default function CustomerDetailPage({
           )}
         </CardContent>
       </Card>
+
+        {editingPayment && (
+            <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+                <DialogContent className="sm:max-w-xl">
+                    <DialogHeader>
+                        <DialogTitle>Edit Payment</DialogTitle>
+                        <CardDescription>Update the details for this payment record.</CardDescription>
+                    </DialogHeader>
+                    <EditPaymentForm 
+                        payment={editingPayment} 
+                        setDialogOpen={setIsEditDialogOpen}
+                        onUpdate={() => setIsDataDirty(true)}
+                    />
+                </DialogContent>
+            </Dialog>
+        )}
+
+        {viewingPayment && (
+            <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
+                <DialogContent className="max-w-4xl p-0">
+                    <ScrollArea className="max-h-[90vh]">
+                        <Receipt 
+                            payment={viewingPayment.payment} 
+                            customer={viewingPayment.customer} 
+                            project={viewingPayment.project}
+                        />
+                    </ScrollArea>
+                     <DialogFooter className="p-4 border-t bg-muted print:hidden">
+                        <Button type="button" variant="outline" onClick={() => setIsViewDialogOpen(false)}>Close</Button>
+                        <Button type="button" variant="outline" onClick={handlePrint}>
+                            <FileDown className="mr-2 h-4 w-4" /> Save as PDF
+                        </Button>
+                        <Button type="button" onClick={handlePrint}>
+                            <Printer className="mr-2 h-4 w-4" /> Print
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+        )}
     </div>
   );
 }
