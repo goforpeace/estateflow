@@ -25,7 +25,6 @@ import {
   useFirestore,
   useCollection,
   useMemoFirebase,
-  addDocumentNonBlocking,
 } from '@/firebase';
 import {
   collection,
@@ -33,7 +32,7 @@ import {
   where,
   getDocs,
   doc,
-  addDoc,
+  runTransaction,
   collectionGroup,
   orderBy,
   limit,
@@ -47,6 +46,7 @@ import type {
   Sale,
   Flat,
   InflowTransaction,
+  Counter,
 } from '@/lib/types';
 import {
   Card,
@@ -65,7 +65,9 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Ban } from 'lucide-react';
+import { Ban, Printer } from 'lucide-react';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Receipt } from '@/components/dashboard/receipt';
 
 const addPaymentFormSchema = z.object({
   customerId: z.string().min(1, { message: 'Please select a customer.' }),
@@ -75,10 +77,20 @@ const addPaymentFormSchema = z.object({
     .number()
     .min(1, { message: 'Amount must be greater than 0.' }),
   paymentMethod: z.enum(['Cash', 'Cheque', 'Bank Transfer']),
-  receiptId: z.string().optional(),
+  paymentPurpose: z.enum(['Booking Money', 'Installment', 'Other']),
+  otherPurpose: z.string().optional(),
   reference: z.string().optional(),
   date: z.string().min(1, { message: 'Payment date is required.' }),
+}).refine(data => {
+    if (data.paymentPurpose === 'Other') {
+        return !!data.otherPurpose && data.otherPurpose.length > 0;
+    }
+    return true;
+}, {
+    message: 'Please specify the purpose if "Other" is selected.',
+    path: ['otherPurpose'],
 });
+
 
 type AddPaymentFormValues = z.infer<typeof addPaymentFormSchema>;
 
@@ -97,6 +109,7 @@ export default function AddPaymentPage() {
   const [flatsForProject, setFlatsForProject] = useState<Flat[]>([]);
   const [recentTransactions, setRecentTransactions] = useState<EnrichedTransaction[]>([]);
   const [isLogLoading, setIsLogLoading] = useState(true);
+  const [lastPayment, setLastPayment] = useState<EnrichedTransaction | null>(null);
 
   // Data fetching for form dropdowns
   const customersQuery = useMemoFirebase(
@@ -114,7 +127,8 @@ export default function AddPaymentPage() {
       flatId: '',
       amount: 0,
       paymentMethod: 'Cash',
-      receiptId: '',
+      paymentPurpose: 'Installment',
+      otherPurpose: '',
       reference: '',
       date: new Date().toISOString().split('T')[0],
     },
@@ -122,6 +136,7 @@ export default function AddPaymentPage() {
 
   const customerId = form.watch('customerId');
   const projectId = form.watch('projectId');
+  const paymentPurpose = form.watch('paymentPurpose');
 
   // Fetch recent transactions for the log
   const fetchRecentTransactions = async () => {
@@ -146,7 +161,7 @@ export default function AddPaymentPage() {
 
       // 3. Enrich transactions with names
       const enriched: EnrichedTransaction[] = [];
-      for (const tx of inflows) {
+       for (const tx of inflows) {
          const flatSnap = await getDocs(query(collection(firestore, `projects/${tx.projectId}/flats`), where('id', '==', tx.flatId)));
          const flatData = flatSnap.docs[0]?.data() as Flat;
 
@@ -168,7 +183,9 @@ export default function AddPaymentPage() {
 
   // Initial fetch for recent transactions
   useEffect(() => {
-    fetchRecentTransactions();
+    if (firestore) {
+      fetchRecentTransactions();
+    }
   }, [firestore]);
 
 
@@ -180,7 +197,7 @@ export default function AddPaymentPage() {
       form.setValue('projectId', '');
       form.setValue('flatId', '');
 
-      if (customerId) {
+      if (customerId && firestore) {
         // Find all sales for the selected customer
         const salesQuery = query(
           collection(firestore, 'sales'),
@@ -214,7 +231,7 @@ export default function AddPaymentPage() {
       setFlatsForProject([]);
       form.setValue('flatId', '');
 
-      if (customerId && projectId) {
+      if (customerId && projectId && firestore) {
         // Find sales for the specific customer and project
         const salesQuery = query(
           collection(firestore, 'sales'),
@@ -246,41 +263,131 @@ export default function AddPaymentPage() {
     }
     fetchProjectData();
   }, [customerId, projectId, firestore, form]);
+  
+  const getNextReceiptId = async (): Promise<string> => {
+    const counterRef = doc(firestore, 'counters', 'receipt');
+    try {
+        const newCurrent = await runTransaction(firestore, async (transaction) => {
+            const counterDoc = await transaction.get(counterRef);
+            if (!counterDoc.exists()) {
+                // Initialize counter if it doesn't exist
+                transaction.set(counterRef, { current: 1200 });
+                return 1200;
+            }
+            const newCurrent = (counterDoc.data() as Counter).current + 1;
+            transaction.update(counterRef, { current: newCurrent });
+            return newCurrent;
+        });
+        return newCurrent.toString();
+    } catch (error) {
+        console.error("Transaction failed: ", error);
+        throw new Error("Could not generate receipt ID.");
+    }
+  };
 
-  function onSubmit(data: AddPaymentFormValues) {
-    const inflowCollection = collection(
-      firestore,
-      'projects',
-      data.projectId,
-      'inflowTransactions'
-    );
-    const newInflowRef = doc(inflowCollection);
 
-    const newPayment = {
-      id: newInflowRef.id,
-      ...data,
-      date: new Date(data.date).toISOString(),
-      paymentType: 'Installment', // Assuming payments added here are installments
-    };
+  async function onSubmit(data: AddPaymentFormValues) {
+    try {
+        const receiptId = await getNextReceiptId();
+        
+        const inflowCollection = collection(
+            firestore,
+            'projects',
+            data.projectId,
+            'inflowTransactions'
+        );
+        const newInflowRef = doc(inflowCollection);
 
-    addDocumentNonBlocking(inflowCollection, newPayment);
+        const newPayment: InflowTransaction = {
+            id: newInflowRef.id,
+            receiptId,
+            projectId: data.projectId,
+            flatId: data.flatId,
+            customerId: data.customerId,
+            amount: data.amount,
+            paymentMethod: data.paymentMethod,
+            paymentPurpose: data.paymentPurpose,
+            otherPurpose: data.otherPurpose,
+            reference: data.reference,
+            date: new Date(data.date).toISOString(),
+            paymentType: data.paymentPurpose === 'Booking Money' ? 'Booking' : 'Installment',
+        };
 
-    toast({
-      title: 'Payment Recorded',
-      description: `Payment of ৳${data.amount} has been successfully recorded.`,
-    });
-    
-    form.reset({
-        ...form.getValues(),
-        amount: 0,
-        receiptId: '',
-        reference: '',
-        date: new Date().toISOString().split('T')[0],
-    });
-    
-    // Refresh the log
-    fetchRecentTransactions();
+        await runTransaction(firestore, async (transaction) => {
+            transaction.set(newInflowRef, newPayment);
+        });
+        
+        const customer = customers?.find(c => c.id === data.customerId);
+        const project = projectsForCustomer?.find(p => p.id === data.projectId);
+        const flat = flatsForProject?.find(f => f.id === data.flatId);
+
+        setLastPayment({
+            ...newPayment,
+            customerName: customer?.fullName || 'N/A',
+            projectName: project?.projectName || 'N/A',
+            flatNumber: flat?.flatNumber || 'N/A',
+        });
+
+        toast({
+            title: 'Payment Recorded',
+            description: `Payment of ৳${data.amount} has been successfully recorded with Receipt ID: ${receiptId}.`,
+        });
+        
+        form.reset({
+            ...form.getValues(),
+            amount: 0,
+            reference: '',
+            otherPurpose: '',
+            date: new Date().toISOString().split('T')[0],
+        });
+        
+        // Refresh the log
+        fetchRecentTransactions();
+
+    } catch (error: any) {
+        toast({
+            variant: 'destructive',
+            title: 'Uh oh! Something went wrong.',
+            description: error.message || 'Could not record the payment.',
+        });
+    }
   }
+
+  const handlePrintReceipt = () => {
+    if (!lastPayment) return;
+    const printWindow = window.open('', '_blank');
+    if (printWindow) {
+        const receiptHtml = `
+            <html>
+                <head>
+                    <title>Money Receipt - ${lastPayment.receiptId}</title>
+                    <script src="https://cdn.tailwindcss.com"></script>
+                </head>
+                <body class="bg-gray-100">
+                    <div id="receipt-root"></div>
+                </body>
+            </html>
+        `;
+        printWindow.document.write(receiptHtml);
+        printWindow.document.close();
+
+        // This is a bit of a hack to get React to render into the new window.
+        // It's generally better to have a dedicated, non-auth-protected route for printing.
+        const receiptRoot = printWindow.document.getElementById('receipt-root');
+        if (receiptRoot) {
+            const ReactDOM = require('react-dom');
+            ReactDOM.render(
+                React.createElement(Receipt, { payment: lastPayment, customer: customers?.find(c=>c.id === lastPayment.customerId)! }),
+                receiptRoot
+            );
+        }
+        
+        setTimeout(() => {
+            printWindow.print();
+            printWindow.close();
+        }, 500);
+    }
+  };
 
   const formatCurrency = (value: number) => `৳${value.toLocaleString('en-IN')}`;
 
@@ -394,6 +501,63 @@ export default function AddPaymentPage() {
 
               <Separator />
 
+                <div className="space-y-4">
+                  <h3 className="text-lg font-medium">Purpose of Payment</h3>
+                   <FormField
+                      control={form.control}
+                      name="paymentPurpose"
+                      render={({ field }) => (
+                        <FormItem className="space-y-3">
+                          <FormControl>
+                            <RadioGroup
+                              onValueChange={field.onChange}
+                              defaultValue={field.value}
+                              className="flex flex-col space-y-1"
+                            >
+                              <FormItem className="flex items-center space-x-3 space-y-0">
+                                <FormControl>
+                                  <RadioGroupItem value="Booking Money" />
+                                </FormControl>
+                                <FormLabel className="font-normal">Booking Money</FormLabel>
+                              </FormItem>
+                              <FormItem className="flex items-center space-x-3 space-y-0">
+                                <FormControl>
+                                  <RadioGroupItem value="Installment" />
+                                </FormControl>
+                                <FormLabel className="font-normal">Installment</FormLabel>
+                              </FormItem>
+                              <FormItem className="flex items-center space-x-3 space-y-0">
+                                <FormControl>
+                                  <RadioGroupItem value="Other" />
+                                </FormControl>
+                                <FormLabel className="font-normal">Other</FormLabel>
+                              </FormItem>
+                            </RadioGroup>
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    {paymentPurpose === 'Other' && (
+                        <FormField
+                            control={form.control}
+                            name="otherPurpose"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Please Specify</FormLabel>
+                                    <FormControl>
+                                        <Input placeholder="e.g., Parking Fee" {...field} />
+                                    </FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                    )}
+                </div>
+
+
+              <Separator />
+
               <div className="space-y-4">
                 <h3 className="text-lg font-medium">Amount & Method</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -444,7 +608,7 @@ export default function AddPaymentPage() {
 
               <div className="space-y-4">
                 <h3 className="text-lg font-medium">Additional Info</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <FormField
                     control={form.control}
                     name="date"
@@ -453,19 +617,6 @@ export default function AddPaymentPage() {
                         <FormLabel>Payment Date</FormLabel>
                         <FormControl>
                           <Input type="date" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="receiptId"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Receipt ID</FormLabel>
-                        <FormControl>
-                          <Input placeholder="Optional" {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -490,7 +641,13 @@ export default function AddPaymentPage() {
                 </div>
               </div>
 
-              <div className="flex justify-end pt-4">
+              <div className="flex justify-end pt-4 gap-2">
+                 {lastPayment && (
+                    <Button type="button" variant="outline" onClick={handlePrintReceipt}>
+                        <Printer className="mr-2 h-4 w-4" />
+                        Print Receipt
+                    </Button>
+                )}
                 <Button type="submit" disabled={form.formState.isSubmitting}>
                   {form.formState.isSubmitting
                     ? 'Recording...'

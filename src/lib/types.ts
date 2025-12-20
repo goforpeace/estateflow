@@ -7,6 +7,8 @@ export type PaymentMode = 'Cash' | 'Cheque' | 'Bank Transfer';
 export type TransactionType = 'Inflow' | 'Outflow';
 export type InflowType = 'Booking' | 'Installment';
 export type OutflowCategory = 'Material' | 'Labor' | 'Utility' | 'Office';
+export type PaymentPurpose = 'Booking Money' | 'Installment' | 'Other';
+
 
 export interface User {
   id: string;
@@ -53,8 +55,10 @@ export interface InflowTransaction {
   date: string;
   amount: number;
   paymentMethod: PaymentMode;
-  receiptId?: string;
+  receiptId: string; // Changed from optional
   reference?: string;
+  paymentPurpose: PaymentPurpose;
+  otherPurpose?: string;
 }
 
 export interface OutflowTransaction {
@@ -81,4 +85,8 @@ export interface Sale {
   note?: string;
   deedLink?: string;
   extraCosts?: { purpose: string; amount: number }[];
+}
+
+export interface Counter {
+    current: number;
 }
