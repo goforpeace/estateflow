@@ -36,6 +36,9 @@ export function SalesReport() {
       const projects = projectsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Project));
       const customers = customersSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Customer));
 
+      const customersMap = new Map(customers.map(c => [c.id, c]));
+      const projectsMap = new Map(projects.map(p => [p.id, p]));
+
       const allFlatsMap = new Map<string, Flat>();
         for (const project of projects) {
             const flatsQuery = query(collection(firestore, `projects/${project.id}/flats`));
@@ -53,8 +56,8 @@ export function SalesReport() {
 
       // 3. Enrich data
       const dataToExport = filteredSales.map(sale => {
-        const project = projects.find(p => p.id === sale.projectId);
-        const customer = customers.find(c => c.id === sale.customerId);
+        const project = projectsMap.get(sale.projectId);
+        const customer = customersMap.get(sale.customerId);
         const flat = allFlatsMap.get(sale.flatId);
 
         return {

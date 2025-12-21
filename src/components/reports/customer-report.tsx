@@ -39,6 +39,8 @@ export function CustomerReport() {
       const projects = projectsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Project));
       const inflows = inflowsSnap.docs.map(doc => doc.data() as InflowTransaction);
       
+      const projectsMap = new Map(projects.map(p => [p.id, p]));
+      
       const allFlatsMap = new Map<string, Flat>();
         for (const project of projects) {
             const flatsQuery = query(collection(firestore, `projects/${project.id}/flats`));
@@ -57,7 +59,7 @@ export function CustomerReport() {
         const customerPayments = inflows.filter(p => p.customerId === customer.id);
         const paidAmount = customerPayments.reduce((sum, p) => sum + p.amount, 0);
 
-        const projectNames = [...new Set(customerSales.map(s => projects.find(p => p.id === s.projectId)?.projectName))].filter(Boolean).join(', ');
+        const projectNames = [...new Set(customerSales.map(s => projectsMap.get(s.projectId)?.projectName))].filter(Boolean).join(', ');
         const flatNumbers = [...new Set(customerSales.map(s => allFlatsMap.get(s.flatId)?.flatNumber))].filter(Boolean).join(', ');
 
         return {
