@@ -1,32 +1,29 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { DateRangePicker } from '@/components/ui/date-range-picker';
-import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
+import { useFirestore } from '@/firebase';
 import { collection, query, getDocs, collectionGroup } from 'firebase/firestore';
 import type { Customer, Sale, InflowTransaction, Project, Flat } from '@/lib/types';
 import { exportToCsv } from '@/lib/csv';
 import { useToast } from '@/hooks/use-toast';
-import { DateRange } from 'react-day-picker';
 import { Download } from 'lucide-react';
 
 export function CustomerReport() {
   const firestore = useFirestore();
   const { toast } = useToast();
-  const [dateRange, setDateRange] = useState<DateRange | undefined>();
   const [isLoading, setIsLoading] = useState(false);
 
   const handleExport = async () => {
     setIsLoading(true);
     try {
-      // 1. Fetch all necessary data concurrently
+      // 1. Fetch all necessary data sets concurrently.
       const [customersSnap, salesSnap, projectsSnap, inflowsSnap] = await Promise.all([
-        getDocs(query(collection(firestore, 'customers'))),
-        getDocs(query(collection(firestore, 'sales'))),
-        getDocs(query(collection(firestore, 'projects'))),
-        getDocs(query(collectionGroup(firestore, 'inflowTransactions'))),
+        getDocs(collection(firestore, 'customers')),
+        getDocs(collection(firestore, 'sales')),
+        getDocs(collection(firestore, 'projects')),
+        getDocs(collectionGroup(firestore, 'inflowTransactions')),
       ]);
 
       const customers = customersSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Customer));
@@ -34,9 +31,10 @@ export function CustomerReport() {
       const projects = projectsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Project));
       const inflows = inflowsSnap.docs.map(doc => doc.data() as InflowTransaction);
 
-      // 2. Create lookup maps for efficient data access
+      // 2. Create efficient lookup maps for projects and later for flats.
       const projectsMap = new Map(projects.map(p => [p.id, p.projectName]));
       
+      // 3. Create a complete map of all flats from all projects.
       const allFlatsMap = new Map<string, Flat>();
       for (const project of projects) {
           const flatsQuery = query(collection(firestore, `projects/${project.id}/flats`));
@@ -45,22 +43,30 @@ export function CustomerReport() {
               allFlatsMap.set(doc.id, doc.data() as Flat);
           });
       }
+      
+      // 4. Pre-calculate financial totals for each customer.
+      const customerSalesTotals = new Map<string, number>();
+      for (const sale of sales) {
+          const currentTotal = customerSalesTotals.get(sale.customerId) || 0;
+          customerSalesTotals.set(sale.customerId, currentTotal + sale.totalPrice);
+      }
 
-      // 3. Process and enrich customer data
+      const customerPaidTotals = new Map<string, number>();
+      for (const inflow of inflows) {
+          const currentTotal = customerPaidTotals.get(inflow.customerId) || 0;
+          customerPaidTotals.set(inflow.customerId, currentTotal + inflow.amount);
+      }
+
+      // 5. Process and enrich customer data for the final report.
       const processedData = customers.map(customer => {
-        // Find all sales for this customer
         const customerSales = sales.filter(s => s.customerId === customer.id);
         
-        // Calculate total sale amount from their sales
-        const totalAmount = customerSales.reduce((sum, s) => sum + s.totalPrice, 0);
-
-        // Find all payments made by this customer
-        const customerPayments = inflows.filter(p => p.customerId === customer.id);
-        const paidAmount = customerPayments.reduce((sum, p) => sum + p.amount, 0);
-
-        // Get project and flat names
         const projectNames = [...new Set(customerSales.map(s => projectsMap.get(s.projectId)))].filter(Boolean).join(', ');
         const flatNumbers = [...new Set(customerSales.map(s => allFlatsMap.get(s.flatId)?.flatNumber))].filter(Boolean).join(', ');
+
+        const totalAmount = customerSalesTotals.get(customer.id) || 0;
+        const paidAmount = customerPaidTotals.get(customer.id) || 0;
+        const dueAmount = totalAmount - paidAmount;
 
         return {
           fullName: customer.fullName,
@@ -71,11 +77,11 @@ export function CustomerReport() {
           flatNumber: flatNumbers,
           totalAmount: totalAmount,
           paidAmount: paidAmount,
-          dueAmount: totalAmount - paidAmount,
+          dueAmount: dueAmount,
         };
       });
 
-      // 4. Format for CSV
+      // 6. Format for CSV export.
       const dataToExport = processedData.map(c => ({
         'Customer Name': c.fullName,
         'Mobile': c.mobile,
@@ -92,7 +98,7 @@ export function CustomerReport() {
         toast({
             variant: 'destructive',
             title: 'No Data to Export',
-            description: 'There are no customers matching the selected criteria.',
+            description: 'There are no customers to export.',
         });
         return;
       }
