@@ -100,7 +100,6 @@ export const Receipt: React.FC<ReceiptProps> = ({ payment, customer, project }) 
                 {/* Header */}
                 <header className="flex justify-between items-start pb-6 mb-8 border-b-2 border-primary">
                     <div className="w-32">
-                        {/* Use a standard img tag for better compatibility with html2canvas */}
                         <img src={company.logo} alt={`${company.name} Logo`} style={{ width: '96px', height: 'auto' }} />
                     </div>
                     <div className="text-right">
@@ -133,23 +132,23 @@ export const Receipt: React.FC<ReceiptProps> = ({ payment, customer, project }) 
                     <main className="space-y-5 text-base leading-relaxed mb-10">
                         <div className="flex items-baseline">
                             <p className="w-48 font-semibold shrink-0">Received with thanks from</p>
-                            <p className="border-b border-dotted border-gray-400 flex-grow font-semibold text-primary">{customer.fullName}</p>
+                            <p className="border-b border-dotted border-gray-400 flex-grow font-semibold text-primary pb-1">{customer.fullName}</p>
                         </div>
                         <div className="flex items-baseline">
                             <p className="w-48 font-semibold shrink-0">Address</p>
-                            <p className="border-b border-dotted border-gray-400 flex-grow">{customer.address}</p>
+                            <p className="border-b border-dotted border-gray-400 flex-grow pb-1">{customer.address}</p>
                         </div>
                         <div className="flex items-baseline">
                             <p className="w-48 font-semibold shrink-0">The sum of Taka</p>
-                            <p className="border-b border-dotted border-gray-400 flex-grow capitalize font-medium">{amountInWords}</p>
+                            <p className="border-b border-dotted border-gray-400 flex-grow capitalize font-medium pb-1">{amountInWords}</p>
                         </div>
                         <div className="flex items-baseline">
                             <p className="w-48 font-semibold shrink-0">By</p>
-                            <p className="border-b border-dotted border-gray-400 flex-grow">{payment.paymentMethod}{payment.reference ? ` (Ref: ${payment.reference})`: ''}</p>
+                            <p className="border-b border-dotted border-gray-400 flex-grow pb-1">{payment.paymentMethod}{payment.reference ? ` (Ref: ${payment.reference})`: ''}</p>
                         </div>
                         <div className="flex items-baseline">
                             <p className="w-48 font-semibold shrink-0">On account of</p>
-                            <p className="border-b border-dotted border-gray-400 flex-grow">
+                            <p className="border-b border-dotted border-gray-400 flex-grow pb-1">
                                 <span className="font-medium">{payment.paymentPurpose === 'Other' ? payment.otherPurpose : payment.paymentPurpose}</span>
                                 {' for Flat No. '}<span className="font-semibold">{payment.flatNumber}</span>
                                 {' of project '}<span className="font-semibold">{payment.projectName}</span>, {project.location}.
@@ -187,3 +186,4 @@ export const Receipt: React.FC<ReceiptProps> = ({ payment, customer, project }) 
             </div>
         </div>
     );
+}
