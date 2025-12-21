@@ -34,7 +34,6 @@ import {
     AlertDialogFooter,
     AlertDialogHeader,
     AlertDialogTitle,
-    AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import {
     DropdownMenu,
@@ -67,16 +66,18 @@ export default function SalesPage() {
   const [enrichedSales, setEnrichedSales] = useState<EnrichedSale[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-  const [editingSale, setEditingSale] = useState<Sale | null>(null);
+  const [selectedSale, setSelectedSale] = useState<Sale | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [isDataDirty, setIsDataDirty] = useState(true); // Start as true to trigger initial fetch
+  const [isDeleteAlertOpen, setIsDeleteAlertOpen] = useState(false);
+
 
   const handleEditClick = (sale: EnrichedSale) => {
     // Find the original sale object to pass to the form
     const originalSale = sales.find(s => s.id === sale.id);
     if (originalSale) {
-        setEditingSale(originalSale);
+        setSelectedSale(originalSale);
         setIsEditDialogOpen(true);
     } else {
         toast({
@@ -146,17 +147,23 @@ export default function SalesPage() {
     fetchAndEnrichSales();
   }, [firestore, toast, isDataDirty]);
   
-  const handleDeleteSale = async (sale: Sale) => {
+  const handleDeleteClick = (sale: Sale) => {
+    setSelectedSale(sale);
+    setIsDeleteAlertOpen(true);
+  };
+
+  const confirmDeleteSale = async () => {
+    if (!selectedSale) return;
     try {
         const batch = writeBatch(firestore);
 
         // 1. Reference to the sale document to be deleted
-        const saleRef = doc(firestore, 'sales', sale.id);
+        const saleRef = doc(firestore, 'sales', selectedSale.id);
         batch.delete(saleRef);
 
         // 2. Try to find the flat and update its status if it exists
-        if (sale.projectId && sale.flatId) {
-            const flatRef = doc(firestore, 'projects', sale.projectId, 'flats', sale.flatId);
+        if (selectedSale.projectId && selectedSale.flatId) {
+            const flatRef = doc(firestore, 'projects', selectedSale.projectId, 'flats', selectedSale.flatId);
             const flatSnap = await getDoc(flatRef);
     
             if (flatSnap.exists()) {
@@ -179,6 +186,9 @@ export default function SalesPage() {
             title: "Error Deleting Sale",
             description: error.message,
         });
+    } finally {
+        setIsDeleteAlertOpen(false);
+        setSelectedSale(null);
     }
   };
 
@@ -292,7 +302,6 @@ export default function SalesPage() {
                         <TableCell>{new Date(sale.saleDate).toLocaleDateString()}</TableCell>
                         <TableCell className="text-right">{formatCurrency(sale.totalPrice)}</TableCell>
                         <TableCell className="text-right">
-                          <AlertDialog>
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
                                 <Button variant="ghost" className="h-8 w-8 p-0">
@@ -313,32 +322,12 @@ export default function SalesPage() {
                                       Edit
                                   </DropdownMenuItem>
                                   <DropdownMenuSeparator />
-                                  <AlertDialogTrigger asChild>
-                                      <DropdownMenuItem className="text-red-600" onSelect={(e) => e.preventDefault()}>
-                                          <Trash2 className="mr-2 h-4 w-4" />
-                                          Delete
-                                      </DropdownMenuItem>
-                                  </AlertDialogTrigger>
+                                  <DropdownMenuItem className="text-red-600" onSelect={() => handleDeleteClick(sale)}>
+                                      <Trash2 className="mr-2 h-4 w-4" />
+                                      Delete
+                                  </DropdownMenuItem>
                               </DropdownMenuContent>
                             </DropdownMenu>
-                            <AlertDialogContent>
-                              <AlertDialogHeader>
-                                <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                                <AlertDialogDescription>
-                                  This will permanently delete this sale record and set the corresponding flat's status back to 'Available'.
-                                </AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter>
-                                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                <AlertDialogAction
-                                  onClick={() => handleDeleteSale(sale)}
-                                  className="bg-destructive hover:bg-destructive/90"
-                                >
-                                  Delete
-                                </AlertDialogAction>
-                              </AlertDialogFooter>
-                            </AlertDialogContent>
-                          </AlertDialog>
                         </TableCell>
                       </TableRow>
                     ))}
@@ -370,14 +359,35 @@ export default function SalesPage() {
           )}
         </CardContent>
       </Card>
-        {editingSale && (
+
+        <AlertDialog open={isDeleteAlertOpen} onOpenChange={setIsDeleteAlertOpen}>
+            <AlertDialogContent>
+                <AlertDialogHeader>
+                <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                <AlertDialogDescription>
+                    This will permanently delete this sale record and set the corresponding flat's status back to 'Available'.
+                </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction
+                    onClick={confirmDeleteSale}
+                    className="bg-destructive hover:bg-destructive/90"
+                >
+                    Delete
+                </AlertDialogAction>
+                </AlertDialogFooter>
+            </AlertDialogContent>
+        </AlertDialog>
+
+        {selectedSale && (
             <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
             <DialogContent className="sm:max-w-3xl">
                 <DialogHeader>
                 <DialogTitle>Edit Sale</DialogTitle>
                 </DialogHeader>
                 <EditSaleForm 
-                    sale={editingSale} 
+                    sale={selectedSale} 
                     setDialogOpen={setIsEditDialogOpen} 
                     onSaleUpdated={() => setIsDataDirty(true)}
                 />

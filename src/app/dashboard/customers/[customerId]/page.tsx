@@ -69,7 +69,6 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -110,10 +109,11 @@ export default function CustomerDetailPage({
   // State for payment history management
   const [searchQuery, setSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
-  const [editingPayment, setEditingPayment] = useState<InflowTransaction | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-  const [viewingPayment, setViewingPayment] = useState<{payment: EnrichedTransaction, customer: Customer, project: Project} | null>(null);
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
+  const [isDeleteAlertOpen, setIsDeleteAlertOpen] = useState(false);
+  const [selectedPayment, setSelectedPayment] = useState<InflowTransaction | null>(null);
+  const [selectedPaymentForView, setSelectedPaymentForView] = useState<{payment: EnrichedTransaction, customer: Customer, project: Project} | null>(null);
   const [isDataDirty, setIsDataDirty] = useState(true);
 
   useEffect(() => {
@@ -246,15 +246,23 @@ export default function CustomerDetailPage({
 
   // Action handlers for payments
   const handleEditClick = (payment: InflowTransaction) => {
-    setEditingPayment(payment);
+    setSelectedPayment(payment);
     setIsEditDialogOpen(true);
   };
+
+  const handleDeleteClick = (payment: InflowTransaction) => {
+    setSelectedPayment(payment);
+    setIsDeleteAlertOpen(true);
+  };
   
-  const handleDeletePayment = (payment: InflowTransaction) => {
-    const paymentRef = doc(firestore, 'projects', payment.projectId, 'inflowTransactions', payment.id);
+  const confirmDeletePayment = () => {
+    if (!selectedPayment) return;
+    const paymentRef = doc(firestore, 'projects', selectedPayment.projectId, 'inflowTransactions', selectedPayment.id);
     deleteDocumentNonBlocking(paymentRef, () => {
         setIsDataDirty(true); // Mark data as dirty to trigger re-fetch
     });
+    setIsDeleteAlertOpen(false);
+    setSelectedPayment(null);
   };
 
   const handleViewClick = async (payment: InflowTransaction) => {
@@ -273,7 +281,7 @@ export default function CustomerDetailPage({
       flatNumber: sale.flatNumber,
     };
     
-    setViewingPayment({
+    setSelectedPaymentForView({
         payment: enrichedPayment,
         customer: details.customer,
         project: projectSnap.data() as Project,
@@ -487,51 +495,30 @@ export default function CustomerDetailPage({
                                   {formatCurrency(payment.amount)}
                               </TableCell>
                               <TableCell className="text-right">
-                                <AlertDialog>
-                                    <DropdownMenu>
-                                        <DropdownMenuTrigger asChild>
-                                        <Button variant="ghost" className="h-8 w-8 p-0">
-                                            <span className="sr-only">Open menu</span>
-                                            <MoreHorizontal className="h-4 w-4" />
-                                        </Button>
-                                        </DropdownMenuTrigger>
-                                        <DropdownMenuContent align="end">
-                                        <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                                        <DropdownMenuItem onSelect={() => handleViewClick(payment)}>
-                                            <Eye className="mr-2 h-4 w-4" />
-                                            View Receipt
-                                        </DropdownMenuItem>
-                                        <DropdownMenuItem onSelect={() => handleEditClick(payment)}>
-                                            <Pencil className="mr-2 h-4 w-4" />
-                                            Edit
-                                        </DropdownMenuItem>
-                                        <DropdownMenuSeparator />
-                                        <AlertDialogTrigger asChild>
-                                            <DropdownMenuItem className="text-destructive" onSelect={(e) => e.preventDefault()}>
-                                            <Trash2 className="mr-2 h-4 w-4" />
-                                            Delete
-                                            </DropdownMenuItem>
-                                        </AlertDialogTrigger>
-                                        </DropdownMenuContent>
-                                    </DropdownMenu>
-                                    <AlertDialogContent>
-                                        <AlertDialogHeader>
-                                        <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                                        <AlertDialogDescription>
-                                            This action cannot be undone. This will permanently delete this payment record.
-                                        </AlertDialogDescription>
-                                        </AlertDialogHeader>
-                                        <AlertDialogFooter>
-                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                        <AlertDialogAction
-                                            onClick={() => handleDeletePayment(payment)}
-                                            className="bg-destructive hover:bg-destructive/90"
-                                        >
-                                            Delete
-                                        </AlertDialogAction>
-                                        </AlertDialogFooter>
-                                    </AlertDialogContent>
-                                </AlertDialog>
+                                <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                    <Button variant="ghost" className="h-8 w-8 p-0">
+                                        <span className="sr-only">Open menu</span>
+                                        <MoreHorizontal className="h-4 w-4" />
+                                    </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end">
+                                    <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                                    <DropdownMenuItem onSelect={() => handleViewClick(payment)}>
+                                        <Eye className="mr-2 h-4 w-4" />
+                                        View Receipt
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem onSelect={() => handleEditClick(payment)}>
+                                        <Pencil className="mr-2 h-4 w-4" />
+                                        Edit
+                                    </DropdownMenuItem>
+                                    <DropdownMenuSeparator />
+                                    <DropdownMenuItem className="text-destructive" onSelect={() => handleDeleteClick(payment)}>
+                                        <Trash2 className="mr-2 h-4 w-4" />
+                                        Delete
+                                    </DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
                               </TableCell>
                           </TableRow>
                       )
@@ -571,8 +558,28 @@ export default function CustomerDetailPage({
           )}
         </CardContent>
       </Card>
+      
+      <AlertDialog open={isDeleteAlertOpen} onOpenChange={setIsDeleteAlertOpen}>
+        <AlertDialogContent>
+            <AlertDialogHeader>
+            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+                This action cannot be undone. This will permanently delete this payment record.
+            </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+                onClick={confirmDeletePayment}
+                className="bg-destructive hover:bg-destructive/90"
+            >
+                Delete
+            </AlertDialogAction>
+            </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
-        {editingPayment && (
+        {selectedPayment && (
             <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
                 <DialogContent className="sm:max-w-xl">
                     <DialogHeader>
@@ -580,7 +587,7 @@ export default function CustomerDetailPage({
                         <DialogDescription>Update the details for this payment record.</DialogDescription>
                     </DialogHeader>
                     <EditPaymentForm 
-                        payment={editingPayment} 
+                        payment={selectedPayment} 
                         setDialogOpen={setIsEditDialogOpen}
                         onUpdate={() => setIsDataDirty(true)}
                     />
@@ -588,14 +595,14 @@ export default function CustomerDetailPage({
             </Dialog>
         )}
 
-        {viewingPayment && (
+        {selectedPaymentForView && (
             <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
                 <DialogContent className="max-w-4xl p-0 no-print">
                     <ScrollArea className="max-h-[90vh]">
                         <Receipt 
-                            payment={viewingPayment.payment} 
-                            customer={viewingPayment.customer} 
-                            project={viewingPayment.project}
+                            payment={selectedPaymentForView.payment} 
+                            customer={selectedPaymentForView.customer} 
+                            project={selectedPaymentForView.project}
                         />
                     </ScrollArea>
                      <DialogFooter className="p-4 border-t bg-muted print:hidden">

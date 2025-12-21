@@ -49,8 +49,7 @@ import {
     AlertDialogFooter,
     AlertDialogHeader,
     AlertDialogTitle,
-    AlertDialogTrigger,
-  } from "@/components/ui/alert-dialog"
+} from "@/components/ui/alert-dialog"
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -154,10 +153,10 @@ export default function AddExpensePage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
   const [currentPage, setCurrentPage] = useState(1);
-  const [editingExpense, setEditingExpense] = useState<EnrichedExpense | null>(null);
-  const [viewingExpense, setViewingExpense] = useState<EnrichedExpense | null>(null);
+  const [selectedExpense, setSelectedExpense] = useState<EnrichedExpense | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
+  const [isDeleteAlertOpen, setIsDeleteAlertOpen] = useState(false);
 
 
   // Data fetching for form
@@ -289,8 +288,14 @@ export default function AddExpensePage() {
     }
   }
 
-  const handleDeleteExpense = (expense: EnrichedExpense) => {
-    const expenseRef = doc(firestore, 'expenses', expense.id);
+  const handleDeleteClick = (expense: EnrichedExpense) => {
+    setSelectedExpense(expense);
+    setIsDeleteAlertOpen(true);
+  };
+  
+  const confirmDeleteExpense = () => {
+    if (!selectedExpense) return;
+    const expenseRef = doc(firestore, 'expenses', selectedExpense.id);
     deleteDocumentNonBlocking(expenseRef, () => {
         toast({
             title: "Expense Deleted",
@@ -298,15 +303,17 @@ export default function AddExpensePage() {
         });
         setIsDataDirty(true);
     });
+    setIsDeleteAlertOpen(false);
+    setSelectedExpense(null);
   };
   
   const handleEditClick = (expense: EnrichedExpense) => {
-    setEditingExpense(expense);
+    setSelectedExpense(expense);
     setIsEditDialogOpen(true);
   };
 
   const handleViewClick = (expense: EnrichedExpense) => {
-    setViewingExpense(expense);
+    setSelectedExpense(expense);
     setIsViewDialogOpen(true);
   };
 
@@ -606,51 +613,30 @@ export default function AddExpensePage() {
                                             </TableCell>
                                             <TableCell className="text-right font-semibold">{formatCurrency(expense.price)}</TableCell>
                                             <TableCell className="text-right">
-                                                <AlertDialog>
-                                                    <DropdownMenu>
-                                                        <DropdownMenuTrigger asChild>
-                                                            <Button variant="ghost" className="h-8 w-8 p-0">
-                                                                <span className="sr-only">Open menu</span>
-                                                                <MoreHorizontal className="h-4 w-4" />
-                                                            </Button>
-                                                        </DropdownMenuTrigger>
-                                                        <DropdownMenuContent align="end">
-                                                            <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                                                            <DropdownMenuItem onSelect={() => {setViewingExpense(expense); setIsViewDialogOpen(true);}}>
-                                                                <Eye className="mr-2 h-4 w-4" />
-                                                                View
-                                                            </DropdownMenuItem>
-                                                            <DropdownMenuItem onSelect={() => {setEditingExpense(expense); setIsEditDialogOpen(true);}}>
-                                                                <Pencil className="mr-2 h-4 w-4" />
-                                                                Edit
-                                                            </DropdownMenuItem>
-                                                            <DropdownMenuSeparator />
-                                                            <AlertDialogTrigger asChild>
-                                                                <DropdownMenuItem className="text-red-600" onSelect={(e) => e.preventDefault()}>
-                                                                    <Trash2 className="mr-2 h-4 w-4" />
-                                                                    Delete
-                                                                </DropdownMenuItem>
-                                                            </AlertDialogTrigger>
-                                                        </DropdownMenuContent>
-                                                    </DropdownMenu>
-                                                    <AlertDialogContent>
-                                                        <AlertDialogHeader>
-                                                            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                                                            <AlertDialogDescription>
-                                                                This will permanently delete this expense record. This action cannot be undone.
-                                                            </AlertDialogDescription>
-                                                        </AlertDialogHeader>
-                                                        <AlertDialogFooter>
-                                                            <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                                            <AlertDialogAction
-                                                            onClick={() => handleDeleteExpense(expense)}
-                                                            className="bg-destructive hover:bg-destructive/90"
-                                                            >
-                                                                Delete
-                                                            </AlertDialogAction>
-                                                        </AlertDialogFooter>
-                                                    </AlertDialogContent>
-                                                </AlertDialog>
+                                                <DropdownMenu>
+                                                    <DropdownMenuTrigger asChild>
+                                                        <Button variant="ghost" className="h-8 w-8 p-0">
+                                                            <span className="sr-only">Open menu</span>
+                                                            <MoreHorizontal className="h-4 w-4" />
+                                                        </Button>
+                                                    </DropdownMenuTrigger>
+                                                    <DropdownMenuContent align="end">
+                                                        <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                                                        <DropdownMenuItem onSelect={() => handleViewClick(expense)}>
+                                                            <Eye className="mr-2 h-4 w-4" />
+                                                            View
+                                                        </DropdownMenuItem>
+                                                        <DropdownMenuItem onSelect={() => handleEditClick(expense)}>
+                                                            <Pencil className="mr-2 h-4 w-4" />
+                                                            Edit
+                                                        </DropdownMenuItem>
+                                                        <DropdownMenuSeparator />
+                                                        <DropdownMenuItem className="text-red-600" onSelect={() => handleDeleteClick(expense)}>
+                                                            <Trash2 className="mr-2 h-4 w-4" />
+                                                            Delete
+                                                        </DropdownMenuItem>
+                                                    </DropdownMenuContent>
+                                                </DropdownMenu>
                                             </TableCell>
                                         </TableRow>
                                     ))}
@@ -683,32 +669,52 @@ export default function AddExpensePage() {
             </CardContent>
         </Card>
 
-        {viewingExpense && (
-            <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
-                <DialogContent className="sm:max-w-md">
-                    <DialogHeader>
-                        <DialogTitle>Expense Details</DialogTitle>
-                        <CardDescription>Viewing details for expense ID: {viewingExpense.expenseId}</CardDescription>
-                    </DialogHeader>
-                    <ExpenseDetails expense={viewingExpense} />
-                </DialogContent>
-            </Dialog>
-        )}
+        <AlertDialog open={isDeleteAlertOpen} onOpenChange={setIsDeleteAlertOpen}>
+            <AlertDialogContent>
+                <AlertDialogHeader>
+                    <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                        This will permanently delete this expense record. This action cannot be undone.
+                    </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction
+                    onClick={confirmDeleteExpense}
+                    className="bg-destructive hover:bg-destructive/90"
+                    >
+                        Delete
+                    </AlertDialogAction>
+                </AlertDialogFooter>
+            </AlertDialogContent>
+        </AlertDialog>
 
-        {editingExpense && (
-            <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-                <DialogContent className="sm:max-w-2xl">
-                    <DialogHeader>
-                        <DialogTitle>Edit Expense</DialogTitle>
-                        <CardDescription>Updating details for expense ID: {editingExpense.expenseId}</CardDescription>
-                    </DialogHeader>
-                    <EditExpenseForm 
-                        expense={editingExpense} 
-                        setDialogOpen={setIsEditDialogOpen}
-                        onUpdate={() => setIsDataDirty(true)}
-                    />
-                </DialogContent>
-            </Dialog>
+        {selectedExpense && (
+            <>
+                <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
+                    <DialogContent className="sm:max-w-md">
+                        <DialogHeader>
+                            <DialogTitle>Expense Details</DialogTitle>
+                            <CardDescription>Viewing details for expense ID: {selectedExpense.expenseId}</CardDescription>
+                        </DialogHeader>
+                        <ExpenseDetails expense={selectedExpense} />
+                    </DialogContent>
+                </Dialog>
+
+                <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+                    <DialogContent className="sm:max-w-2xl">
+                        <DialogHeader>
+                            <DialogTitle>Edit Expense</DialogTitle>
+                            <CardDescription>Updating details for expense ID: {selectedExpense.expenseId}</CardDescription>
+                        </DialogHeader>
+                        <EditExpenseForm 
+                            expense={selectedExpense} 
+                            setDialogOpen={setIsEditDialogOpen}
+                            onUpdate={() => setIsDataDirty(true)}
+                        />
+                    </DialogContent>
+                </Dialog>
+            </>
         )}
 
     </div>

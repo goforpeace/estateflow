@@ -71,7 +71,6 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
@@ -115,11 +114,13 @@ export default function VendorDetailPage({
   const [expensePage, setExpensePage] = useState(1);
   const [paymentPage, setPaymentPage] = useState(1);
 
-  const [editingExpense, setEditingExpense] = useState<EnrichedExpense | null>(null);
-  const [viewingExpense, setViewingExpense] = useState<EnrichedExpense | null>(null);
+  const [selectedExpense, setSelectedExpense] = useState<EnrichedExpense | null>(null);
+  const [selectedPayment, setSelectedPayment] = useState<EnrichedOutflow | null>(null);
+
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
-
+  const [isDeleteExpenseAlertOpen, setIsDeleteExpenseAlertOpen] = useState(false);
+  const [isDeletePaymentAlertOpen, setIsDeletePaymentAlertOpen] = useState(false);
 
   useEffect(() => {
     if (!vendorId || !firestore || !isDataDirty) return;
@@ -224,16 +225,16 @@ export default function VendorDetailPage({
   const totalPaymentPages = Math.ceil(filteredPayments.length / ITEMS_PER_PAGE);
 
   const handleEditExpenseClick = (expense: EnrichedExpense) => {
-    setEditingExpense(expense);
+    setSelectedExpense(expense);
     setIsEditDialogOpen(true);
   };
   
   const handleViewExpenseClick = (expense: EnrichedExpense) => {
-    setViewingExpense(expense);
+    setSelectedExpense(expense);
     setIsViewDialogOpen(true);
   };
   
-  const handleDeleteExpense = async (expense: EnrichedExpense) => {
+  const handleDeleteExpenseClick = (expense: EnrichedExpense) => {
     if (expense.paidAmount > 0) {
         toast({
             variant: "destructive",
@@ -242,37 +243,52 @@ export default function VendorDetailPage({
         });
         return;
     }
-
-    const expenseRef = doc(firestore, 'expenses', expense.id);
+    setSelectedExpense(expense);
+    setIsDeleteExpenseAlertOpen(true);
+  };
+  
+  const confirmDeleteExpense = () => {
+    if (!selectedExpense) return;
+    const expenseRef = doc(firestore, 'expenses', selectedExpense.id);
     deleteDocumentNonBlocking(expenseRef);
     toast({
         title: "Expense Deleted",
         description: "The expense record has been successfully deleted.",
     });
     setIsDataDirty(true);
+    setIsDeleteExpenseAlertOpen(false);
+    setSelectedExpense(null);
   };
   
-  const handleDeletePayment = async (payment: EnrichedOutflow) => {
-    if (!payment.projectId) {
+  const handleDeletePaymentClick = (payment: EnrichedOutflow) => {
+    setSelectedPayment(payment);
+    setIsDeletePaymentAlertOpen(true);
+  };
+  
+  const confirmDeletePayment = async () => {
+    if (!selectedPayment) return;
+
+    if (!selectedPayment.projectId) {
          toast({ variant: 'destructive', title: 'Cannot Delete', description: 'This payment is not associated with a project.' });
+         setIsDeletePaymentAlertOpen(false);
          return;
     }
-    const paymentRef = doc(firestore, 'projects', payment.projectId, 'outflowTransactions', payment.id);
+    const paymentRef = doc(firestore, 'projects', selectedPayment.projectId, 'outflowTransactions', selectedPayment.id);
 
     try {
-        if (payment.expenseId) {
+        if (selectedPayment.expenseId) {
             await runTransaction(firestore, async (transaction) => {
-                const expenseQuery = query(collection(firestore, 'expenses'), where('expenseId', '==', payment.expenseId), limit(1));
+                const expenseQuery = query(collection(firestore, 'expenses'), where('expenseId', '==', selectedPayment.expenseId), limit(1));
                 const expenseSnap = await transaction.get(expenseQuery);
 
                 if (expenseSnap.empty) {
-                    throw new Error(`Expense with ID ${payment.expenseId} not found.`);
+                    throw new Error(`Expense with ID ${selectedPayment.expenseId} not found.`);
                 }
 
                 const expenseDoc = expenseSnap.docs[0];
                 const expenseData = expenseDoc.data() as Expense;
 
-                const newPaidAmount = expenseData.paidAmount - payment.amount;
+                const newPaidAmount = expenseData.paidAmount - selectedPayment.amount;
                 const newStatus = newPaidAmount <= 0 ? 'Unpaid' : 'Partially Paid';
                 
                 transaction.update(expenseDoc.ref, {
@@ -289,6 +305,9 @@ export default function VendorDetailPage({
         setIsDataDirty(true);
     } catch (error: any) {
         toast({ variant: 'destructive', title: 'Error Deleting Payment', description: error.message });
+    } finally {
+        setIsDeletePaymentAlertOpen(false);
+        setSelectedPayment(null);
     }
   };
 
@@ -445,48 +464,27 @@ export default function VendorDetailPage({
                         </TableCell>
                         <TableCell className="text-right font-semibold">{formatCurrency(expense.price)}</TableCell>
                         <TableCell className="text-right">
-                            <AlertDialog>
-                                <DropdownMenu>
-                                    <DropdownMenuTrigger asChild>
-                                        <Button variant="ghost" className="h-8 w-8 p-0">
-                                            <span className="sr-only">Open menu</span>
-                                            <MoreHorizontal className="h-4 w-4" />
-                                        </Button>
-                                    </DropdownMenuTrigger>
-                                    <DropdownMenuContent align="end">
-                                        <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                                        <DropdownMenuItem onSelect={() => handleViewExpenseClick(expense)}>
-                                            <Eye className="mr-2 h-4 w-4" /> View
-                                        </DropdownMenuItem>
-                                        <DropdownMenuItem onSelect={() => handleEditExpenseClick(expense)}>
-                                            <Pencil className="mr-2 h-4 w-4" /> Edit
-                                        </DropdownMenuItem>
-                                        <DropdownMenuSeparator />
-                                        <AlertDialogTrigger asChild>
-                                            <DropdownMenuItem className="text-red-600" onSelect={(e) => e.preventDefault()}>
-                                                <Trash2 className="mr-2 h-4 w-4" /> Delete
-                                            </DropdownMenuItem>
-                                        </AlertDialogTrigger>
-                                    </DropdownMenuContent>
-                                </DropdownMenu>
-                                <AlertDialogContent>
-                                    <AlertDialogHeader>
-                                        <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                                        <AlertDialogDescription>
-                                            This will permanently delete this expense. This action cannot be undone. You can only delete expenses with no payments.
-                                        </AlertDialogDescription>
-                                    </AlertDialogHeader>
-                                    <AlertDialogFooter>
-                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                        <AlertDialogAction
-                                            onClick={() => handleDeleteExpense(expense)}
-                                            className="bg-destructive hover:bg-destructive/90"
-                                        >
-                                            Delete
-                                        </AlertDialogAction>
-                                    </AlertDialogFooter>
-                                </AlertDialogContent>
-                            </AlertDialog>
+                            <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                    <Button variant="ghost" className="h-8 w-8 p-0">
+                                        <span className="sr-only">Open menu</span>
+                                        <MoreHorizontal className="h-4 w-4" />
+                                    </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                    <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                                    <DropdownMenuItem onSelect={() => handleViewExpenseClick(expense)}>
+                                        <Eye className="mr-2 h-4 w-4" /> View
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem onSelect={() => handleEditExpenseClick(expense)}>
+                                        <Pencil className="mr-2 h-4 w-4" /> Edit
+                                    </DropdownMenuItem>
+                                    <DropdownMenuSeparator />
+                                    <DropdownMenuItem className="text-red-600" onSelect={() => handleDeleteExpenseClick(expense)}>
+                                        <Trash2 className="mr-2 h-4 w-4" /> Delete
+                                    </DropdownMenuItem>
+                                </DropdownMenuContent>
+                            </DropdownMenu>
                         </TableCell>
                     </TableRow>
                   ))}
@@ -555,40 +553,20 @@ export default function VendorDetailPage({
                               {formatCurrency(payment.amount)}
                           </TableCell>
                           <TableCell className="text-right">
-                                <AlertDialog>
-                                    <DropdownMenu>
-                                        <DropdownMenuTrigger asChild>
-                                            <Button variant="ghost" className="h-8 w-8 p-0">
-                                                <MoreHorizontal className="h-4 w-4" />
-                                            </Button>
-                                        </DropdownMenuTrigger>
-                                        <DropdownMenuContent align="end">
-                                            <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                                            <AlertDialogTrigger asChild>
-                                                <DropdownMenuItem className="text-destructive" onSelect={(e) => e.preventDefault()}>
-                                                    <Trash2 className="mr-2 h-4 w-4" /> Delete
-                                                </DropdownMenuItem>
-                                            </AlertDialogTrigger>
-                                        </DropdownMenuContent>
-                                    </DropdownMenu>
-                                    <AlertDialogContent>
-                                        <AlertDialogHeader>
-                                            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                                            <AlertDialogDescription>
-                                                This will permanently delete this payment. If linked to an expense, the expense's paid amount will be updated.
-                                            </AlertDialogDescription>
-                                        </AlertDialogHeader>
-                                        <AlertDialogFooter>
-                                            <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                            <AlertDialogAction
-                                                onClick={() => handleDeletePayment(payment)}
-                                                className="bg-destructive hover:bg-destructive/90"
-                                            >
-                                                Delete Payment
-                                            </AlertDialogAction>
-                                        </AlertDialogFooter>
-                                    </AlertDialogContent>
-                                </AlertDialog>
+                            <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                    <Button variant="ghost" className="h-8 w-8 p-0">
+                                        <span className="sr-only">Open menu</span>
+                                        <MoreHorizontal className="h-4 w-4" />
+                                    </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                    <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                                    <DropdownMenuItem className="text-destructive" onSelect={() => handleDeletePaymentClick(payment)}>
+                                        <Trash2 className="mr-2 h-4 w-4" /> Delete
+                                    </DropdownMenuItem>
+                                </DropdownMenuContent>
+                            </DropdownMenu>
                           </TableCell>
                       </TableRow>
                   ))}
@@ -610,33 +588,73 @@ export default function VendorDetailPage({
           )}
         </CardContent>
       </Card>
+      
+        <AlertDialog open={isDeleteExpenseAlertOpen} onOpenChange={setIsDeleteExpenseAlertOpen}>
+            <AlertDialogContent>
+                <AlertDialogHeader>
+                    <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                        This will permanently delete this expense. This action cannot be undone. You can only delete expenses with no payments.
+                    </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction
+                        onClick={confirmDeleteExpense}
+                        className="bg-destructive hover:bg-destructive/90"
+                    >
+                        Delete
+                    </AlertDialogAction>
+                </AlertDialogFooter>
+            </AlertDialogContent>
+        </AlertDialog>
 
-      {viewingExpense && (
-            <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
-                <DialogContent className="sm:max-w-md">
-                    <DialogHeader>
-                        <DialogTitle>Expense Details</DialogTitle>
-                        <DialogDescription>Viewing details for expense ID: {viewingExpense.expenseId}</DialogDescription>
-                    </DialogHeader>
-                    <ExpenseDetails expense={viewingExpense} />
-                </DialogContent>
-            </Dialog>
-        )}
+        <AlertDialog open={isDeletePaymentAlertOpen} onOpenChange={setIsDeletePaymentAlertOpen}>
+            <AlertDialogContent>
+                <AlertDialogHeader>
+                    <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                        This will permanently delete this payment. If linked to an expense, the expense's paid amount will be updated.
+                    </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction
+                        onClick={confirmDeletePayment}
+                        className="bg-destructive hover:bg-destructive/90"
+                    >
+                        Delete Payment
+                    </AlertDialogAction>
+                </AlertDialogFooter>
+            </AlertDialogContent>
+        </AlertDialog>
 
-        {editingExpense && (
-            <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-                <DialogContent className="sm:max-w-2xl">
-                    <DialogHeader>
-                        <DialogTitle>Edit Expense</DialogTitle>
-                        <DialogDescription>Updating details for expense ID: {editingExpense.expenseId}</DialogDescription>
-                    </DialogHeader>
-                    <EditExpenseForm 
-                        expense={editingExpense} 
-                        setDialogOpen={setIsEditDialogOpen}
-                        onUpdate={() => setIsDataDirty(true)}
-                    />
-                </DialogContent>
-            </Dialog>
+        {selectedExpense && (
+            <>
+                <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
+                    <DialogContent className="sm:max-w-md">
+                        <DialogHeader>
+                            <DialogTitle>Expense Details</DialogTitle>
+                            <DialogDescription>Viewing details for expense ID: {selectedExpense.expenseId}</DialogDescription>
+                        </DialogHeader>
+                        <ExpenseDetails expense={selectedExpense} />
+                    </DialogContent>
+                </Dialog>
+
+                <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+                    <DialogContent className="sm:max-w-2xl">
+                        <DialogHeader>
+                            <DialogTitle>Edit Expense</DialogTitle>
+                            <DialogDescription>Updating details for expense ID: {selectedExpense.expenseId}</DialogDescription>
+                        </DialogHeader>
+                        <EditExpenseForm 
+                            expense={selectedExpense} 
+                            setDialogOpen={setIsEditDialogOpen}
+                            onUpdate={() => setIsDataDirty(true)}
+                        />
+                    </DialogContent>
+                </Dialog>
+            </>
         )}
     </div>
   );
