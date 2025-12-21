@@ -252,8 +252,9 @@ export default function CustomerDetailPage({
   
   const handleDeletePayment = (payment: InflowTransaction) => {
     const paymentRef = doc(firestore, 'projects', payment.projectId, 'inflowTransactions', payment.id);
-    deleteDocumentNonBlocking(paymentRef);
-    setIsDataDirty(true); // Mark data as dirty to trigger re-fetch
+    deleteDocumentNonBlocking(paymentRef, () => {
+        setIsDataDirty(true); // Mark data as dirty to trigger re-fetch
+    });
   };
 
   const handleViewClick = async (payment: InflowTransaction) => {
@@ -281,7 +282,9 @@ export default function CustomerDetailPage({
   };
 
   const handlePrint = () => {
-      window.print();
+      setTimeout(() => {
+            window.print();
+        }, 100);
   };
 
   const formatCurrency = (value: number) => {
@@ -587,7 +590,7 @@ export default function CustomerDetailPage({
 
         {viewingPayment && (
             <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
-                <DialogContent className="max-w-4xl p-0">
+                <DialogContent className="max-w-4xl p-0 no-print">
                     <ScrollArea className="max-h-[90vh]">
                         <Receipt 
                             payment={viewingPayment.payment} 

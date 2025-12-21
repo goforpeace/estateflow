@@ -16,17 +16,21 @@ import {FirestorePermissionError} from '@/firebase/errors';
  * Initiates a setDoc operation for a document reference.
  * Does NOT await the write operation internally.
  */
-export function setDocumentNonBlocking(docRef: DocumentReference, data: any, options: SetOptions) {
-  setDoc(docRef, data, options).catch(error => {
-    errorEmitter.emit(
-      'permission-error',
-      new FirestorePermissionError({
-        path: docRef.path,
-        operation: 'write', // or 'create'/'update' based on options
-        requestResourceData: data,
-      })
-    )
-  })
+export function setDocumentNonBlocking(docRef: DocumentReference, data: any, options: SetOptions, callback?: () => void) {
+  setDoc(docRef, data, options)
+    .then(() => {
+        if (callback) callback();
+    })
+    .catch(error => {
+        errorEmitter.emit(
+        'permission-error',
+        new FirestorePermissionError({
+            path: docRef.path,
+            operation: 'write', // or 'create'/'update' based on options
+            requestResourceData: data,
+        })
+        )
+    })
   // Execution continues immediately
 }
 
@@ -36,8 +40,12 @@ export function setDocumentNonBlocking(docRef: DocumentReference, data: any, opt
  * Does NOT await the write operation internally.
  * Returns the Promise for the new doc ref, but typically not awaited by caller.
  */
-export function addDocumentNonBlocking(colRef: CollectionReference, data: any) {
+export function addDocumentNonBlocking(colRef: CollectionReference, data: any, callback?: () => void) {
   const promise = addDoc(colRef, data)
+    .then((docRef) => {
+        if (callback) callback();
+        return docRef;
+    })
     .catch(error => {
       errorEmitter.emit(
         'permission-error',
@@ -56,8 +64,11 @@ export function addDocumentNonBlocking(colRef: CollectionReference, data: any) {
  * Initiates an updateDoc operation for a document reference.
  * Does NOT await the write operation internally.
  */
-export function updateDocumentNonBlocking(docRef: DocumentReference, data: any) {
+export function updateDocumentNonBlocking(docRef: DocumentReference, data: any, callback?: () => void) {
   updateDoc(docRef, data)
+    .then(() => {
+        if (callback) callback();
+    })
     .catch(error => {
       errorEmitter.emit(
         'permission-error',
@@ -75,8 +86,11 @@ export function updateDocumentNonBlocking(docRef: DocumentReference, data: any) 
  * Initiates a deleteDoc operation for a document reference.
  * Does NOT await the write operation internally.
  */
-export function deleteDocumentNonBlocking(docRef: DocumentReference) {
+export function deleteDocumentNonBlocking(docRef: DocumentReference, callback?: () => void) {
   deleteDoc(docRef)
+    .then(() => {
+        if (callback) callback();
+    })
     .catch(error => {
       errorEmitter.emit(
         'permission-error',

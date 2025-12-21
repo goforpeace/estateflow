@@ -2,6 +2,7 @@
 
 import React from 'react';
 import type { Customer, InflowTransaction, Project } from '@/lib/types';
+import { Logo } from '../icons';
 
 interface ReceiptProps {
     payment: InflowTransaction & { customerName: string; projectName: string; flatNumber: string };
@@ -75,30 +76,23 @@ export const Receipt: React.FC<ReceiptProps> = ({ payment, customer, project }) 
         <div id="receipt-printable-area" className="bg-white text-gray-800 font-sans a4-page">
              <style jsx global>{`
                 @media print {
-                    body * {
-                        visibility: hidden;
-                    }
-                    #receipt-printable-area, #receipt-printable-area * {
-                        visibility: visible;
-                    }
-                    #receipt-printable-area {
-                        position: absolute;
-                        left: 0;
-                        top: 0;
-                        width: 100%;
-                        height: 100%;
-                        border: none;
-                        box-shadow: none;
-                        margin: 0;
-                        padding: 0;
-                    }
-                    .a4-page {
-                        width: 210mm;
-                        min-height: 297mm;
-                        margin: 0;
-                        box-shadow: none;
-                        border: none;
-                    }
+                  body {
+                    -webkit-print-color-adjust: exact;
+                    print-color-adjust: exact;
+                  }
+                  .a4-page {
+                    margin: 0;
+                    border: initial;
+                    border-radius: initial;
+                    width: initial;
+                    min-height: initial;
+                    box-shadow: initial;
+                    background: initial;
+                    page-break-after: always;
+                  }
+                  .no-print {
+                    display: none;
+                  }
                 }
                 .a4-page {
                     width: 210mm;
@@ -113,12 +107,12 @@ export const Receipt: React.FC<ReceiptProps> = ({ payment, customer, project }) 
             `}</style>
             
             {/* Header */}
-            <header className="flex justify-between items-center pb-6 mb-8 border-b-2 border-primary">
+            <header className="flex justify-between items-start pb-6 mb-8 border-b-2 border-primary">
                  <div className="w-48">
-                    <img src={company.logo} alt="Company Logo" className="w-full h-auto" />
+                    <Logo className="h-24 w-24" />
                 </div>
                 <div className="text-right">
-                    <h1 className="text-4xl font-bold text-primary">{company.name}</h1>
+                    <h1 className="text-3xl font-bold text-primary">{company.name}</h1>
                     <p className="text-sm text-gray-500">{company.address}</p>
                 </div>
             </header>
@@ -126,7 +120,7 @@ export const Receipt: React.FC<ReceiptProps> = ({ payment, customer, project }) 
             {/* Title & Info */}
             <section className="flex justify-between items-start mb-10">
                 <div>
-                     <h2 className="text-3xl font-semibold text-gray-700 uppercase tracking-widest">
+                     <h2 className="text-2xl font-semibold text-gray-700 uppercase tracking-widest bg-gray-100 px-4 py-1">
                         Money Receipt
                     </h2>
                 </div>
@@ -144,23 +138,23 @@ export const Receipt: React.FC<ReceiptProps> = ({ payment, customer, project }) 
             
             {/* Body */}
             <main className="space-y-5 text-base leading-relaxed mb-10">
-                <div className="flex">
+                <div className="flex items-baseline">
                     <p className="w-48 font-semibold shrink-0">Received with thanks from</p>
                     <p className="border-b border-dotted border-gray-400 flex-grow font-semibold text-primary">{customer.fullName}</p>
                 </div>
-                <div className="flex">
+                <div className="flex items-baseline">
                     <p className="w-48 font-semibold shrink-0">Address</p>
                     <p className="border-b border-dotted border-gray-400 flex-grow">{customer.address}</p>
                 </div>
-                <div className="flex">
+                <div className="flex items-baseline">
                     <p className="w-48 font-semibold shrink-0">The sum of Taka</p>
                     <p className="border-b border-dotted border-gray-400 flex-grow capitalize font-medium">{amountInWords}</p>
                 </div>
-                 <div className="flex">
+                 <div className="flex items-baseline">
                     <p className="w-48 font-semibold shrink-0">By</p>
                     <p className="border-b border-dotted border-gray-400 flex-grow">{payment.paymentMethod}{payment.reference ? ` (Ref: ${payment.reference})`: ''}</p>
                 </div>
-                 <div className="flex">
+                 <div className="flex items-baseline">
                     <p className="w-48 font-semibold shrink-0">On account of</p>
                     <p className="border-b border-dotted border-gray-400 flex-grow">
                         <span className="font-medium">{payment.paymentPurpose === 'Other' ? payment.otherPurpose : payment.paymentPurpose}</span>

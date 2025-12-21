@@ -458,12 +458,13 @@ export default function AddPaymentPage() {
 
   const handleDeletePayment = (payment: InflowTransaction) => {
     const paymentRef = doc(firestore, 'projects', payment.projectId, 'inflowTransactions', payment.id);
-    deleteDocumentNonBlocking(paymentRef);
-    toast({
-        title: "Payment Deleted",
-        description: "The payment has been successfully deleted.",
+    deleteDocumentNonBlocking(paymentRef, () => {
+        toast({
+            title: "Payment Deleted",
+            description: "The payment has been successfully deleted.",
+        });
+        fetchRecentTransactions(); // Refresh the list
     });
-    fetchRecentTransactions(); // Refresh the list
   };
 
     const handleViewClick = async (payment: EnrichedTransaction) => {
@@ -488,7 +489,9 @@ export default function AddPaymentPage() {
     };
 
     const handlePrint = () => {
-        window.print();
+        setTimeout(() => {
+            window.print();
+        }, 100);
     };
 
   const formatCurrency = (value: number) => `৳${value.toLocaleString('en-IN')}`;
@@ -866,7 +869,7 @@ export default function AddPaymentPage() {
 
         {viewingPayment && (
             <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
-                <DialogContent className="max-w-4xl p-0">
+                <DialogContent className="max-w-4xl p-0 no-print">
                     <ScrollArea className="max-h-[90vh]">
                         <Receipt 
                             payment={viewingPayment.payment} 
