@@ -37,7 +37,7 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
     AlertDialogTrigger,
-} from "@/components/ui/alert-dialog"
+  } from "@/components/ui/alert-dialog"
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -47,11 +47,11 @@ import {
     DropdownMenuTrigger,
   } from "@/components/ui/dropdown-menu"
 import { useCollection, useFirestore, useMemoFirebase, deleteDocumentNonBlocking } from '@/firebase';
-import { collection, query, doc, writeBatch, getDocs } from 'firebase/firestore';
+import { collection, query, doc, writeBatch, getDocs, where, limit } from 'firebase/firestore';
 import type { Project } from '@/lib/types';
 import { AddProjectForm } from '@/components/dashboard/projects/add-project-form';
 import { EditProjectForm } from '@/components/dashboard/projects/edit-project-form';
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { Input } from '@/components/ui/input';
 
@@ -70,23 +70,49 @@ export default function ProjectsPage() {
   const [editingProject, setEditingProject] = useState<Project | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
+  const [deletingProjectId, setDeletingProjectId] = useState<string | null>(null);
+  const [isAlertOpen, setIsAlertOpen] = useState(false);
 
-  const handleEditClick = (project: Project) => {
+  const openEditDialog = useCallback((project: Project) => {
     setEditingProject(project);
     setIsEditDialogOpen(true);
-  };
+  }, []);
+
+  const openDeleteDialog = useCallback((projectId: string) => {
+    setDeletingProjectId(projectId);
+    setIsAlertOpen(true);
+  }, []);
   
-  const handleDeleteProject = async (projectId: string) => {
+  const handleDeleteProject = async () => {
+    if (!deletingProjectId) return;
+
     try {
+        // Check for associated sales records
+        const salesQuery = query(
+            collection(firestore, 'sales'),
+            where('projectId', '==', deletingProjectId),
+            limit(1)
+        );
+        const salesSnapshot = await getDocs(salesQuery);
+
+        if (!salesSnapshot.empty) {
+            toast({
+                variant: "destructive",
+                title: "Cannot Delete Project",
+                description: "This project has associated sales records. Please delete the sales first.",
+            });
+            return;
+        }
+
         const batch = writeBatch(firestore);
 
         // Reference to the main project document
-        const projectRef = doc(firestore, 'projects', projectId);
+        const projectRef = doc(firestore, 'projects', deletingProjectId);
 
         // Delete all subcollections first
         const subcollections = ['flats', 'inflowTransactions', 'outflowTransactions', 'officeCostAllocations'];
         for (const sub of subcollections) {
-            const subcollectionRef = collection(firestore, 'projects', projectId, sub);
+            const subcollectionRef = collection(firestore, 'projects', deletingProjectId, sub);
             const snapshot = await getDocs(subcollectionRef);
             snapshot.docs.forEach(doc => batch.delete(doc.ref));
         }
@@ -107,6 +133,9 @@ export default function ProjectsPage() {
             title: "Error Deleting Project",
             description: error.message,
         });
+    } finally {
+        setIsAlertOpen(false);
+        setDeletingProjectId(null);
     }
   };
 
@@ -242,7 +271,6 @@ export default function ProjectsPage() {
                           </Badge>
                         </TableCell>
                         <TableCell className="text-right">
-                        <AlertDialog>
                           <DropdownMenu>
                               <DropdownMenuTrigger asChild>
                               <Button variant="ghost" className="h-8 w-8 p-0">
@@ -255,33 +283,13 @@ export default function ProjectsPage() {
                               <DropdownMenuItem asChild>
                                   <Link href={`/project/${project.id}`}>View Details</Link>
                               </DropdownMenuItem>
-                              <DropdownMenuItem onSelect={() => handleEditClick(project)}>
+                              <DropdownMenuItem onSelect={() => openEditDialog(project)}>
                                   Edit Project
                               </DropdownMenuItem>
                               <DropdownMenuSeparator />
-                              <AlertDialogTrigger asChild>
-                                  <DropdownMenuItem className="text-red-600" onSelect={(e) => e.preventDefault()}>Delete Project</DropdownMenuItem>
-                              </AlertDialogTrigger>
+                              <DropdownMenuItem className="text-red-600" onSelect={() => openDeleteDialog(project.id)}>Delete Project</DropdownMenuItem>
                               </DropdownMenuContent>
                           </DropdownMenu>
-                          <AlertDialogContent>
-                              <AlertDialogHeader>
-                              <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                              <AlertDialogDescription>
-                                  This action cannot be undone. This will permanently delete this project and all its associated data (flats, transactions, etc.).
-                              </AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter>
-                              <AlertDialogCancel>Cancel</AlertDialogCancel>
-                              <AlertDialogAction
-                                  onClick={() => handleDeleteProject(project.id)}
-                                  className="bg-destructive hover:bg-destructive/90"
-                              >
-                                  Delete
-                              </AlertDialogAction>
-                              </AlertDialogFooter>
-                          </AlertDialogContent>
-                          </AlertDialog>
                         </TableCell>
                       </TableRow>
                     ))}
@@ -313,6 +321,27 @@ export default function ProjectsPage() {
           )}
         </CardContent>
       </Card>
+
+      <AlertDialog open={isAlertOpen} onOpenChange={setIsAlertOpen}>
+        <AlertDialogContent>
+            <AlertDialogHeader>
+            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+                This will permanently delete this project and all its associated data (flats, transactions, etc.). This action cannot be undone.
+            </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+                onClick={handleDeleteProject}
+                className="bg-destructive hover:bg-destructive/90"
+            >
+                Delete
+            </AlertDialogAction>
+            </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       {editingProject && (
         <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
           <DialogContent className="sm:max-w-[625px]">
