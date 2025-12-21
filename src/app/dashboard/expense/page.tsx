@@ -291,12 +291,13 @@ export default function AddExpensePage() {
 
   const handleDeleteExpense = (expense: EnrichedExpense) => {
     const expenseRef = doc(firestore, 'expenses', expense.id);
-    deleteDocumentNonBlocking(expenseRef);
-    toast({
-        title: "Expense Deleted",
-        description: "The expense record has been successfully deleted.",
+    deleteDocumentNonBlocking(expenseRef, () => {
+        toast({
+            title: "Expense Deleted",
+            description: "The expense record has been successfully deleted.",
+        });
+        setIsDataDirty(true);
     });
-    setIsDataDirty(true);
   };
   
   const handleEditClick = (expense: EnrichedExpense) => {
@@ -357,6 +358,7 @@ export default function AddExpensePage() {
         'Price': exp.price,
         'Paid Amount': exp.paidAmount,
         'Status': exp.status,
+        'Details': exp.description,
     }));
     exportToCsv(dataToExport, `expenses_${new Date().toISOString().split('T')[0]}.csv`);
   };
@@ -614,11 +616,11 @@ export default function AddExpensePage() {
                                                         </DropdownMenuTrigger>
                                                         <DropdownMenuContent align="end">
                                                             <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                                                            <DropdownMenuItem onSelect={() => handleViewClick(expense)}>
+                                                            <DropdownMenuItem onSelect={() => {setViewingExpense(expense); setIsViewDialogOpen(true);}}>
                                                                 <Eye className="mr-2 h-4 w-4" />
                                                                 View
                                                             </DropdownMenuItem>
-                                                            <DropdownMenuItem onSelect={() => handleEditClick(expense)}>
+                                                            <DropdownMenuItem onSelect={() => {setEditingExpense(expense); setIsEditDialogOpen(true);}}>
                                                                 <Pencil className="mr-2 h-4 w-4" />
                                                                 Edit
                                                             </DropdownMenuItem>
