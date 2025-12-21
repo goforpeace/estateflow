@@ -535,17 +535,17 @@ export default function AddPaymentPage() {
             const canvasHeight = canvas.height;
             const ratio = canvasWidth / canvasHeight;
     
-            let imgWidth = pdfWidth; 
+            let imgWidth = pdfWidth - 20; // A4 width in mm with 10mm margin on each side
             let imgHeight = imgWidth / ratio;
     
             // If the image height is still too large, adjust based on height
-            if (imgHeight > pdfHeight) {
-                imgHeight = pdfHeight;
+            if (imgHeight > pdfHeight - 20) { // with 10mm margin
+                imgHeight = pdfHeight - 20;
                 imgWidth = imgHeight * ratio;
             }
     
             const x = (pdfWidth - imgWidth) / 2;
-            const y = (pdfHeight - imgHeight) / 2;
+            const y = 10; // 10mm top margin
     
             pdf.addImage(imgData, 'PNG', x, y, imgWidth, imgHeight);
             pdf.save(`Receipt_${selectedPayment?.receiptId || 'download'}.pdf`);
@@ -965,5 +965,6 @@ export default function AddPaymentPage() {
   );
 }
 
+    
     
     

@@ -317,16 +317,16 @@ export default function CustomerDetailPage({
         const pdfWidth = pdf.internal.pageSize.getWidth();
         const pdfHeight = pdf.internal.pageSize.getHeight();
         const ratio = canvas.width / canvas.height;
-        let imgWidth = pdfWidth;
+        let imgWidth = pdfWidth - 20; // 10mm margin on each side
         let imgHeight = imgWidth / ratio;
 
-        if (imgHeight > pdfHeight) {
-            imgHeight = pdfHeight;
+        if (imgHeight > pdfHeight - 20) {
+            imgHeight = pdfHeight - 20; // 10mm margin on top/bottom
             imgWidth = imgHeight * ratio;
         }
     
         const x = (pdfWidth - imgWidth) / 2;
-        const y = (pdfHeight - imgHeight) / 2;
+        const y = 10;
     
         pdf.addImage(imgData, 'PNG', x, y, imgWidth, imgHeight);
         pdf.save(`Receipt_${selectedPaymentForView.payment.receiptId}.pdf`);
@@ -663,5 +663,7 @@ export default function CustomerDetailPage({
     </div>
   );
 }
+
+    
 
     
