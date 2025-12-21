@@ -222,13 +222,13 @@ export default function CustomersPage() {
                                         View Details
                                     </Link>
                                 </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => handleEditClick(customer)}>
+                                <DropdownMenuItem onSelect={() => handleEditClick(customer)}>
                                     <Pencil className="mr-2 h-4 w-4" />
                                     Edit
                                 </DropdownMenuItem>
                                 <DropdownMenuSeparator />
                                 <AlertDialogTrigger asChild>
-                                    <DropdownMenuItem className="text-red-600">
+                                    <DropdownMenuItem className="text-red-600" onSelect={(e) => e.preventDefault()}>
                                         <Trash2 className="mr-2 h-4 w-4" />
                                         Delete
                                     </DropdownMenuItem>

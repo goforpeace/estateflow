@@ -614,17 +614,17 @@ export default function AddExpensePage() {
                                                         </DropdownMenuTrigger>
                                                         <DropdownMenuContent align="end">
                                                             <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                                                            <DropdownMenuItem onClick={() => handleViewClick(expense)}>
+                                                            <DropdownMenuItem onSelect={() => handleViewClick(expense)}>
                                                                 <Eye className="mr-2 h-4 w-4" />
                                                                 View
                                                             </DropdownMenuItem>
-                                                            <DropdownMenuItem onClick={() => handleEditClick(expense)}>
+                                                            <DropdownMenuItem onSelect={() => handleEditClick(expense)}>
                                                                 <Pencil className="mr-2 h-4 w-4" />
                                                                 Edit
                                                             </DropdownMenuItem>
                                                             <DropdownMenuSeparator />
                                                             <AlertDialogTrigger asChild>
-                                                                <DropdownMenuItem className="text-red-600">
+                                                                <DropdownMenuItem className="text-red-600" onSelect={(e) => e.preventDefault()}>
                                                                     <Trash2 className="mr-2 h-4 w-4" />
                                                                     Delete
                                                                 </DropdownMenuItem>

@@ -456,7 +456,7 @@ export default function AddPaymentPage() {
     setIsEditDialogOpen(true);
   };
 
-  const handleDeletePayment = async (payment: InflowTransaction) => {
+  const handleDeletePayment = (payment: InflowTransaction) => {
     const paymentRef = doc(firestore, 'projects', payment.projectId, 'inflowTransactions', payment.id);
     deleteDocumentNonBlocking(paymentRef);
     toast({
@@ -803,17 +803,17 @@ export default function AddPaymentPage() {
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end">
                                 <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                                <DropdownMenuItem onClick={() => handleViewClick(tx)}>
+                                <DropdownMenuItem onSelect={() => handleViewClick(tx)}>
                                   <Eye className="mr-2 h-4 w-4" />
                                   View Receipt
                                 </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => handleEditClick(tx)}>
+                                <DropdownMenuItem onSelect={() => handleEditClick(tx)}>
                                   <Pencil className="mr-2 h-4 w-4" />
                                   Edit
                                 </DropdownMenuItem>
                                 <DropdownMenuSeparator />
                                 <AlertDialogTrigger asChild>
-                                  <DropdownMenuItem className="text-destructive">
+                                  <DropdownMenuItem className="text-destructive" onSelect={(e) => e.preventDefault()}>
                                     <Trash2 className="mr-2 h-4 w-4" />
                                     Delete
                                   </DropdownMenuItem>

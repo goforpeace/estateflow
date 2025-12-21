@@ -250,7 +250,7 @@ export default function CustomerDetailPage({
     setIsEditDialogOpen(true);
   };
   
-  const handleDeletePayment = async (payment: InflowTransaction) => {
+  const handleDeletePayment = (payment: InflowTransaction) => {
     const paymentRef = doc(firestore, 'projects', payment.projectId, 'inflowTransactions', payment.id);
     deleteDocumentNonBlocking(paymentRef);
     setIsDataDirty(true); // Mark data as dirty to trigger re-fetch
@@ -494,17 +494,17 @@ export default function CustomerDetailPage({
                                         </DropdownMenuTrigger>
                                         <DropdownMenuContent align="end">
                                         <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                                        <DropdownMenuItem onClick={() => handleViewClick(payment)}>
+                                        <DropdownMenuItem onSelect={() => handleViewClick(payment)}>
                                             <Eye className="mr-2 h-4 w-4" />
                                             View Receipt
                                         </DropdownMenuItem>
-                                        <DropdownMenuItem onClick={() => handleEditClick(payment)}>
+                                        <DropdownMenuItem onSelect={() => handleEditClick(payment)}>
                                             <Pencil className="mr-2 h-4 w-4" />
                                             Edit
                                         </DropdownMenuItem>
                                         <DropdownMenuSeparator />
                                         <AlertDialogTrigger asChild>
-                                            <DropdownMenuItem className="text-destructive">
+                                            <DropdownMenuItem className="text-destructive" onSelect={(e) => e.preventDefault()}>
                                             <Trash2 className="mr-2 h-4 w-4" />
                                             Delete
                                             </DropdownMenuItem>
@@ -574,7 +574,7 @@ export default function CustomerDetailPage({
                 <DialogContent className="sm:max-w-xl">
                     <DialogHeader>
                         <DialogTitle>Edit Payment</DialogTitle>
-                        <CardDescription>Update the details for this payment record.</CardDescription>
+                        <DialogDescription>Update the details for this payment record.</DialogDescription>
                     </DialogHeader>
                     <EditPaymentForm 
                         payment={editingPayment} 

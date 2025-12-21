@@ -455,15 +455,15 @@ export default function VendorDetailPage({
                                     </DropdownMenuTrigger>
                                     <DropdownMenuContent align="end">
                                         <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                                        <DropdownMenuItem onClick={() => handleViewExpenseClick(expense)}>
+                                        <DropdownMenuItem onSelect={() => handleViewExpenseClick(expense)}>
                                             <Eye className="mr-2 h-4 w-4" /> View
                                         </DropdownMenuItem>
-                                        <DropdownMenuItem onClick={() => handleEditExpenseClick(expense)}>
+                                        <DropdownMenuItem onSelect={() => handleEditExpenseClick(expense)}>
                                             <Pencil className="mr-2 h-4 w-4" /> Edit
                                         </DropdownMenuItem>
                                         <DropdownMenuSeparator />
                                         <AlertDialogTrigger asChild>
-                                            <DropdownMenuItem className="text-red-600">
+                                            <DropdownMenuItem className="text-red-600" onSelect={(e) => e.preventDefault()}>
                                                 <Trash2 className="mr-2 h-4 w-4" /> Delete
                                             </DropdownMenuItem>
                                         </AlertDialogTrigger>
@@ -565,7 +565,7 @@ export default function VendorDetailPage({
                                         <DropdownMenuContent align="end">
                                             <DropdownMenuLabel>Actions</DropdownMenuLabel>
                                             <AlertDialogTrigger asChild>
-                                                <DropdownMenuItem className="text-destructive">
+                                                <DropdownMenuItem className="text-destructive" onSelect={(e) => e.preventDefault()}>
                                                     <Trash2 className="mr-2 h-4 w-4" /> Delete
                                                 </DropdownMenuItem>
                                             </AlertDialogTrigger>

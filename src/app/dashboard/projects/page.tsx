@@ -1,7 +1,7 @@
 
 'use client';
 
-import { Ban, PlusCircle, ArrowUpRight, MoreHorizontal, Search } from 'lucide-react';
+import { Ban, PlusCircle, ArrowUpRight, MoreHorizontal, Search, Pencil, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 import {
   Card,
@@ -255,12 +255,12 @@ export default function ProjectsPage() {
                               <DropdownMenuItem asChild>
                                   <Link href={`/project/${project.id}`}>View Details</Link>
                               </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => handleEditClick(project)}>
+                              <DropdownMenuItem onSelect={() => handleEditClick(project)}>
                                   Edit Project
                               </DropdownMenuItem>
                               <DropdownMenuSeparator />
                               <AlertDialogTrigger asChild>
-                                  <DropdownMenuItem className="text-red-600">Delete Project</DropdownMenuItem>
+                                  <DropdownMenuItem className="text-red-600" onSelect={(e) => e.preventDefault()}>Delete Project</DropdownMenuItem>
                               </AlertDialogTrigger>
                               </DropdownMenuContent>
                           </DropdownMenu>

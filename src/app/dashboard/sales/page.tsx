@@ -155,11 +155,13 @@ export default function SalesPage() {
         batch.delete(saleRef);
 
         // 2. Try to find the flat and update its status if it exists
-        const flatRef = doc(firestore, 'projects', sale.projectId, 'flats', sale.flatId);
-        const flatSnap = await getDoc(flatRef);
-
-        if (flatSnap.exists()) {
-             batch.update(flatRef, { status: 'Available' });
+        if (sale.projectId && sale.flatId) {
+            const flatRef = doc(firestore, 'projects', sale.projectId, 'flats', sale.flatId);
+            const flatSnap = await getDoc(flatRef);
+    
+            if (flatSnap.exists()) {
+                 batch.update(flatRef, { status: 'Available' });
+            }
         }
         
         await batch.commit();
@@ -168,7 +170,7 @@ export default function SalesPage() {
 
         toast({
             title: "Sale Deleted",
-            description: "The sale has been successfully deleted. The flat status was updated if found.",
+            description: "The sale has been successfully deleted and the flat status updated if applicable.",
         });
     } catch (error: any) {
         console.error("Error deleting sale:", error);
@@ -306,13 +308,13 @@ export default function SalesPage() {
                                         View Details
                                     </Link>
                                   </DropdownMenuItem>
-                                  <DropdownMenuItem onClick={() => handleEditClick(sale)}>
+                                  <DropdownMenuItem onSelect={() => handleEditClick(sale)}>
                                       <Pencil className="mr-2 h-4 w-4" />
                                       Edit
                                   </DropdownMenuItem>
                                   <DropdownMenuSeparator />
                                   <AlertDialogTrigger asChild>
-                                      <DropdownMenuItem className="text-red-600">
+                                      <DropdownMenuItem className="text-red-600" onSelect={(e) => e.preventDefault()}>
                                           <Trash2 className="mr-2 h-4 w-4" />
                                           Delete
                                       </DropdownMenuItem>
