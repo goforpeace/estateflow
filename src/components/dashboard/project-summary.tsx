@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -175,11 +176,11 @@ export function ProjectSummary() {
                     <p><span className="font-bold">{summary.unsoldFlats}</span> Unsold ({summary.totalFlats} Total)</p>
                 </div>
                  <div className="p-3 bg-muted rounded-md space-y-1">
-                    <p className="text-muted-foreground">Total Revenue</p>
+                    <p className="text-muted-foreground">Actual Revenue</p>
                     <p className="font-bold">{formatCurrency(summary.totalRevenue)}</p>
                 </div>
                 <div className="p-3 bg-muted rounded-md space-y-1">
-                    <p className="text-muted-foreground">Target Sell</p>
+                    <p className="text-muted-foreground">Target Revenue</p>
                     <p className="font-bold">{formatCurrency(summary.targetSell)}</p>
                 </div>
                  <div className="p-3 bg-muted rounded-md space-y-1">
