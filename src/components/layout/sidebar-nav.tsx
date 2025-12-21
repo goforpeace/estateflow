@@ -13,6 +13,7 @@ import {
   Banknote,
   Settings,
   LogOut,
+  Landmark,
 } from 'lucide-react';
 import { useAuth } from '@/firebase';
 import { signOut } from 'firebase/auth';
@@ -31,6 +32,7 @@ const navItems = [
   { href: '/dashboard/add-payment', icon: DollarSign, label: 'Add Payment' },
   { href: '/dashboard/expense', icon: Receipt, label: 'Add Expense' },
   { href: '/dashboard/make-payment', icon: Banknote, label: 'Make Payment' },
+  { href: '/dashboard/operating-cost', icon: Landmark, label: 'Operating Cost' },
 ];
 
 export function SidebarNav() {

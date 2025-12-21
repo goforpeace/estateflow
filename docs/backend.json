@@ -300,6 +300,32 @@
         "role": { "type": "string", "description": "User's role.", "enum": ["Viewer", "Admin"] }
       },
       "required": ["id", "email"]
+    },
+    "OperatingCostItem": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "OperatingCostItem",
+      "description": "Represents an item category for operating costs.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique identifier for the OperatingCostItem." },
+        "name": { "type": "string", "description": "Name of the operating cost item (e.g., Office Rent, Utilities)." }
+      },
+      "required": ["id", "name"]
+    },
+    "OperatingCost": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "OperatingCost",
+      "description": "Represents a general operating cost not tied to a specific project.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique identifier for the OperatingCost." },
+        "date": { "type": "string", "format": "date-time", "description": "Date of the expense." },
+        "itemId": { "type": "string", "description": "Reference to the OperatingCostItem." },
+        "description": { "type": "string", "description": "A description of the expense." },
+        "reference": { "type": "string", "description": "A reference number (e.g., invoice number)." },
+        "amount": { "type": "number", "description": "The amount of the expense." }
+      },
+      "required": ["id", "date", "itemId", "amount"]
     }
   },
   "auth": {
@@ -413,6 +439,28 @@
               "name": "outflowTransactionId",
               "description": "Unique identifier for the outflow transaction."
             }
+          ]
+        }
+      },
+      {
+        "path": "/operatingCostItems/{itemId}",
+        "definition": {
+          "entityName": "OperatingCostItem",
+          "schema": { "$ref": "#/backend/entities/OperatingCostItem" },
+          "description": "Collection for storing operating cost item categories.",
+          "params": [
+            { "name": "itemId", "description": "Unique identifier for the operating cost item." }
+          ]
+        }
+      },
+      {
+        "path": "/operatingCosts/{costId}",
+        "definition": {
+          "entityName": "OperatingCost",
+          "schema": { "$ref": "#/backend/entities/OperatingCost" },
+          "description": "Collection for storing general operating costs.",
+          "params": [
+            { "name": "costId", "description": "Unique identifier for the operating cost." }
           ]
         }
       },

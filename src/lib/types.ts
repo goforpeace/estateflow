@@ -3,6 +3,7 @@
 
 
 
+
 export type ProjectStatus = 'Planning' | 'Ongoing' | 'Completed';
 export type FlatOwnership = 'Developer' | 'Landowner';
 export type FlatStatus = 'Available' | 'Sold' | 'Reserved';
@@ -126,4 +127,17 @@ export interface Expense {
   description?: string;
 }
 
+export interface OperatingCostItem {
+  id: string;
+  name: string;
+}
+
+export interface OperatingCost {
+  id: string;
+  date: string;
+  itemId: string;
+  description?: string;
+  reference?: string;
+  amount: number;
+}
     

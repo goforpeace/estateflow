@@ -87,11 +87,7 @@ service cloud.firestore {
      * @principle Enforces signed-in access for core business entities. Validates path integrity on create.
      */
     match /projects/{projectId} {
-      allow get: if isSignedIn();
-      allow list: if isSignedIn();
-      allow create: if isSignedIn();
-      allow update: if isSignedIn();
-      allow delete: if isSignedIn();
+      allow read, write: if isSignedIn();
 
       /**
        * @description Manages flats within a specific project. Access is granted to any signed-in user.
@@ -101,11 +97,7 @@ service cloud.firestore {
        * @principle Secures subcollection data based on authentication. Enforces relational integrity with the parent document.
        */
       match /flats/{flatId} {
-        allow get: if isSignedIn();
-        allow list: if isSignedIn();
-        allow create: if isSignedIn();
-        allow update: if isSignedIn();
-        allow delete: if isSignedIn();
+        allow read, write: if isSignedIn();
       }
 
       /**
@@ -116,11 +108,7 @@ service cloud.firestore {
        * @principle Secures subcollection data based on authentication. Enforces relational integrity with the parent document.
        */
       match /inflow_transactions/{inflowTransactionId} {
-        allow get: if isSignedIn();
-        allow list: if isSignedIn();
-        allow create: if isSignedIn();
-        allow update: if isSignedIn();
-        allow delete: if isSignedIn();
+        allow read, write: if isSignedIn();
       }
 
       /**
@@ -131,11 +119,7 @@ service cloud.firestore {
        * @principle Secures subcollection data based on authentication. Enforces relational integrity with the parent document.
        */
       match /outflow_transactions/{outflowTransactionId} {
-        allow get: if isSignedIn();
-        allow list: if isSignedIn();
-        allow create: if isSignedIn();
-        allow update: if isSignedIn();
-        allow delete: if isSignedIn();
+        allow read, write: if isSignedIn();
       }
     }
 
@@ -147,11 +131,7 @@ service cloud.firestore {
      * @principle Protects sensitive customer information by restricting access to authenticated users.
      */
     match /customers/{customerId} {
-      allow get: if isSignedIn();
-      allow list: if isSignedIn();
-      allow create: if isSignedIn();
-      allow update: if isSignedIn();
-      allow delete: if isSignedIn();
+      allow read, write: if isSignedIn();
     }
     
     /**
@@ -194,6 +174,22 @@ service cloud.firestore {
       allow read, write: if isSignedIn();
     }
 
+    /**
+    * @description Manages operating cost items. Any signed-in user can manage them.
+    * @path /operatingCostItems/{itemId}
+    */
+    match /operatingCostItems/{itemId} {
+      allow read, write: if isSignedIn();
+    }
+    
+    /**
+    * @description Manages operating costs. Any signed-in user can manage them.
+    * @path /operatingCosts/{costId}
+    */
+    match /operatingCosts/{costId} {
+      allow read, write: if isSignedIn();
+    }
+
 
     /**
      * @description Manages general office expenses. Any signed-in user can manage these records.
@@ -203,11 +199,7 @@ service cloud.firestore {
      * @principle Restricts financial data management to authenticated users.
      */
     match /office_expenses/{officeExpenseId} {
-      allow get: if isSignedIn();
-      allow list: if isSignedIn();
-      allow create: if isSignedIn();
-      allow update: if isSignedIn();
-      allow delete: if isSignedIn();
+      allow read, write: if isSignedIn();
 
       /**
        * @description Manages the allocation of office costs to projects. Access is granted to any signed-in user.
@@ -217,11 +209,7 @@ service cloud.firestore {
        * @principle Secures subcollection data based on authentication. Enforces relational integrity with the parent document.
        */
       match /cost_allocations/{costAllocationId} {
-        allow get: if isSignedIn();
-        allow list: if isSignedIn();
-        allow create: if isSignedIn();
-        allow update: if isSignedIn();
-        allow delete: if isSignedIn();
+        allow read, write: if isSignedIn();
       }
     }
 
