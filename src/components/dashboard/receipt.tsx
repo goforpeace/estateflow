@@ -3,7 +3,6 @@
 
 import React from 'react';
 import type { Customer, InflowTransaction, Project } from '@/lib/types';
-import Image from 'next/image';
 
 interface ReceiptProps {
     payment: InflowTransaction & { customerName: string; projectName: string; flatNumber: string };
@@ -97,11 +96,12 @@ export const Receipt: React.FC<ReceiptProps> = ({ payment, customer, project }) 
                 }
             `}</style>
             
-            <div className="max-w-4xl mx-auto border-2 border-gray-300 p-8 min-h-screen flex flex-col">
+            <div className="max-w-4xl mx-auto p-8 min-h-screen flex flex-col">
                 {/* Header */}
                 <header className="flex justify-between items-start pb-6 mb-8 border-b-2 border-primary">
                     <div className="w-32">
-                        <Image src={company.logo} alt={`${company.name} Logo`} width={96} height={96} />
+                        {/* Use a standard img tag for better compatibility with html2canvas */}
+                        <img src={company.logo} alt={`${company.name} Logo`} style={{ width: '96px', height: 'auto' }} />
                     </div>
                     <div className="text-right">
                         <h1 className="text-3xl font-bold text-primary">{company.name}</h1>
@@ -159,7 +159,7 @@ export const Receipt: React.FC<ReceiptProps> = ({ payment, customer, project }) 
                     
                     {/* Amount Box */}
                     <section className="my-12 flex justify-start">
-                        <div className="border-2 border-primary text-primary px-6 py-3 rounded-lg shadow-sm flex justify-center items-center">
+                        <div className="border border-primary text-primary px-6 py-3 rounded-lg shadow-sm flex justify-center items-center">
                             <span className="text-lg font-bold">TK. {payment.amount.toLocaleString('en-IN')}/=</span>
                         </div>
                     </section>
@@ -187,5 +187,3 @@ export const Receipt: React.FC<ReceiptProps> = ({ payment, customer, project }) 
             </div>
         </div>
     );
-};
-
