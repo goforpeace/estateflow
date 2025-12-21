@@ -23,6 +23,7 @@ export default function DashboardPage() {
     totalExpenses: 0,
     currentMonthOperatingCost: 0,
     lastMonthOperatingCost: 0,
+    totalOperatingCost: 0,
   });
   const [isLoading, setIsLoading] = useState(true);
 
@@ -88,10 +89,13 @@ export default function DashboardPage() {
         return costDate.getFullYear() === lastMonthYear && costDate.getMonth() === lastMonth;
       }).reduce((sum, cost) => sum + cost.amount, 0);
       
+      const totalOperatingCost = operatingCosts.reduce((sum, cost) => sum + cost.amount, 0);
+
       setStats(prev => ({
         ...prev,
         currentMonthOperatingCost: currentMonthCosts,
         lastMonthOperatingCost: lastMonthCosts,
+        totalOperatingCost: totalOperatingCost,
       }));
     }
   }, [operatingCosts]);
@@ -108,6 +112,8 @@ export default function DashboardPage() {
 
   const activeProjects = projects?.filter(p => p.status === 'Ongoing').length || 0;
   const planningProjects = projects?.filter(p => p.status === 'Planning').length || 0;
+  const grossProfit = stats.totalRevenue - stats.totalExpenses;
+  const actualProfit = stats.totalRevenue - (stats.totalExpenses + stats.totalOperatingCost);
 
   return (
     <div className="space-y-6">
@@ -137,7 +143,7 @@ export default function DashboardPage() {
                 description="Inflow - Outflow"
             />
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
              <StatCard 
                 title="Total Project Expenses"
                 value={isLoading ? "Loading..." : formatCurrency(stats.totalExpenses)}
@@ -145,16 +151,22 @@ export default function DashboardPage() {
                 description="Total recorded project expenses"
             />
             <StatCard 
-                title="Monthly Operating Cost"
-                value={isLoading ? "Loading..." : formatCurrency(stats.currentMonthOperatingCost)}
+                title="Total Operating Cost"
+                value={isLoading ? "Loading..." : formatCurrency(stats.totalOperatingCost)}
                 icon={Landmark}
-                description={`Last Month: ${formatCurrency(stats.lastMonthOperatingCost)}`}
+                description={`This Month: ${formatCurrency(stats.currentMonthOperatingCost)}`}
             />
             <StatCard 
-                title="Active Projects"
-                value={projects ? activeProjects.toString() : '...'}
-                icon={Briefcase}
-                description={projects ? `${planningProjects} project(s) in planning` : '...'}
+                title="Gross Profit"
+                value={isLoading ? "Loading..." : formatCurrency(grossProfit)}
+                icon={TrendingUp}
+                description="Total Revenue - Project Expenses"
+            />
+             <StatCard 
+                title="Actual Profit"
+                value={isLoading ? "Loading..." : formatCurrency(actualProfit)}
+                icon={DollarSign}
+                description="Revenue - (Proj. + Op. Expenses)"
             />
         </div>
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
