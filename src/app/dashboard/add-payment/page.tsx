@@ -518,6 +518,7 @@ export default function AddPaymentPage() {
         try {
             const canvas = await html2canvas(receiptElement, {
                 scale: 2, // Increase scale for better resolution
+                useCORS: true, // Allow cross-origin images
             });
             const imgData = canvas.toDataURL('image/png');
     
@@ -534,12 +535,12 @@ export default function AddPaymentPage() {
             const canvasHeight = canvas.height;
             const ratio = canvasWidth / canvasHeight;
     
-            let imgWidth = pdfWidth - 20; // with margin
+            let imgWidth = pdfWidth; 
             let imgHeight = imgWidth / ratio;
     
             // If the image height is still too large, adjust based on height
-            if (imgHeight > pdfHeight - 20) {
-                imgHeight = pdfHeight - 20;
+            if (imgHeight > pdfHeight) {
+                imgHeight = pdfHeight;
                 imgWidth = imgHeight * ratio;
             }
     

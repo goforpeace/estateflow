@@ -302,7 +302,10 @@ export default function CustomerDetailPage({
             return;
         }
     
-        const canvas = await html2canvas(receiptElement, { scale: 2 });
+        const canvas = await html2canvas(receiptElement, {
+            scale: 2,
+            useCORS: true,
+        });
         const imgData = canvas.toDataURL('image/png');
     
         const pdf = new jsPDF({
@@ -314,11 +317,11 @@ export default function CustomerDetailPage({
         const pdfWidth = pdf.internal.pageSize.getWidth();
         const pdfHeight = pdf.internal.pageSize.getHeight();
         const ratio = canvas.width / canvas.height;
-        let imgWidth = pdfWidth - 20;
+        let imgWidth = pdfWidth;
         let imgHeight = imgWidth / ratio;
 
-        if (imgHeight > pdfHeight - 20) {
-            imgHeight = pdfHeight - 20;
+        if (imgHeight > pdfHeight) {
+            imgHeight = pdfHeight;
             imgWidth = imgHeight * ratio;
         }
     
