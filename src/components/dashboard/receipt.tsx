@@ -1,3 +1,4 @@
+
 'use client';
 
 import React from 'react';
@@ -23,6 +24,7 @@ const numberToWords = (num: number): string => {
     let str = '';
 
     const toWords = (n: number, s: string) => {
+        if (n === 0) return '';
         let tempStr = '';
         if (n > 19) {
             tempStr = b[Math.floor(n / 10)] + (n % 10 !== 0 ? ' ' + a[n % 10] : '');
@@ -41,18 +43,18 @@ const numberToWords = (num: number): string => {
 
     let lakh = Math.floor(num / 100000);
     num %= 100000;
-    str += toWords(lakh, 'Lakh');
+    str += ' ' + toWords(lakh, 'Lakh');
 
     let thousand = Math.floor(num / 1000);
     num %= 1000;
-    str += toWords(thousand, 'Thousand');
+    str += ' ' + toWords(thousand, 'Thousand');
     
     let hundred = Math.floor(num / 100);
     num %= 100;
-    str += toWords(hundred, 'Hundred');
+    str += ' ' + toWords(hundred, 'Hundred');
 
     if (num > 0) {
-        str += (str !== '' ? ' ' : '') + toWords(num, '');
+        str += (str !== '' ? ' and' : '') + ' ' + toWords(num, '');
     }
 
     return str.trim().replace(/\s+/g, ' ');
@@ -73,36 +75,24 @@ export const Receipt: React.FC<ReceiptProps> = ({ payment, customer, project }) 
     const amountInWords = numberToWords(payment.amount) + ' Taka Only';
 
     return (
-        <div id="receipt-printable-area" className="bg-white text-gray-800 font-sans a4-page">
+        <div id="receipt-printable-area" className="bg-white text-gray-800 font-sans a4-page p-8 print:p-0">
              <style jsx global>{`
                 @media print {
-                  body {
-                    -webkit-print-color-adjust: exact;
-                    print-color-adjust: exact;
+                  body * {
+                    visibility: hidden;
                   }
-                  .a4-page {
-                    margin: 0;
-                    border: initial;
-                    border-radius: initial;
-                    width: initial;
-                    min-height: initial;
-                    box-shadow: initial;
-                    background: initial;
-                    page-break-after: always;
+                  #receipt-printable-area, #receipt-printable-area * {
+                    visibility: visible;
+                  }
+                  #receipt-printable-area {
+                    position: absolute;
+                    left: 0;
+                    top: 0;
+                    width: 100%;
                   }
                   .no-print {
                     display: none;
                   }
-                }
-                .a4-page {
-                    width: 210mm;
-                    min-height: 297mm;
-                    padding: 20mm;
-                    margin: 1rem auto;
-                    border: 1px #D1D1D1 solid;
-                    border-radius: 5px;
-                    background: white;
-                    box-shadow: 0 0 5px rgba(0, 0, 0, 0.1);
                 }
             `}</style>
             
@@ -193,3 +183,5 @@ export const Receipt: React.FC<ReceiptProps> = ({ payment, customer, project }) 
         </div>
     );
 };
+
+    

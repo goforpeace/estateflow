@@ -172,7 +172,7 @@ export default function CustomerDetailPage({
             
           const [projectSnap, flatSnap] = await Promise.all([
             getDoc(projectRef),
-            getDoc(flatRef),
+            getDoc(flatSnap),
           ]);
 
           enrichedSales.push({
@@ -290,9 +290,7 @@ export default function CustomerDetailPage({
   };
 
   const handlePrint = () => {
-      setTimeout(() => {
-            window.print();
-        }, 100);
+    window.print();
   };
 
   const formatCurrency = (value: number) => {
@@ -597,13 +595,15 @@ export default function CustomerDetailPage({
 
         {selectedPaymentForView && (
             <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
-                <DialogContent className="max-w-4xl p-0 no-print">
-                    <DialogHeader className="p-6 pb-0">
-                      <DialogTitle>Payment Receipt</DialogTitle>
-                      <DialogDescription>
-                        A copy of the payment receipt for your records. You can save or print this.
-                      </DialogDescription>
-                    </DialogHeader>
+                <DialogContent className="max-w-4xl p-0 print:p-0 print:border-0 print:max-w-none">
+                    <div className="print:hidden">
+                        <DialogHeader className="p-6 pb-0">
+                        <DialogTitle>Payment Receipt</DialogTitle>
+                        <DialogDescription>
+                            A copy of the payment receipt for your records. You can print it or save it as a PDF.
+                        </DialogDescription>
+                        </DialogHeader>
+                    </div>
                     <ScrollArea className="max-h-[80vh]">
                         <Receipt 
                             payment={selectedPaymentForView.payment} 
@@ -613,11 +613,8 @@ export default function CustomerDetailPage({
                     </ScrollArea>
                      <DialogFooter className="p-4 border-t bg-muted print:hidden">
                         <Button type="button" variant="outline" onClick={() => setIsViewDialogOpen(false)}>Close</Button>
-                        <Button type="button" variant="outline" onClick={handlePrint}>
-                            <FileDown className="mr-2 h-4 w-4" /> Save as PDF
-                        </Button>
                         <Button type="button" onClick={handlePrint}>
-                            <Printer className="mr-2 h-4 w-4" /> Print
+                            <Printer className="mr-2 h-4 w-4" /> Print / Save PDF
                         </Button>
                     </DialogFooter>
                 </DialogContent>
@@ -626,7 +623,5 @@ export default function CustomerDetailPage({
     </div>
   );
 }
-
-  
 
     
