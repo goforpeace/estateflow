@@ -97,10 +97,10 @@ export const Receipt: React.FC<ReceiptProps> = ({ payment, customer, project }) 
                 }
             `}</style>
             
-            <div className="max-w-4xl mx-auto border-2 border-gray-300 p-8">
+            <div className="max-w-4xl mx-auto border-2 border-gray-300 p-8 min-h-screen flex flex-col">
                 {/* Header */}
                 <header className="flex justify-between items-start pb-6 mb-8 border-b-2 border-primary">
-                    <div className="w-48">
+                    <div className="w-32">
                         <Image src={company.logo} alt={`${company.name} Logo`} width={96} height={96} />
                     </div>
                     <div className="text-right">
@@ -109,62 +109,64 @@ export const Receipt: React.FC<ReceiptProps> = ({ payment, customer, project }) 
                     </div>
                 </header>
 
-                {/* Title & Info */}
-                <section className="flex justify-between items-start mb-10">
-                    <div>
-                        <h2 className="text-2xl font-semibold text-gray-700 uppercase tracking-widest bg-gray-100 px-4 py-1">
-                            Money Receipt
-                        </h2>
-                    </div>
-                    <div className="text-right text-sm">
-                        <div className="flex justify-end items-center">
-                            <span className="font-semibold text-gray-600 w-28 text-left">Receipt No:</span>
-                            <span className="font-mono text-primary font-bold">{payment.receiptId}</span>
+                <div className="flex-grow">
+                    {/* Title & Info */}
+                    <section className="flex justify-between items-start mb-10">
+                        <div>
+                            <h2 className="text-2xl font-semibold text-gray-700 uppercase tracking-widest bg-gray-100 px-4 py-1">
+                                Money Receipt
+                            </h2>
                         </div>
-                        <div className="flex justify-end items-center mt-1">
-                            <span className="font-semibold text-gray-600 w-28 text-left">Date:</span>
-                            <span>{new Date(payment.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</span>
+                        <div className="text-right text-sm">
+                            <div className="flex justify-end items-center">
+                                <span className="font-semibold text-gray-600 w-28 text-left">Receipt No:</span>
+                                <span className="font-mono text-primary font-bold">{payment.receiptId}</span>
+                            </div>
+                            <div className="flex justify-end items-center mt-1">
+                                <span className="font-semibold text-gray-600 w-28 text-left">Date:</span>
+                                <span>{new Date(payment.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</span>
+                            </div>
                         </div>
-                    </div>
-                </section>
-                
-                {/* Body */}
-                <main className="space-y-5 text-base leading-relaxed mb-10">
-                    <div className="flex items-baseline">
-                        <p className="w-48 font-semibold shrink-0">Received with thanks from</p>
-                        <p className="border-b border-dotted border-gray-400 flex-grow font-semibold text-primary">{customer.fullName}</p>
-                    </div>
-                    <div className="flex items-baseline">
-                        <p className="w-48 font-semibold shrink-0">Address</p>
-                        <p className="border-b border-dotted border-gray-400 flex-grow">{customer.address}</p>
-                    </div>
-                    <div className="flex items-baseline">
-                        <p className="w-48 font-semibold shrink-0">The sum of Taka</p>
-                        <p className="border-b border-dotted border-gray-400 flex-grow capitalize font-medium">{amountInWords}</p>
-                    </div>
-                    <div className="flex items-baseline">
-                        <p className="w-48 font-semibold shrink-0">By</p>
-                        <p className="border-b border-dotted border-gray-400 flex-grow">{payment.paymentMethod}{payment.reference ? ` (Ref: ${payment.reference})`: ''}</p>
-                    </div>
-                    <div className="flex items-baseline">
-                        <p className="w-48 font-semibold shrink-0">On account of</p>
-                        <p className="border-b border-dotted border-gray-400 flex-grow">
-                            <span className="font-medium">{payment.paymentPurpose === 'Other' ? payment.otherPurpose : payment.paymentPurpose}</span>
-                            {' for Flat No. '}<span className="font-semibold">{payment.flatNumber}</span>
-                            {' of project '}<span className="font-semibold">{payment.projectName}</span>, {project.location}.
-                        </p>
-                    </div>
-                </main>
-                
-                {/* Amount Box */}
-                <section className="my-12 flex justify-start">
-                    <div className="border-2 border-primary text-primary px-6 py-3 rounded-lg shadow-sm">
-                        <span className="text-lg font-bold">TK. {payment.amount.toLocaleString('en-IN')}/=</span>
-                    </div>
-                </section>
+                    </section>
+                    
+                    {/* Body */}
+                    <main className="space-y-5 text-base leading-relaxed mb-10">
+                        <div className="flex items-baseline">
+                            <p className="w-48 font-semibold shrink-0">Received with thanks from</p>
+                            <p className="border-b border-dotted border-gray-400 flex-grow font-semibold text-primary">{customer.fullName}</p>
+                        </div>
+                        <div className="flex items-baseline">
+                            <p className="w-48 font-semibold shrink-0">Address</p>
+                            <p className="border-b border-dotted border-gray-400 flex-grow">{customer.address}</p>
+                        </div>
+                        <div className="flex items-baseline">
+                            <p className="w-48 font-semibold shrink-0">The sum of Taka</p>
+                            <p className="border-b border-dotted border-gray-400 flex-grow capitalize font-medium">{amountInWords}</p>
+                        </div>
+                        <div className="flex items-baseline">
+                            <p className="w-48 font-semibold shrink-0">By</p>
+                            <p className="border-b border-dotted border-gray-400 flex-grow">{payment.paymentMethod}{payment.reference ? ` (Ref: ${payment.reference})`: ''}</p>
+                        </div>
+                        <div className="flex items-baseline">
+                            <p className="w-48 font-semibold shrink-0">On account of</p>
+                            <p className="border-b border-dotted border-gray-400 flex-grow">
+                                <span className="font-medium">{payment.paymentPurpose === 'Other' ? payment.otherPurpose : payment.paymentPurpose}</span>
+                                {' for Flat No. '}<span className="font-semibold">{payment.flatNumber}</span>
+                                {' of project '}<span className="font-semibold">{payment.projectName}</span>, {project.location}.
+                            </p>
+                        </div>
+                    </main>
+                    
+                    {/* Amount Box */}
+                    <section className="my-12 flex justify-start">
+                        <div className="border-2 border-primary text-primary px-6 py-3 rounded-lg shadow-sm flex justify-center items-center">
+                            <span className="text-lg font-bold">TK. {payment.amount.toLocaleString('en-IN')}/=</span>
+                        </div>
+                    </section>
+                </div>
 
                 {/* Footer */}
-                <footer className="pt-24 mt-24 text-sm text-center">
+                <footer className="pt-8 mt-8 text-sm text-center">
                     <div className="flex justify-between items-end">
                         <div className="w-1/3">
                             <p className="border-t-2 border-gray-400 pt-2 font-bold">Received By</p>
@@ -186,3 +188,4 @@ export const Receipt: React.FC<ReceiptProps> = ({ payment, customer, project }) 
         </div>
     );
 };
+
