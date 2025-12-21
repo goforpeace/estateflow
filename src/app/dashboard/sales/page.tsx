@@ -45,7 +45,7 @@ import {
     DropdownMenuTrigger,
   } from "@/components/ui/dropdown-menu"
 import { useFirestore } from '@/firebase';
-import { collection, query, getDocs, doc, writeBatch } from 'firebase/firestore';
+import { collection, query, getDocs, doc, writeBatch, getDoc } from 'firebase/firestore';
 import type { Sale, Project, Flat, Customer } from '@/lib/types';
 import { useEffect, useState, useMemo } from 'react';
 import { useToast } from '@/hooks/use-toast';
@@ -154,9 +154,13 @@ export default function SalesPage() {
         const saleRef = doc(firestore, 'sales', sale.id);
         batch.delete(saleRef);
 
-        // 2. Reference to the flat to update its status
+        // 2. Try to find the flat and update its status if it exists
         const flatRef = doc(firestore, 'projects', sale.projectId, 'flats', sale.flatId);
-        batch.update(flatRef, { status: 'Available' });
+        const flatSnap = await getDoc(flatRef);
+
+        if (flatSnap.exists()) {
+             batch.update(flatRef, { status: 'Available' });
+        }
         
         await batch.commit();
 
@@ -164,7 +168,7 @@ export default function SalesPage() {
 
         toast({
             title: "Sale Deleted",
-            description: "The sale has been successfully deleted and the flat status is now 'Available'.",
+            description: "The sale has been successfully deleted. The flat status was updated if found.",
         });
     } catch (error: any) {
         console.error("Error deleting sale:", error);
@@ -381,5 +385,3 @@ export default function SalesPage() {
     </div>
   );
 }
-
-  
