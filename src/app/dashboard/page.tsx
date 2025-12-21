@@ -123,24 +123,28 @@ export default function DashboardPage() {
                 value={isLoading ? "Loading..." : formatCurrency(stats.totalRevenue)}
                 icon={Banknote}
                 description="Total value of all sales contracts"
+                variant="primary"
             />
             <StatCard 
                 title="Total Inflow"
                 value={isLoading ? "Loading..." : formatCurrency(stats.totalInflow)}
                 icon={TrendingUp}
                 description="Total cash received"
+                variant="success"
             />
             <StatCard 
                 title="Total Outflow"
                 value={isLoading ? "Loading..." : formatCurrency(stats.totalOutflow)}
                 icon={TrendingDown}
                 description="Total cash paid out"
+                variant="warning"
             />
             <StatCard 
                 title="Net Cash Flow"
                 value={isLoading ? "Loading..." : formatCurrency(stats.netCashFlow)}
                 icon={ArrowLeftRight}
                 description="Inflow - Outflow"
+                variant={stats.netCashFlow >= 0 ? 'info' : 'danger'}
             />
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -149,24 +153,28 @@ export default function DashboardPage() {
                 value={isLoading ? "Loading..." : formatCurrency(stats.totalExpenses)}
                 icon={DollarSign}
                 description="Total recorded project expenses"
+                variant="secondary"
             />
             <StatCard 
                 title="Total Operating Cost"
                 value={isLoading ? "Loading..." : formatCurrency(stats.totalOperatingCost)}
                 icon={Landmark}
                 description={`This Month: ${formatCurrency(stats.currentMonthOperatingCost)}`}
+                variant="accent"
             />
             <StatCard 
                 title="Gross Profit"
                 value={isLoading ? "Loading..." : formatCurrency(grossProfit)}
                 icon={TrendingUp}
                 description="Total Revenue - Project Expenses"
+                variant="success"
             />
              <StatCard 
                 title="Actual Profit"
                 value={isLoading ? "Loading..." : formatCurrency(actualProfit)}
                 icon={DollarSign}
                 description="Revenue - (Proj. + Op. Expenses)"
+                variant={actualProfit >= 0 ? 'primary' : 'danger'}
             />
         </div>
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
