@@ -1,4 +1,3 @@
-
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -20,12 +19,19 @@ import { useFirestore, useCollection, useMemoFirebase, addDocumentNonBlocking, d
 import { collection, query, where, doc, writeBatch, getDocs, runTransaction, collectionGroup, getDoc, limit, deleteDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { useState, useEffect, useMemo } from 'react';
-import type { Vendor, Expense, OutflowTransaction } from '@/lib/types';
+import type { Vendor, Expense, OutflowTransaction, Project, ExpenseItem } from '@/lib/types';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
-import { Ban, MoreHorizontal, Search, Pencil, Trash2, Download } from 'lucide-react';
+import { Ban, MoreHorizontal, Search, Pencil, Trash2, Download, Eye } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import {
     AlertDialog,
     AlertDialogAction,
@@ -48,6 +54,8 @@ import {
 import { DateRangePicker } from '@/components/ui/date-range-picker';
 import { DateRange } from 'react-day-picker';
 import { exportToCsv } from '@/lib/csv';
+import { OutflowDetails } from '@/components/dashboard/payments/outflow-details';
+import { EditOutflowForm } from '@/components/dashboard/payments/edit-outflow-form';
 
 const makePaymentFormSchema = z.object({
   vendorId: z.string().min(1, { message: 'Please select a vendor.' }),
@@ -60,7 +68,7 @@ const makePaymentFormSchema = z.object({
 
 type MakePaymentFormValues = z.infer<typeof makePaymentFormSchema>;
 
-type EnrichedOutflow = OutflowTransaction & {
+export type EnrichedOutflow = OutflowTransaction & {
     projectName?: string;
     itemName?: string;
 };
@@ -79,6 +87,11 @@ export default function MakePaymentPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
   const [currentPage, setCurrentPage] = useState(1);
+  const [viewingPayment, setViewingPayment] = useState<EnrichedOutflow | null>(null);
+  const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
+  const [editingPayment, setEditingPayment] = useState<EnrichedOutflow | null>(null);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+
 
   // Data for forms
   const vendorsQuery = useMemoFirebase(() => query(collection(firestore, 'vendors')), [firestore]);
@@ -139,18 +152,17 @@ export default function MakePaymentPage() {
         setIsLoadingLog(true);
         try {
             const outflowsQuery = query(collectionGroup(firestore, 'outflowTransactions'));
-            const [outflowSnap, projectsSnap, itemsSnap] = await Promise.all([
+            const [outflowSnap, projectsSnap, itemsSnap, expensesSnap] = await Promise.all([
                 getDocs(outflowsQuery),
                 getDocs(collection(firestore, 'projects')),
                 getDocs(collection(firestore, 'expenseItems')),
+                getDocs(collection(firestore, 'expenses')), // Fetch all expenses
             ]);
             
             const projectsMap = new Map(projectsSnap.docs.map(d => [d.id, d.data().projectName]));
-            const expensesQuery = query(collection(firestore, 'expenses'));
-            const expensesSnap = await getDocs(expensesQuery);
             const expensesMap = new Map(expensesSnap.docs.map(d => {
                 const data = d.data() as Expense;
-                return [data.expenseId, { itemId: data.itemId, projectId: data.projectId }];
+                return [data.expenseId, { itemId: data.itemId, projectId: data.projectId, docId: d.id }];
             }));
             const itemsMap = new Map(itemsSnap.docs.map(d => [d.id, d.data().name]));
 
@@ -289,6 +301,16 @@ export default function MakePaymentPage() {
     }
   }
   
+  const handleViewClick = (payment: EnrichedOutflow) => {
+    setViewingPayment(payment);
+    setIsViewDialogOpen(true);
+  };
+  
+  const handleEditClick = (payment: EnrichedOutflow) => {
+    setEditingPayment(payment);
+    setIsEditDialogOpen(true);
+  };
+
   const formatCurrency = (value: number) => `৳${value.toLocaleString('en-IN')}`;
 
   const dueAmount = selectedExpense ? selectedExpense.price - selectedExpense.paidAmount : 0;
@@ -545,8 +567,14 @@ export default function MakePaymentPage() {
                                                 </DropdownMenuTrigger>
                                                 <DropdownMenuContent align="end">
                                                     <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                                                    <DropdownMenuItem disabled>View</DropdownMenuItem>
-                                                    <DropdownMenuItem disabled>Edit</DropdownMenuItem>
+                                                    <DropdownMenuItem onSelect={() => handleViewClick(tx)}>
+                                                        <Eye className="mr-2 h-4 w-4" />
+                                                        View
+                                                    </DropdownMenuItem>
+                                                    <DropdownMenuItem onSelect={() => handleEditClick(tx)}>
+                                                        <Pencil className="mr-2 h-4 w-4" />
+                                                        Edit
+                                                    </DropdownMenuItem>
                                                     <DropdownMenuSeparator />
                                                     <AlertDialogTrigger asChild>
                                                         <DropdownMenuItem className="text-destructive" onSelect={(e) => e.preventDefault()}>
@@ -591,6 +619,37 @@ export default function MakePaymentPage() {
             )}
         </CardContent>
       </Card>
+
+       {viewingPayment && (
+        <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
+            <DialogContent className="sm:max-w-md">
+                <DialogHeader>
+                    <DialogTitle>Payment Details</DialogTitle>
+                    <DialogDescription>Viewing details for a payment to {viewingPayment.supplierVendor}</DialogDescription>
+                </DialogHeader>
+                <OutflowDetails payment={viewingPayment} />
+            </DialogContent>
+        </Dialog>
+      )}
+
+      {editingPayment && (
+        <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+            <DialogContent className="sm:max-w-lg">
+                <DialogHeader>
+                    <DialogTitle>Edit Payment</DialogTitle>
+                    <DialogDescription>Updating payment record</DialogDescription>
+                </DialogHeader>
+                <EditOutflowForm 
+                    payment={editingPayment}
+                    setDialogOpen={setIsEditDialogOpen}
+                    onUpdate={() => setIsDataDirty(true)}
+                />
+            </DialogContent>
+        </Dialog>
+      )}
+
     </div>
   );
 }
+
+    
