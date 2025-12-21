@@ -177,6 +177,10 @@ export default function DashboardPage() {
                 variant={actualProfit >= 0 ? 'primary' : 'danger'}
             />
         </div>
+         <div className="grid gap-6 md:grid-cols-1 lg:grid-cols-2">
+            <ProjectSummary />
+            <CustomerSummary />
+        </div>
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
             <div className="lg:col-span-4">
                 <CashflowChart />
@@ -184,10 +188,6 @@ export default function DashboardPage() {
             <div className="lg:col-span-3">
                  <ProjectStatus />
             </div>
-        </div>
-        <div className="grid gap-6 md:grid-cols-1 lg:grid-cols-2">
-            <ProjectSummary />
-            <CustomerSummary />
         </div>
     </div>
   );
