@@ -76,6 +76,8 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { EditPaymentForm } from '@/components/dashboard/payments/edit-payment-form';
 import { Receipt } from '@/components/dashboard/receipt';
 import type { EnrichedTransaction } from '@/app/dashboard/add-payment/page';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
 
 
 type EnrichedSale = Sale & {
@@ -293,6 +295,39 @@ export default function CustomerDetailPage({
   const handlePrint = () => {
     window.print();
   };
+
+    const handleSavePdf = async () => {
+        const receiptElement = document.getElementById('receipt-printable-area');
+        if (!receiptElement || !selectedPaymentForView) {
+            return;
+        }
+    
+        const canvas = await html2canvas(receiptElement, { scale: 2 });
+        const imgData = canvas.toDataURL('image/png');
+    
+        const pdf = new jsPDF({
+            orientation: 'portrait',
+            unit: 'mm',
+            format: 'a4',
+        });
+    
+        const pdfWidth = pdf.internal.pageSize.getWidth();
+        const pdfHeight = pdf.internal.pageSize.getHeight();
+        const ratio = canvas.width / canvas.height;
+        let imgWidth = pdfWidth - 20;
+        let imgHeight = imgWidth / ratio;
+
+        if (imgHeight > pdfHeight - 20) {
+            imgHeight = pdfHeight - 20;
+            imgWidth = imgHeight * ratio;
+        }
+    
+        const x = (pdfWidth - imgWidth) / 2;
+        const y = (pdfHeight - imgHeight) / 2;
+    
+        pdf.addImage(imgData, 'PNG', x, y, imgWidth, imgHeight);
+        pdf.save(`Receipt_${selectedPaymentForView.payment.receiptId}.pdf`);
+    };
 
   const formatCurrency = (value: number) => {
     if (Math.abs(value) >= 10000000) {
@@ -612,7 +647,7 @@ export default function CustomerDetailPage({
                     </ScrollArea>
                      <DialogFooter className="p-4 border-t bg-muted print:hidden">
                         <Button type="button" variant="outline" onClick={() => setIsViewDialogOpen(false)}>Close</Button>
-                        <Button type="button" variant="outline" onClick={handlePrint}>
+                        <Button type="button" variant="outline" onClick={handleSavePdf}>
                             <Save className="mr-2 h-4 w-4" /> Save as PDF
                         </Button>
                         <Button type="button" onClick={handlePrint}>

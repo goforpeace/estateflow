@@ -102,6 +102,8 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { DateRangePicker } from '@/components/ui/date-range-picker';
 import { DateRange } from 'react-day-picker';
 import { exportToCsv } from '@/lib/csv';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
 
 
 const addPaymentFormSchema = z.object({
@@ -133,6 +135,8 @@ export type EnrichedTransaction = InflowTransaction & {
   customerName: string;
   projectName: string;
   flatNumber: string;
+  customer?: Customer;
+  project?: Project;
 };
 
 export default function AddPaymentPage() {
@@ -498,6 +502,60 @@ export default function AddPaymentPage() {
 
     const handlePrint = () => {
         window.print();
+    };
+    
+    const handleSavePdf = async () => {
+        const receiptElement = document.getElementById('receipt-printable-area');
+        if (!receiptElement) {
+            toast({
+                variant: 'destructive',
+                title: 'Error',
+                description: 'Could not find receipt element to save.',
+            });
+            return;
+        }
+    
+        try {
+            const canvas = await html2canvas(receiptElement, {
+                scale: 2, // Increase scale for better resolution
+            });
+            const imgData = canvas.toDataURL('image/png');
+    
+            // A4 dimensions in mm: 210 x 297
+            const pdf = new jsPDF({
+                orientation: 'portrait',
+                unit: 'mm',
+                format: 'a4',
+            });
+    
+            const pdfWidth = pdf.internal.pageSize.getWidth();
+            const pdfHeight = pdf.internal.pageSize.getHeight();
+            const canvasWidth = canvas.width;
+            const canvasHeight = canvas.height;
+            const ratio = canvasWidth / canvasHeight;
+    
+            let imgWidth = pdfWidth - 20; // with margin
+            let imgHeight = imgWidth / ratio;
+    
+            // If the image height is still too large, adjust based on height
+            if (imgHeight > pdfHeight - 20) {
+                imgHeight = pdfHeight - 20;
+                imgWidth = imgHeight * ratio;
+            }
+    
+            const x = (pdfWidth - imgWidth) / 2;
+            const y = (pdfHeight - imgHeight) / 2;
+    
+            pdf.addImage(imgData, 'PNG', x, y, imgWidth, imgHeight);
+            pdf.save(`Receipt_${selectedPayment?.receiptId || 'download'}.pdf`);
+        } catch (error) {
+            console.error('Error generating PDF:', error);
+            toast({
+                variant: 'destructive',
+                title: 'PDF Generation Failed',
+                description: 'An unexpected error occurred while creating the PDF.',
+            });
+        }
     };
 
   const formatCurrency = (value: number) => `৳${value.toLocaleString('en-IN')}`;
@@ -885,13 +943,13 @@ export default function AddPaymentPage() {
                     <ScrollArea className="max-h-[80vh]">
                         <Receipt 
                             payment={selectedPayment} 
-                            customer={selectedPayment.customer} 
-                            project={selectedPayment.project}
+                            customer={selectedPayment.customer!} 
+                            project={selectedPayment.project!}
                         />
                     </ScrollArea>
                      <DialogFooter className="p-4 border-t bg-muted print:hidden">
                         <Button type="button" variant="outline" onClick={() => setIsViewDialogOpen(false)}>Close</Button>
-                         <Button type="button" variant="outline" onClick={handlePrint}>
+                         <Button type="button" variant="outline" onClick={handleSavePdf}>
                             <Save className="mr-2 h-4 w-4" /> Save as PDF
                         </Button>
                         <Button type="button" onClick={handlePrint}>
