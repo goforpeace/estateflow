@@ -186,7 +186,7 @@ service cloud.firestore {
      * @principle Required for enriching sales data efficiently.
      */
     match /{path=**}/flats/{flatId} {
-        allow read: if canAccessBusinessData();
+        allow read, update: if canAccessBusinessData();
     }
 
     /**
@@ -253,5 +253,3 @@ service cloud.firestore {
     }
   }
 }
-
-    
