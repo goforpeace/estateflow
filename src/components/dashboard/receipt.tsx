@@ -1,4 +1,3 @@
-
 'use client';
 
 import React from 'react';
@@ -110,13 +109,13 @@ export const Receipt: React.FC<ReceiptProps> = ({ payment, customer, project }) 
 
                 <div className="flex-grow">
                     {/* Title & Info */}
-                    <section className="flex justify-between items-start mb-10">
-                        <div>
-                            <h2 className="text-2xl font-semibold text-gray-700 uppercase tracking-widest bg-gray-100 px-4 py-1">
+                     <section className="flex items-start mb-10 w-full">
+                        <div className="w-1/2">
+                            <h2 className="text-2xl font-semibold text-gray-700 uppercase tracking-widest bg-gray-100 px-4 py-1 inline-block">
                                 Money Receipt
                             </h2>
                         </div>
-                        <div className="text-right text-sm">
+                        <div className="w-1/2 text-right text-sm">
                             <div className="flex justify-end items-center">
                                 <span className="font-semibold text-gray-600 w-28 text-left">Receipt No:</span>
                                 <span className="font-mono text-primary font-bold">{payment.receiptId}</span>
