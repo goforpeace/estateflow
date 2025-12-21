@@ -41,17 +41,15 @@ export default function DashboardPage() {
         const inflowsQuery = query(collectionGroup(firestore, 'inflowTransactions'));
         const outflowsQuery = query(collectionGroup(firestore, 'outflowTransactions'));
         const expensesQuery = query(collection(firestore, 'expenses'));
-        const projectsQuery = query(collection(firestore, 'projects'));
 
-        const [salesSnap, inflowSnap, outflowSnap, expensesSnap, projectsSnap] = await Promise.all([
+        const [salesSnap, inflowSnap, outflowSnap, expensesSnap] = await Promise.all([
           getDocs(salesQuery),
           getDocs(inflowsQuery),
           getDocs(outflowsQuery),
           getDocs(expensesQuery),
-          getDocs(projectsQuery),
         ]);
 
-        const totalRevenue = projectsSnap.docs.reduce((sum, doc) => sum + (doc.data() as Project).targetSell, 0);
+        const totalRevenue = salesSnap.docs.reduce((sum, doc) => sum + (doc.data() as Sale).totalPrice, 0);
         const totalInflow = inflowSnap.docs.reduce((sum, doc) => sum + (doc.data() as InflowTransaction).amount, 0);
         const totalOutflow = outflowSnap.docs.reduce((sum, doc) => sum + (doc.data() as OutflowTransaction).amount, 0);
         const totalExpenses = expensesSnap.docs.reduce((sum, doc) => sum + (doc.data() as Expense).price, 0);
