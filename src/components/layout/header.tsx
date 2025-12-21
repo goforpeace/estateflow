@@ -1,3 +1,4 @@
+
 'use client';
 
 import Link from 'next/link';
@@ -26,6 +27,7 @@ const getTitleFromPathname = (pathname: string) => {
     if (pathname === '/dashboard') return 'Dashboard';
     const parts = pathname.split('/').filter(Boolean);
     if (parts.length > 1) {
+        if (parts[1] === 'vendors') return 'Vendors/Bills';
         const title = parts[1].replace(/-/g, ' ');
         return title.charAt(0).toUpperCase() + title.slice(1);
     }
