@@ -129,21 +129,6 @@ export default function AddSalePage() {
         const flatRef = doc(firestore, 'projects', data.projectId, 'flats', data.flatId);
         batch.update(flatRef, { status: 'Sold' });
         
-        // 3. Create an initial inflow transaction for the downpayment if provided
-        if (data.downpayment && data.downpayment > 0) {
-            const inflowRef = doc(collection(firestore, 'projects', data.projectId, 'inflowTransactions'));
-            batch.set(inflowRef, {
-                id: inflowRef.id,
-                projectId: data.projectId,
-                flatId: data.flatId,
-                customerId: data.customerId,
-                paymentType: 'Booking',
-                date: new Date(data.saleDate).toISOString(),
-                amount: data.downpayment,
-                paymentMethod: 'Cash', // Default or consider adding to form
-            });
-        }
-        
         await batch.commit();
 
       toast({

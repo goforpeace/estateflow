@@ -2,6 +2,7 @@
 
 
 
+
 export type ProjectStatus = 'Planning' | 'Ongoing' | 'Completed';
 export type FlatOwnership = 'Developer' | 'Landowner';
 export type FlatStatus = 'Available' | 'Sold' | 'Reserved';
