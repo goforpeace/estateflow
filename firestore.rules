@@ -3,10 +3,10 @@ service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * Core Philosophy: This ruleset enforces a strict, role-based access control (RBAC) model.
-     * All data access, both read and write, is restricted to authenticated users who have been
-     * explicitly granted an 'admin' role. This provides a high level of security suitable for an
-     * internal business management application.
+     * Core Philosophy: This ruleset enforces a signed-in-user access control model.
+     * All data access, both read and write, is restricted to authenticated users.
+     * This provides a good baseline level of security for a collaborative application
+     * while allowing any team member to work with the data.
      *
      * Data Structure: Data is organized into top-level collections like 'projects', 'customers',
      * and 'office_expenses'. Project-specific data, such as 'flats' and 'transactions', are
@@ -14,16 +14,17 @@ service cloud.firestore {
      * structure mirrors the application's domain logic.
      *
      * Key Security Decisions:
-     * - Admin-Only Access: All operations are gated behind an `isAdmin()` check. There is no
-     *   public or general user access to any data.
-     * - Role Management: The 'admin' role is conferred by the existence of a document in the
-     *   `/roles_admin/{userId}` collection. Only existing admins can add or remove other admins.
+     * - Signed-in Access: All operations are gated behind an `isSignedIn()` check. There is no
+     *   public or anonymous user access to any data.
+     * - Role Management: An admin role system is in place (`/roles_admin`) but is currently
+     *   only used for granting roles, not for restricting general data access. This allows for
+     *   easy transition to a stricter RBAC model in the future.
      * - No User Enumeration: The `/roles_admin` collection is not readable by anyone, preventing
      *   clients from discovering who the administrators are.
      * - Relational Integrity: On document creation, rules ensure that IDs stored within the
      *   document data (e.g., `projectId`) match the IDs in the document path. These IDs are
      *   enforced as immutable on update to prevent re-parenting documents.
-     * - Prototyping Flexibility: While authorization is strict, data shape validation is purposefully
+     * - Prototyping Flexibility: While authorization is based on sign-in status, data shape validation is purposefully
      *   omitted to allow for rapid frontend development and iteration.
      */
 
@@ -55,11 +56,11 @@ service cloud.firestore {
     }
 
     /**
-     * A composite check for admin-level update and delete operations.
-     * Ensures the user is an admin AND the document already exists.
+     * A composite check for signed-in user update and delete operations.
+     * Ensures the user is signed in AND the document already exists.
      */
-    function canAdminWriteExisting() {
-      return isAdmin() && isExistingDoc();
+    function canWriteExisting() {
+      return isSignedIn() && isExistingDoc();
     }
 
     // --------------------------------------------------------------------------
@@ -79,107 +80,148 @@ service cloud.firestore {
     }
 
     /**
-     * @description Manages real estate projects. Only admins can read or write project data.
+     * @description Manages real estate projects. Any signed-in user can read or write project data.
      * @path /projects/{projectId}
-     * @allow (get) An admin reads a project document: `get /projects/proj_123` (auth: admin)
-     * @deny (create) A non-admin user tries to create a project: `create /projects/proj_456` (auth: non-admin)
-     * @principle Enforces strict admin-only access for core business entities. Validates path integrity on create.
+     * @allow (get) A signed-in user reads a project document: `get /projects/proj_123`
+     * @deny (create) An anonymous user tries to create a project: `create /projects/proj_456` (auth: null)
+     * @principle Enforces signed-in access for core business entities. Validates path integrity on create.
      */
     match /projects/{projectId} {
-      allow get: if isAdmin();
+      allow get: if isSignedIn();
       allow list: if isSignedIn();
-      allow create: if isAdmin() && request.resource.data.id == projectId;
-      allow update: if canAdminWriteExisting() && request.resource.data.id == resource.data.id;
-      allow delete: if canAdminWriteExisting();
+      allow create: if isSignedIn() && request.resource.data.id == projectId;
+      allow update: if canWriteExisting() && request.resource.data.id == resource.data.id;
+      allow delete: if canWriteExisting();
 
       /**
-       * @description Manages flats within a specific project. Access is inherited from the parent project (admin-only).
+       * @description Manages flats within a specific project. Access is granted to any signed-in user.
        * @path /projects/{projectId}/flats/{flatId}
-       * @allow (create) An admin adds a new flat to a project: `create /projects/proj_123/flats/flat_A` (auth: admin)
-       * @deny (list) A signed-in, non-admin user tries to list flats: `list /projects/proj_123/flats` (auth: non-admin)
-       * @principle Secures subcollection data based on a global role. Enforces relational integrity with the parent document.
+       * @allow (create) A signed-in user adds a new flat to a project: `create /projects/proj_123/flats/flat_A`
+       * @deny (list) An anonymous user tries to list flats: `list /projects/proj_123/flats` (auth: null)
+       * @principle Secures subcollection data based on authentication. Enforces relational integrity with the parent document.
        */
       match /flats/{flatId} {
-        allow get: if isAdmin();
-        allow list: if isAdmin();
-        allow create: if isAdmin() && request.resource.data.projectId == projectId;
-        allow update: if canAdminWriteExisting() && request.resource.data.projectId == resource.data.projectId;
-        allow delete: if canAdminWriteExisting();
+        allow get: if isSignedIn();
+        allow list: if isSignedIn();
+        allow create: if isSignedIn() && request.resource.data.projectId == projectId;
+        allow update: if canWriteExisting() && request.resource.data.projectId == resource.data.projectId;
+        allow delete: if canWriteExisting();
       }
 
       /**
-       * @description Manages cash inflow transactions for a project. Access is inherited (admin-only).
+       * @description Manages cash inflow transactions for a project. Access is granted to any signed-in user.
        * @path /projects/{projectId}/inflow_transactions/{inflowTransactionId}
-       * @allow (get) An admin reads a specific transaction: `get /projects/proj_123/inflow_transactions/trans_abc` (auth: admin)
-       * @deny (update) A non-admin tries to modify a transaction: `update /projects/proj_123/inflow_transactions/trans_abc` (auth: non-admin)
-       * @principle Secures subcollection data based on a global role. Enforces relational integrity with the parent document.
+       * @allow (get) A signed-in user reads a specific transaction: `get /projects/proj_123/inflow_transactions/trans_abc`
+       * @deny (update) An anonymous user tries to modify a transaction: `update /projects/proj_123/inflow_transactions/trans_abc` (auth: null)
+       * @principle Secures subcollection data based on authentication. Enforces relational integrity with the parent document.
        */
       match /inflow_transactions/{inflowTransactionId} {
-        allow get: if isAdmin();
-        allow list: if isAdmin();
-        allow create: if isAdmin() && request.resource.data.projectId == projectId;
-        allow update: if canAdminWriteExisting() && request.resource.data.projectId == resource.data.projectId;
-        allow delete: if canAdminWriteExisting();
+        allow get: if isSignedIn();
+        allow list: if isSignedIn();
+        allow create: if isSignedIn() && request.resource.data.projectId == projectId;
+        allow update: if canWriteExisting() && request.resource.data.projectId == resource.data.projectId;
+        allow delete: if canWriteExisting();
       }
 
       /**
-       * @description Manages cash outflow (expense) transactions for a project. Access is inherited (admin-only).
+       * @description Manages cash outflow (expense) transactions for a project. Access is granted to any signed-in user.
        * @path /projects/{projectId}/outflow_transactions/{outflowTransactionId}
-       * @allow (delete) An admin deletes an expense record: `delete /projects/proj_123/outflow_transactions/trans_xyz` (auth: admin)
+       * @allow (delete) A signed-in user deletes an expense record: `delete /projects/proj_123/outflow_transactions/trans_xyz`
        * @deny (create) An anonymous user tries to create an expense: `create /projects/proj_123/outflow_transactions/trans_new` (auth: null)
-       * @principle Secures subcollection data based on a global role. Enforces relational integrity with the parent document.
+       * @principle Secures subcollection data based on authentication. Enforces relational integrity with the parent document.
        */
       match /outflow_transactions/{outflowTransactionId} {
-        allow get: if isAdmin();
-        allow list: if isAdmin();
-        allow create: if isAdmin() && request.resource.data.projectId == projectId;
-        allow update: if canAdminWriteExisting() && request.resource.data.projectId == resource.data.projectId;
-        allow delete: if canAdminWriteExisting();
+        allow get: if isSignedIn();
+        allow list: if isSignedIn();
+        allow create: if isSignedIn() && request.resource.data.projectId == projectId;
+        allow update: if canWriteExisting() && request.resource.data.projectId == resource.data.projectId;
+        allow delete: if canWriteExisting();
       }
     }
 
     /**
-     * @description Manages customer information. Only admins can access customer data.
+     * @description Manages customer information. Any signed-in user can access customer data.
      * @path /customers/{customerId}
-     * @allow (list) An admin lists all customers: `list /customers` (auth: admin)
-     * @deny (get) A regular user tries to read customer data: `get /customers/cust_123` (auth: non-admin)
-     * @principle Protects sensitive customer information by restricting access to authorized administrators.
+     * @allow (list) A signed-in user lists all customers: `list /customers`
+     * @deny (get) An anonymous user tries to read customer data: `get /customers/cust_123` (auth: null)
+     * @principle Protects sensitive customer information by restricting access to authenticated users.
      */
     match /customers/{customerId} {
-      allow get: if isAdmin();
-      allow list: if isAdmin();
-      allow create: if isAdmin() && request.resource.data.id == customerId;
-      allow update: if canAdminWriteExisting() && request.resource.data.id == resource.data.id;
-      allow delete: if canAdminWriteExisting();
+      allow get: if isSignedIn();
+      allow list: if isSignedIn();
+      allow create: if isSignedIn() && request.resource.data.id == customerId;
+      allow update: if canWriteExisting() && request.resource.data.id == resource.data.id;
+      allow delete: if canWriteExisting();
+    }
+    
+    /**
+     * @description Manages sales records. Any signed-in user can manage sales records.
+     * @path /sales/{saleId}
+     */
+    match /sales/{saleId} {
+      allow read, write: if isSignedIn();
     }
 
     /**
-     * @description Manages general office expenses. Only admins can manage these records.
+     * @description Manages expense records. Any signed-in user can manage expense records.
+     * @path /expenses/{expenseId}
+     */
+    match /expenses/{expenseId} {
+      allow read, write: if isSignedIn();
+    }
+    
+    /**
+     * @description Manages expense item records. Any signed-in user can manage expense items.
+     * @path /expenseItems/{itemId}
+     */
+    match /expenseItems/{itemId} {
+      allow read, write: if isSignedIn();
+    }
+    
+    /**
+     * @description Manages vendors. Any signed-in user can manage vendors.
+     * @path /vendors/{vendorId}
+     */
+    match /vendors/{vendorId} {
+      allow read, write: if isSignedIn();
+    }
+    
+     /**
+     * @description Manages counters. Any signed-in user can manage counters.
+     * @path /counters/{counterId}
+     */
+    match /counters/{counterId} {
+      allow read, write: if isSignedIn();
+    }
+
+
+    /**
+     * @description Manages general office expenses. Any signed-in user can manage these records.
      * @path /office_expenses/{officeExpenseId}
-     * @allow (create) An admin records a new office expense: `create /office_expenses/exp_abc` (auth: admin)
+     * @allow (create) A signed-in user records a new office expense: `create /office_expenses/exp_abc`
      * @deny (list) An anonymous user tries to list expenses: `list /office_expenses` (auth: null)
-     * @principle Restricts financial data management to trusted admin users.
+     * @principle Restricts financial data management to authenticated users.
      */
     match /office_expenses/{officeExpenseId} {
-      allow get: if isAdmin();
-      allow list: if isAdmin();
-      allow create: if isAdmin() && request.resource.data.id == officeExpenseId;
-      allow update: if canAdminWriteExisting() && request.resource.data.id == resource.data.id;
-      allow delete: if canAdminWriteExisting();
+      allow get: if isSignedIn();
+      allow list: if isSignedIn();
+      allow create: if isSignedIn() && request.resource.data.id == officeExpenseId;
+      allow update: if canWriteExisting() && request.resource.data.id == resource.data.id;
+      allow delete: if canWriteExisting();
 
       /**
-       * @description Manages the allocation of office costs to projects. Access is inherited (admin-only).
+       * @description Manages the allocation of office costs to projects. Access is granted to any signed-in user.
        * @path /office_expenses/{officeExpenseId}/cost_allocations/{costAllocationId}
-       * @allow (get) An admin reads a cost allocation record: `get /office_expenses/exp_abc/cost_allocations/alloc_1` (auth: admin)
-       * @deny (create) A non-admin tries to create an allocation: `create /office_expenses/exp_abc/cost_allocations/alloc_2` (auth: non-admin)
-       * @principle Secures subcollection data based on a global role. Enforces relational integrity with the parent document.
+       * @allow (get) A signed-in user reads a cost allocation record: `get /office_expenses/exp_abc/cost_allocations/alloc_1`
+       * @deny (create) An anonymous user tries to create an allocation: `create /office_expenses/exp_abc/cost_allocations/alloc_2` (auth: null)
+       * @principle Secures subcollection data based on authentication. Enforces relational integrity with the parent document.
        */
       match /cost_allocations/{costAllocationId} {
-        allow get: if isAdmin();
-        allow list: if isAdmin();
-        allow create: if isAdmin() && request.resource.data.officeExpenseId == officeExpenseId;
-        allow update: if canAdminWriteExisting() && request.resource.data.officeExpenseId == resource.data.officeExpenseId;
-        allow delete: if canAdminWriteExisting();
+        allow get: if isSignedIn();
+        allow list: if isSignedIn();
+        allow create: if isSignedIn() && request.resource.data.officeExpenseId == officeExpenseId;
+        allow update: if canWriteExisting() && request.resource.data.officeExpenseId == resource.data.officeExpenseId;
+        allow delete: if canWriteExisting();
       }
     }
 
