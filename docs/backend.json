@@ -1,53 +1,16 @@
-
 {
   "entities": {
-    "User": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "User",
-      "type": "object",
-      "description": "Represents a user of the EstateFlow application.",
-      "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the user entity."
-        },
-        "email": {
-          "type": "string",
-          "description": "User's email address.",
-          "format": "email"
-        },
-        "firstName": {
-          "type": "string",
-          "description": "User's first name."
-        },
-        "lastName": {
-          "type": "string",
-          "description": "User's last name."
-        },
-        "role": {
-          "type": "string",
-          "description": "User's role (Admin, Accountant, Viewer)."
-        }
-      },
-      "required": [
-        "id",
-        "email",
-        "firstName",
-        "lastName",
-        "role"
-      ]
-    },
     "Project": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "Project",
       "type": "object",
-      "description": "Represents a real estate project.",
+      "description": "Represents a real estate development project.",
       "properties": {
         "id": {
           "type": "string",
-          "description": "Unique identifier for the project entity."
+          "description": "Unique identifier for the Project entity."
         },
-        "projectName": {
+        "name": {
           "type": "string",
           "description": "Name of the project."
         },
@@ -59,6 +22,14 @@
           "type": "number",
           "description": "Total number of flats in the project."
         },
+        "developerShare": {
+          "type": "number",
+          "description": "Percentage share of the project owned by the developer (e.g., 0.5 for 50%)."
+        },
+        "landownerShare": {
+          "type": "number",
+          "description": "Percentage share of the project owned by the landowner (e.g., 0.5 for 50%)."
+        },
         "startDate": {
           "type": "string",
           "description": "Start date of the project.",
@@ -66,21 +37,18 @@
         },
         "status": {
           "type": "string",
-          "description": "Status of the project (Planning, Ongoing, Completed)."
-        },
-        "targetSell": {
-          "type": "number",
-          "description": "Target sell amount for the project."
+          "description": "Current status of the project (Planning, Ongoing, Completed)."
         }
       },
       "required": [
         "id",
-        "projectName",
+        "name",
         "location",
         "totalFlats",
+        "developerShare",
+        "landownerShare",
         "startDate",
-        "status",
-        "targetSell"
+        "status"
       ]
     },
     "Flat": {
@@ -91,7 +59,7 @@
       "properties": {
         "id": {
           "type": "string",
-          "description": "Unique identifier for the flat entity."
+          "description": "Unique identifier for the Flat entity."
         },
         "projectId": {
           "type": "string",
@@ -99,23 +67,19 @@
         },
         "flatNumber": {
           "type": "string",
-          "description": "Flat number."
+          "description": "Flat number or identifier within the project."
         },
         "ownership": {
           "type": "string",
-          "description": "Ownership of the flat (Developer, Landowner)."
+          "description": "Ownership of the flat (Developer or Landowner)."
         },
         "salePrice": {
           "type": "number",
-          "description": "Sale price of the flat (only for developer flats)."
+          "description": "Sale price of the flat (only for developer-owned flats)."
         },
         "status": {
           "type": "string",
-          "description": "Status of the flat (Available, Sold, Reserved)."
-        },
-        "flatSize": {
-          "type": "number",
-          "description": "Size of the flat in square feet."
+          "description": "Current status of the flat (Available, Sold, Reserved)."
         }
       },
       "required": [
@@ -123,77 +87,43 @@
         "projectId",
         "flatNumber",
         "ownership",
-        "status",
-        "flatSize"
+        "status"
       ]
     },
     "Customer": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "Customer",
       "type": "object",
-      "description": "Represents a customer.",
+      "description": "Represents a customer who has purchased or reserved a flat.",
       "properties": {
         "id": {
           "type": "string",
-          "description": "Unique identifier for the customer entity."
+          "description": "Unique identifier for the Customer entity."
         },
-        "fullName": {
+        "firstName": {
           "type": "string",
-          "description": "Customer's full name."
+          "description": "First name of the customer."
         },
-        "mobile": {
+        "lastName": {
           "type": "string",
-          "description": "Customer's mobile phone number."
+          "description": "Last name of the customer."
         },
-        "address": {
+        "email": {
           "type": "string",
-          "description": "Customer's address."
-        },
-        "nidNumber": {
-          "type": "string",
-          "description": "Customer's National ID number."
-        }
-      },
-      "required": [
-        "id",
-        "fullName",
-        "mobile",
-        "address",
-        "nidNumber"
-      ]
-    },
-    "Vendor": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "Vendor",
-      "type": "object",
-      "description": "Represents a supplier or service provider.",
-      "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the vendor entity."
-        },
-        "vendorName": {
-          "type": "string",
-          "description": "The name of the vendor."
+          "description": "Email address of the customer.",
+          "format": "email"
         },
         "phoneNumber": {
           "type": "string",
-          "description": "The vendor's contact phone number."
-        },
-        "enterpriseName": {
-          "type": "string",
-          "description": "The name of the vendor's company or enterprise."
-        },
-        "details": {
-          "type": "string",
-          "description": "Additional details or notes about the vendor."
+          "description": "Phone number of the customer."
         }
       },
       "required": [
         "id",
-        "vendorName",
-        "phoneNumber",
-        "enterpriseName"
+        "firstName",
+        "lastName",
+        "email",
+        "phoneNumber"
       ]
     },
     "InflowTransaction": {
@@ -204,7 +134,7 @@
       "properties": {
         "id": {
           "type": "string",
-          "description": "Unique identifier for the inflow transaction entity."
+          "description": "Unique identifier for the InflowTransaction entity."
         },
         "projectId": {
           "type": "string",
@@ -220,7 +150,7 @@
         },
         "paymentType": {
           "type": "string",
-          "description": "Type of payment (Booking, Installment)."
+          "description": "Type of payment (Booking or Installment)."
         },
         "date": {
           "type": "string",
@@ -231,17 +161,9 @@
           "type": "number",
           "description": "Amount of the inflow transaction."
         },
-        "paymentMethod": {
-            "type": "string",
-            "description": "Method of payment (Cash, Cheque, Bank Transfer)."
-        },
-        "receiptId": {
-            "type": "string",
-            "description": "Unique identifier for the receipt."
-        },
-        "reference": {
-            "type": "string",
-            "description": "Reference information for the transaction."
+        "paymentMode": {
+          "type": "string",
+          "description": "Payment method (Cash or Bank)."
         }
       },
       "required": [
@@ -252,22 +174,22 @@
         "paymentType",
         "date",
         "amount",
-        "paymentMethod"
+        "paymentMode"
       ]
     },
     "OutflowTransaction": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "OutflowTransaction",
       "type": "object",
-      "description": "Represents a cash outflow transaction.",
+      "description": "Represents a cash outflow transaction (expense).",
       "properties": {
         "id": {
           "type": "string",
-          "description": "Unique identifier for the outflow transaction entity."
+          "description": "Unique identifier for the OutflowTransaction entity."
         },
         "projectId": {
           "type": "string",
-          "description": "Reference to Project. (Relationship: Project 1:N OutflowTransaction). Can be null if it is an office cost."
+          "description": "Reference to Project.  If null, it's an office cost. (Relationship: Project 1:N OutflowTransaction)"
         },
         "expenseCategory": {
           "type": "string",
@@ -275,7 +197,7 @@
         },
         "supplierVendor": {
           "type": "string",
-          "description": "Supplier or vendor for the expense."
+          "description": "Name of the supplier or vendor."
         },
         "amount": {
           "type": "number",
@@ -299,237 +221,70 @@
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "OfficeExpense",
       "type": "object",
-      "description": "Represents an office expense.",
+      "description": "Represents a monthly office expense.",
       "properties": {
         "id": {
           "type": "string",
-          "description": "Unique identifier for the office expense entity."
-        },
-        "expenseCategory": {
-          "type": "string",
-          "description": "Category of the expense (Rent, Salary)."
-        },
-        "amount": {
-          "type": "number",
-          "description": "Amount of the office expense."
+          "description": "Unique identifier for the OfficeExpense entity."
         },
         "date": {
           "type": "string",
-          "description": "Date of the office expense.",
+          "description": "Date representing the month of the expense.",
           "format": "date-time"
+        },
+        "amount": {
+          "type": "number",
+          "description": "Total amount of the office expense for the month."
+        },
+        "expenseCategory": {
+          "type": "string",
+          "description": "Category of the office expense (Rent, Salary, etc.)."
+        },
+        "supplierVendor": {
+          "type": "string",
+          "description": "Supplier of the office expense."
         }
       },
       "required": [
         "id",
-        "expenseCategory",
+        "date",
         "amount",
-        "date"
+        "expenseCategory"
       ]
     },
     "OfficeCostAllocation": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "OfficeCostAllocation",
       "type": "object",
-      "description": "Represents the allocation of office costs to projects.",
+      "description": "Represents the allocation of office costs to projects for a specific month.",
       "properties": {
         "id": {
           "type": "string",
-          "description": "Unique identifier for the office cost allocation entity."
-        },
-        "projectId": {
-          "type": "string",
-          "description": "Reference to Project. (Relationship: Project 1:N OfficeCostAllocation)"
+          "description": "Unique identifier for the OfficeCostAllocation entity."
         },
         "officeExpenseId": {
           "type": "string",
           "description": "Reference to OfficeExpense. (Relationship: OfficeExpense 1:N OfficeCostAllocation)"
         },
+        "projectId": {
+          "type": "string",
+          "description": "Reference to Project. (Relationship: Project 1:N OfficeCostAllocation)"
+        },
         "allocationAmount": {
           "type": "number",
           "description": "Amount of office cost allocated to the project."
         },
-        "allocationMonth": {
+        "allocationMethod": {
           "type": "string",
-          "description": "Month for which the office cost is allocated.",
-          "format": "date-time"
+          "description": "Method used for allocation (Equal Allocation or Project Size Ratio)."
         }
       },
       "required": [
         "id",
-        "projectId",
         "officeExpenseId",
+        "projectId",
         "allocationAmount",
-        "allocationMonth"
-      ]
-    },
-    "Sale": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "Sale",
-      "type": "object",
-      "description": "Represents a sale of a flat.",
-      "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the sale transaction."
-        },
-        "projectId": {
-          "type": "string",
-          "description": "Reference to Project."
-        },
-        "flatId": {
-          "type": "string",
-          "description": "Reference to Flat."
-        },
-        "customerId": {
-          "type": "string",
-          "description": "Reference to Customer."
-        },
-        "totalPrice": {
-          "type": "number",
-          "description": "Total sale price of the flat."
-        },
-        "perSftPrice": {
-          "type": "number",
-          "description": "Price per square foot."
-        },
-        "parkingCharge": {
-          "type": "number",
-          "description": "Cost for parking."
-        },
-        "utilityCharge": {
-          "type": "number",
-          "description": "Cost for utilities."
-        },
-        "downpayment": {
-          "type": "number",
-          "description": "Initial downpayment amount."
-        },
-        "monthlyInstallment": {
-          "type": "number",
-          "description": "Amount for each monthly installment."
-        },
-        "saleDate": {
-          "type": "string",
-          "format": "date-time",
-          "description": "Date of the sale."
-        },
-        "note": {
-          "type": "string",
-          "description": "Additional notes for the sale."
-        },
-        "deedLink": {
-          "type": "string",
-          "description": "Link to the uploaded deed document."
-        },
-        "extraCosts": {
-            "type": "array",
-            "description": "Additional costs for the sale.",
-            "items": {
-                "type": "object",
-                "properties": {
-                    "purpose": {
-                        "type": "string"
-                    },
-                    "amount": {
-                        "type": "number"
-                    }
-                },
-                "required": ["purpose", "amount"]
-            }
-        }
-      },
-      "required": [
-        "id",
-        "projectId",
-        "flatId",
-        "customerId",
-        "totalPrice",
-        "saleDate"
-      ]
-    },
-    "ExpenseItem": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "ExpenseItem",
-      "type": "object",
-      "description": "Represents a type of expense item.",
-      "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the expense item."
-        },
-        "name": {
-          "type": "string",
-          "description": "Name of the expense item (e.g., Cement, Labor, Steel)."
-        }
-      },
-      "required": [
-        "id",
-        "name"
-      ]
-    },
-    "Expense": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "Expense",
-      "type": "object",
-      "description": "Represents a single expense transaction.",
-      "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the expense document."
-        },
-        "expenseId": {
-          "type": "string",
-          "description": "User-facing auto-generated identifier for the expense."
-        },
-        "vendorId": {
-          "type": "string",
-          "description": "Reference to the Vendor."
-        },
-        "projectId": {
-          "type": "string",
-          "description": "Reference to the Project."
-        },
-        "itemId": {
-          "type": "string",
-          "description": "Reference to the ExpenseItem."
-        },
-        "quantity": {
-          "type": "number",
-          "description": "Quantity of the item."
-        },
-        "price": {
-          "type": "number",
-          "description": "Price of the expense (outflow amount)."
-        },
-        "paidAmount": {
-          "type": "number",
-          "description": "The amount that has been paid for this expense."
-        },
-        "status": {
-          "type": "string",
-          "enum": ["Unpaid", "Partially Paid", "Paid"],
-          "description": "The payment status of the expense."
-        },
-        "date": {
-          "type": "string",
-          "format": "date-time",
-          "description": "Date of the expense."
-        },
-        "description": {
-          "type": "string",
-          "description": "Description of the expense."
-        }
-      },
-      "required": [
-        "id",
-        "expenseId",
-        "vendorId",
-        "projectId",
-        "itemId",
-        "price",
-        "date",
-        "paidAmount",
-        "status"
+        "allocationMethod"
       ]
     }
   },
@@ -542,33 +297,17 @@
   "firestore": {
     "structure": [
       {
-        "path": "/users/{userId}",
-        "definition": {
-          "entityName": "User",
-          "schema": {
-            "$ref": "#/backend/entities/User"
-          },
-          "description": "Stores user profile information. Access is restricted to the user and administrators.",
-          "params": [
-            {
-              "name": "userId",
-              "description": "The unique identifier for the user."
-            }
-          ]
-        }
-      },
-      {
         "path": "/projects/{projectId}",
         "definition": {
           "entityName": "Project",
           "schema": {
             "$ref": "#/backend/entities/Project"
           },
-          "description": "Stores project details.",
+          "description": "Collection for storing project entities. Each document represents a real estate project.",
           "params": [
             {
               "name": "projectId",
-              "description": "The unique identifier for the project."
+              "description": "Unique identifier for the project."
             }
           ]
         }
@@ -580,15 +319,15 @@
           "schema": {
             "$ref": "#/backend/entities/Flat"
           },
-          "description": "Stores flat information for a specific project. Includes denormalized 'projectId' for efficient querying and security rules.",
+          "description": "Subcollection for storing flats within a project. Includes denormalized 'projectId' for authorization independence.",
           "params": [
             {
               "name": "projectId",
-              "description": "The unique identifier for the project."
+              "description": "Unique identifier for the project."
             },
             {
               "name": "flatId",
-              "description": "The unique identifier for the flat."
+              "description": "Unique identifier for the flat."
             }
           ]
         }
@@ -600,158 +339,108 @@
           "schema": {
             "$ref": "#/backend/entities/Customer"
           },
-          "description": "Stores customer information.",
+          "description": "Collection for storing customer entities.",
           "params": [
             {
               "name": "customerId",
-              "description": "The unique identifier for the customer."
+              "description": "Unique identifier for the customer."
             }
           ]
         }
       },
       {
-        "path": "/vendors/{vendorId}",
-        "definition": {
-          "entityName": "Vendor",
-          "schema": {
-            "$ref": "#/backend/entities/Vendor"
-          },
-          "description": "Stores vendor and supplier information.",
-          "params": [
-            {
-              "name": "vendorId",
-              "description": "The unique identifier for the vendor."
-            }
-          ]
-        }
-      },
-      {
-        "path": "/sales/{saleId}",
-        "definition": {
-          "entityName": "Sale",
-          "schema": {
-            "$ref": "#/backend/entities/Sale"
-          },
-          "description": "Stores flat sale transaction details.",
-          "params": [
-            {
-              "name": "saleId",
-              "description": "The unique identifier for the sale."
-            }
-          ]
-        }
-      },
-      {
-        "path": "/projects/{projectId}/inflowTransactions/{inflowTransactionId}",
+        "path": "/projects/{projectId}/inflow_transactions/{inflowTransactionId}",
         "definition": {
           "entityName": "InflowTransaction",
           "schema": {
             "$ref": "#/backend/entities/InflowTransaction"
           },
-          "description": "Stores inflow transactions for a specific project. Includes denormalized 'projectId' for efficient querying and security rules.",
+          "description": "Subcollection for storing inflow transactions related to a specific project. Includes denormalized 'projectId' for authorization independence.",
           "params": [
             {
               "name": "projectId",
-              "description": "The unique identifier for the project."
+              "description": "Unique identifier for the project."
             },
             {
               "name": "inflowTransactionId",
-              "description": "The unique identifier for the inflow transaction."
+              "description": "Unique identifier for the inflow transaction."
             }
           ]
         }
       },
       {
-        "path": "/projects/{projectId}/outflowTransactions/{outflowTransactionId}",
+        "path": "/projects/{projectId}/outflow_transactions/{outflowTransactionId}",
         "definition": {
           "entityName": "OutflowTransaction",
           "schema": {
             "$ref": "#/backend/entities/OutflowTransaction"
           },
-          "description": "Stores outflow transactions for a specific project. Includes denormalized 'projectId' for efficient querying and security rules.",
+          "description": "Subcollection for storing outflow transactions related to a specific project. Includes denormalized 'projectId' for authorization independence.",
           "params": [
             {
               "name": "projectId",
-              "description": "The unique identifier for the project."
+              "description": "Unique identifier for the project."
             },
             {
               "name": "outflowTransactionId",
-              "description": "The unique identifier for the outflow transaction."
+              "description": "Unique identifier for the outflow transaction."
             }
           ]
         }
       },
       {
-        "path": "/officeExpenses/{officeExpenseId}",
+        "path": "/office_expenses/{officeExpenseId}",
         "definition": {
           "entityName": "OfficeExpense",
           "schema": {
             "$ref": "#/backend/entities/OfficeExpense"
           },
-          "description": "Stores office expense information.",
+          "description": "Collection for storing office expense entities.",
           "params": [
             {
               "name": "officeExpenseId",
-              "description": "The unique identifier for the office expense."
+              "description": "Unique identifier for the office expense."
             }
           ]
         }
       },
       {
-        "path": "/projects/{projectId}/officeCostAllocations/{officeCostAllocationId}",
+        "path": "/office_expenses/{officeExpenseId}/cost_allocations/{costAllocationId}",
         "definition": {
           "entityName": "OfficeCostAllocation",
           "schema": {
             "$ref": "#/backend/entities/OfficeCostAllocation"
           },
-          "description": "Stores office cost allocation information for a specific project. Includes denormalized 'projectId' for efficient querying and security rules.",
+          "description": "Subcollection for storing office cost allocations. Includes denormalized 'officeExpenseId' for authorization independence.",
           "params": [
             {
-              "name": "projectId",
-              "description": "The unique identifier for the project."
+              "name": "officeExpenseId",
+              "description": "Unique identifier for the office expense."
             },
             {
-              "name": "officeCostAllocationId",
-              "description": "The unique identifier for the office cost allocation."
+              "name": "costAllocationId",
+              "description": "Unique identifier for the cost allocation."
             }
           ]
         }
       },
       {
-        "path": "/expenseItems/{expenseItemId}",
+        "path": "/roles_admin/{userId}",
         "definition": {
-          "entityName": "ExpenseItem",
+          "entityName": "roles_admin",
           "schema": {
-            "$ref": "#/backend/entities/ExpenseItem"
+            "$ref": "#/backend/entities/Customer"
           },
-          "description": "Stores the types of expense items that can be purchased.",
+          "description": "Collection used to assign users to the 'admin' role. Document existence confers role membership.",
           "params": [
             {
-              "name": "expenseItemId",
-              "description": "The unique identifier for the expense item."
-            }
-          ]
-        }
-      },
-      {
-        "path": "/expenses/{expenseId}",
-        "definition": {
-          "entityName": "Expense",
-          "schema": {
-            "$ref": "#/backend/entities/Expense"
-          },
-          "description": "Stores individual expense records.",
-          "params": [
-            {
-              "name": "expenseId",
-              "description": "The unique identifier for the expense."
+              "name": "userId",
+              "description": "Unique identifier for the user."
             }
           ]
         }
       }
     ],
-    "reasoning": "The Firestore data structure is designed to ensure authorization independence, clarity, and scalability for the EstateFlow application. Key strategies include denormalization, structural segregation, and consistent access modeling.\n\n**Authorization Independence:**\nAuthorization independence is achieved by denormalizing authorization-related data. For instance, access to `flats` is determined by the project's attributes. If there were project-level access controls (e.g., project admins), this information would be denormalized into each flat document.\n\n**Structural Segregation:**\nData with different access requirements are stored in separate collections. User profiles are stored in `/users/{userId}`, ensuring that only the user (and admins) can access their data. Project-related data (flats, inflow transactions, outflow transactions, and office cost allocations) are organized under `/projects/{projectId}`, enabling project-level access control. Sales are stored in a top-level `/sales` collection for easier querying across all projects.\n\n**Access Modeling:**\n-   **User Data:** User profiles are stored under `/users/{userId}`, ensuring path-based ownership.\n-   **Project Data:** Project-related data is organized under `/projects/{projectId}`, with subcollections for flats, inflow transactions, outflow transactions and office cost allocations.\n-   **Sales Data:** Stored in a top-level `/sales` collection to allow for app-wide queries on sales data.\n\n**QAPs (Rules are not Filters):**\nThe structure supports secure `list` operations by avoiding hierarchical authorization dependencies.  For example, listing flats within a project does not require fetching parent project data to validate access.\n\nIn summary, this structure promotes clear, maintainable security rules and supports the core features of the EstateFlow application while adhering to best practices for Firestore data modeling."
+    "reasoning": "The Firestore data structure is designed to support the real estate project management and cash flow system, EstateFlow. The structure prioritizes authorization independence through denormalization, enabling secure and scalable access control using Firebase security rules. It also addresses the need for secure and efficient listing of data (QAPs). Here’s a breakdown:\n\n*   **Authorization Independence**: The key is the `projects/{projectId}` path. Subcollections, like `/flats`, denormalize project-level authorization data (e.g., ownership) into each document within the subcollection. This avoids the need for `get()` calls in security rules, simplifying rule logic and allowing for atomic operations (transactions/batches) involving both parent and child documents. The use of membership maps in collaborative data scenarios further supports this independence.\n*   **Structural Segregation:** The structure ensures that each collection has a homogeneous security posture. Data with different access requirements (e.g., public vs. private) are stored in separate collections or subcollections. For example, project-related data is segregated under the `/projects/{projectId}` path, while user-specific data (if any) would be under `/users/{userId}`.\n*   **Access Modeling:** Consistent access modeling is employed throughout the structure:\n    *   **Path-Based Ownership:** User-owned data (if applicable, such as user profiles or settings) would be stored under `/users/{userId}`.\n    *   **Hierarchical Paths for User-Owned Data:** The structure `/projects/{projectId}/flats/{flatId}` exemplifies the use of hierarchical paths to represent `Project 1:N Flat` relationships. This approach ensures clear ownership and facilitates efficient and secure security rules.\n    *   **Global Roles (DBAC):** Global admin roles are managed via the `/roles_admin/{uid}` collection. This existence-based approach simplifies checking for admin privileges in security rules.\n*   **QAPs (Rules are not Filters):** The structure enables secure `list` operations. For instance, listing flats within a project can be secured by verifying that the requesting user has access to the project. Segregation into subcollections ensures that listing operations don't require filtering based on document content, maintaining security and performance.\n*   **Data Clarity and Predictability:** The structure promotes data clarity through explicit state modeling using `status` fields in entities like `Project` and `Flat`. It enforces strict naming conventions, such as `projectId` and `flatId`, for consistency. The schema is designed to avoid dynamic keys and encourages the use of arrays of objects with static keys where applicable.\n\nThe structure is designed to be highly scalable, secure, and easily debuggable, aligning with the core design principles and strategy mandates."
   }
 }
-
-    
