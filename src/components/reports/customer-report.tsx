@@ -21,60 +21,59 @@ export function CustomerReport() {
   const handleExport = async () => {
     setIsLoading(true);
     try {
-      // 1. Fetch all necessary data
-      const customersQuery = query(collection(firestore, 'customers'));
-      const salesQuery = query(collection(firestore, 'sales'));
-      const projectsQuery = query(collection(firestore, 'projects'));
-      const inflowsQuery = query(collectionGroup(firestore, 'inflowTransactions'));
-
+      // 1. Fetch all necessary data concurrently
       const [customersSnap, salesSnap, projectsSnap, inflowsSnap] = await Promise.all([
-        getDocs(customersQuery),
-        getDocs(salesQuery),
-        getDocs(projectsQuery),
-        getDocs(inflowsQuery),
+        getDocs(query(collection(firestore, 'customers'))),
+        getDocs(query(collection(firestore, 'sales'))),
+        getDocs(query(collection(firestore, 'projects'))),
+        getDocs(query(collectionGroup(firestore, 'inflowTransactions'))),
       ]);
 
       const customers = customersSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Customer));
       const sales = salesSnap.docs.map(doc => doc.data() as Sale);
       const projects = projectsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Project));
       const inflows = inflowsSnap.docs.map(doc => doc.data() as InflowTransaction);
-      
-      const projectsMap = new Map(projects.map(p => [p.id, p]));
+
+      // 2. Create lookup maps for efficient data access
+      const projectsMap = new Map(projects.map(p => [p.id, p.projectName]));
       
       const allFlatsMap = new Map<string, Flat>();
-        for (const project of projects) {
-            const flatsQuery = query(collection(firestore, `projects/${project.id}/flats`));
-            const flatsSnap = await getDocs(flatsQuery);
-            flatsSnap.forEach(doc => {
-                allFlatsMap.set(doc.id, doc.data() as Flat);
-            });
-        }
+      for (const project of projects) {
+          const flatsQuery = query(collection(firestore, `projects/${project.id}/flats`));
+          const flatsSnap = await getDocs(flatsQuery);
+          flatsSnap.forEach(doc => {
+              allFlatsMap.set(doc.id, doc.data() as Flat);
+          });
+      }
 
-
-      // 2. Process and enrich data
-      let processedData = customers.map(customer => {
+      // 3. Process and enrich customer data
+      const processedData = customers.map(customer => {
+        // Find all sales for this customer
         const customerSales = sales.filter(s => s.customerId === customer.id);
+        
+        // Calculate total sale amount from their sales
         const totalAmount = customerSales.reduce((sum, s) => sum + s.totalPrice, 0);
 
+        // Find all payments made by this customer
         const customerPayments = inflows.filter(p => p.customerId === customer.id);
         const paidAmount = customerPayments.reduce((sum, p) => sum + p.amount, 0);
 
-        const projectNames = [...new Set(customerSales.map(s => projectsMap.get(s.projectId)?.projectName))].filter(Boolean).join(', ');
+        // Get project and flat names
+        const projectNames = [...new Set(customerSales.map(s => projectsMap.get(s.projectId)))].filter(Boolean).join(', ');
         const flatNumbers = [...new Set(customerSales.map(s => allFlatsMap.get(s.flatId)?.flatNumber))].filter(Boolean).join(', ');
 
         return {
-          ...customer,
-          totalAmount,
-          paidAmount,
-          dueAmount: totalAmount - paidAmount,
+          fullName: customer.fullName,
+          mobile: customer.mobile,
+          address: customer.address,
+          nidNumber: customer.nidNumber,
           projectName: projectNames,
           flatNumber: flatNumbers,
+          totalAmount: totalAmount,
+          paidAmount: paidAmount,
+          dueAmount: totalAmount - paidAmount,
         };
       });
-
-      // 3. Filter by date range (if provided) based on customer creation or sales date - let's assume we don't filter customers by date for this report.
-      // If filtering is needed, we'd need to define what date to filter on (e.g., customer join date).
-      // For now, exporting all customers.
 
       // 4. Format for CSV
       const dataToExport = processedData.map(c => ({
