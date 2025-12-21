@@ -598,7 +598,13 @@ export default function CustomerDetailPage({
         {selectedPaymentForView && (
             <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
                 <DialogContent className="max-w-4xl p-0 no-print">
-                    <ScrollArea className="max-h-[90vh]">
+                    <DialogHeader className="p-6 pb-0">
+                      <DialogTitle>Payment Receipt</DialogTitle>
+                      <DialogDescription>
+                        A copy of the payment receipt for your records. You can save or print this.
+                      </DialogDescription>
+                    </DialogHeader>
+                    <ScrollArea className="max-h-[80vh]">
                         <Receipt 
                             payment={selectedPaymentForView.payment} 
                             customer={selectedPaymentForView.customer} 
@@ -622,3 +628,5 @@ export default function CustomerDetailPage({
 }
 
   
+
+    
