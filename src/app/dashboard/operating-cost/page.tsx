@@ -1,3 +1,4 @@
+
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -177,6 +178,10 @@ export default function OperatingCostPage() {
         cost.amount.toString().includes(searchTerm)
     );
   }, [enrichedCosts, searchQuery]);
+  
+  const totalOperatingCost = useMemo(() => {
+    return filteredCosts.reduce((total, cost) => total + cost.amount, 0);
+  }, [filteredCosts]);
 
   const paginatedCosts = useMemo(() => {
     const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
@@ -250,10 +255,12 @@ export default function OperatingCostPage() {
 
         <Card>
             <CardHeader>
-                 <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                 <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
                     <div>
                         <CardTitle>Operating Cost Log</CardTitle>
-                        <CardDescription>History of all general expenses.</CardDescription>
+                        <CardDescription>
+                            Total for selection: <span className="font-semibold text-primary">{formatCurrency(totalOperatingCost)}</span>
+                        </CardDescription>
                     </div>
                     <div className="relative w-full md:w-1/3">
                         <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />

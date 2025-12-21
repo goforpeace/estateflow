@@ -1,13 +1,14 @@
+
 'use client';
 
-import { DollarSign, Briefcase, TrendingUp, TrendingDown, ArrowLeftRight, Banknote } from "lucide-react";
+import { DollarSign, Briefcase, TrendingUp, TrendingDown, ArrowLeftRight, Banknote, Landmark } from "lucide-react";
 import { StatCard } from "@/components/dashboard/stat-card";
 import { CashflowChart } from "@/components/dashboard/cashflow-chart";
 import { ProjectStatus } from "@/components/dashboard/project-status";
 import { useCollection, useFirestore, useMemoFirebase } from "@/firebase";
-import { collection, collectionGroup, getDocs, query } from "firebase/firestore";
+import { collection, collectionGroup, getDocs, query, where } from "firebase/firestore";
 import { useEffect, useState } from "react";
-import type { InflowTransaction, OutflowTransaction, Project, Sale, Expense } from "@/lib/types";
+import type { InflowTransaction, OutflowTransaction, Project, Sale, Expense, OperatingCost } from "@/lib/types";
 import { ProjectSummary } from "@/components/dashboard/project-summary";
 import { CustomerSummary } from "@/components/dashboard/customer-summary";
 
@@ -20,11 +21,16 @@ export default function DashboardPage() {
     totalOutflow: 0,
     netCashFlow: 0,
     totalExpenses: 0,
+    currentMonthOperatingCost: 0,
+    lastMonthOperatingCost: 0,
   });
   const [isLoading, setIsLoading] = useState(true);
 
   const projectsQuery = useMemoFirebase(() => collection(firestore, "projects"), [firestore]);
   const { data: projects } = useCollection<Project>(projectsQuery);
+  
+  const operatingCostsQuery = useMemoFirebase(() => collection(firestore, "operatingCosts"), [firestore]);
+  const { data: operatingCosts } = useCollection<OperatingCost>(operatingCostsQuery);
 
   useEffect(() => {
     const fetchStats = async () => {
@@ -47,21 +53,48 @@ export default function DashboardPage() {
         const totalOutflow = outflowSnap.docs.reduce((sum, doc) => sum + (doc.data() as OutflowTransaction).amount, 0);
         const totalExpenses = expensesSnap.docs.reduce((sum, doc) => sum + (doc.data() as Expense).price, 0);
 
-        setStats({
+        setStats(prev => ({
+          ...prev,
           totalRevenue,
           totalInflow,
           totalOutflow,
           netCashFlow: totalInflow - totalOutflow,
           totalExpenses,
-        });
+        }));
 
       } catch (error) {
-        console.error("Error fetching stats: ", error);
+        console.error("Error fetching main stats: ", error);
       }
       setIsLoading(false);
     }
     fetchStats();
   }, [firestore]);
+
+  useEffect(() => {
+    if (operatingCosts) {
+      const now = new Date();
+      const currentYear = now.getFullYear();
+      const currentMonth = now.getMonth();
+      const lastMonth = currentMonth === 0 ? 11 : currentMonth - 1;
+      const lastMonthYear = currentMonth === 0 ? currentYear - 1 : currentYear;
+
+      const currentMonthCosts = operatingCosts.filter(cost => {
+        const costDate = new Date(cost.date);
+        return costDate.getFullYear() === currentYear && costDate.getMonth() === currentMonth;
+      }).reduce((sum, cost) => sum + cost.amount, 0);
+
+      const lastMonthCosts = operatingCosts.filter(cost => {
+        const costDate = new Date(cost.date);
+        return costDate.getFullYear() === lastMonthYear && costDate.getMonth() === lastMonth;
+      }).reduce((sum, cost) => sum + cost.amount, 0);
+      
+      setStats(prev => ({
+        ...prev,
+        currentMonthOperatingCost: currentMonthCosts,
+        lastMonthOperatingCost: lastMonthCosts,
+      }));
+    }
+  }, [operatingCosts]);
   
   const formatCurrency = (value: number) => {
     if (Math.abs(value) >= 10000000) {
@@ -104,12 +137,18 @@ export default function DashboardPage() {
                 description="Inflow - Outflow"
             />
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
              <StatCard 
-                title="Total Expenses"
+                title="Total Project Expenses"
                 value={isLoading ? "Loading..." : formatCurrency(stats.totalExpenses)}
                 icon={DollarSign}
-                description="Total recorded expenses"
+                description="Total recorded project expenses"
+            />
+            <StatCard 
+                title="Monthly Operating Cost"
+                value={isLoading ? "Loading..." : formatCurrency(stats.currentMonthOperatingCost)}
+                icon={Landmark}
+                description={`Last Month: ${formatCurrency(stats.lastMonthOperatingCost)}`}
             />
             <StatCard 
                 title="Active Projects"
