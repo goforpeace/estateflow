@@ -172,7 +172,7 @@ export default function CustomerDetailPage({
             
           const [projectSnap, flatSnap] = await Promise.all([
             getDoc(projectRef),
-            getDoc(flatSnap),
+            getDoc(flatRef),
           ]);
 
           enrichedSales.push({
@@ -596,14 +596,12 @@ export default function CustomerDetailPage({
         {selectedPaymentForView && (
             <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
                 <DialogContent className="max-w-4xl p-0 print:p-0 print:border-0 print:max-w-none">
-                    <div className="print:hidden">
-                        <DialogHeader className="p-6 pb-0">
-                        <DialogTitle>Payment Receipt</DialogTitle>
-                        <DialogDescription>
-                            A copy of the payment receipt for your records. You can print it or save it as a PDF.
-                        </DialogDescription>
-                        </DialogHeader>
-                    </div>
+                    <DialogHeader className="p-6 pb-0 print:hidden">
+                      <DialogTitle>Payment Receipt</DialogTitle>
+                      <DialogDescription>
+                          A copy of the payment receipt for your records. You can print it or save it as a PDF.
+                      </DialogDescription>
+                    </DialogHeader>
                     <ScrollArea className="max-h-[80vh]">
                         <Receipt 
                             payment={selectedPaymentForView.payment} 
@@ -623,5 +621,3 @@ export default function CustomerDetailPage({
     </div>
   );
 }
-
-    
