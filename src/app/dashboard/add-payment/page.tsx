@@ -75,7 +75,6 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import {
     DropdownMenu,
@@ -95,7 +94,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Ban, Printer, MoreHorizontal, Pencil, Trash2, Eye, FileDown, Search, Download } from 'lucide-react';
+import { Ban, Printer, MoreHorizontal, Pencil, Trash2, Eye, FileDown, Search, Download, Save } from 'lucide-react';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Receipt } from '@/components/dashboard/receipt';
 import { EditPaymentForm } from '@/components/dashboard/payments/edit-payment-form';
@@ -471,9 +470,9 @@ export default function AddPaymentPage() {
             description: "The payment has been successfully deleted.",
         });
         fetchRecentTransactions(); // Refresh the list
+        setIsDeleteAlertOpen(false);
+        setSelectedPaymentForDelete(null);
     });
-    setIsDeleteAlertOpen(false);
-    setSelectedPaymentForDelete(null);
   };
 
     const handleViewClick = async (payment: EnrichedTransaction) => {
@@ -846,7 +845,7 @@ export default function AddPaymentPage() {
               </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
-              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogCancel onClick={() => setIsDeleteAlertOpen(false)}>Cancel</AlertDialogCancel>
               <AlertDialogAction
                   onClick={confirmDeletePayment}
                   className="bg-destructive hover:bg-destructive/90"
@@ -863,7 +862,7 @@ export default function AddPaymentPage() {
                 <DialogContent className="sm:max-w-xl">
                     <DialogHeader>
                         <DialogTitle>Edit Payment</DialogTitle>
-                        <CardDescription>Update the details for this payment record.</CardDescription>
+                        <DialogDescription>Update the details for this payment record.</DialogDescription>
                     </DialogHeader>
                     <EditPaymentForm 
                         payment={selectedPayment} 
@@ -892,8 +891,11 @@ export default function AddPaymentPage() {
                     </ScrollArea>
                      <DialogFooter className="p-4 border-t bg-muted print:hidden">
                         <Button type="button" variant="outline" onClick={() => setIsViewDialogOpen(false)}>Close</Button>
+                         <Button type="button" variant="outline" onClick={handlePrint}>
+                            <Save className="mr-2 h-4 w-4" /> Save as PDF
+                        </Button>
                         <Button type="button" onClick={handlePrint}>
-                            <Printer className="mr-2 h-4 w-4" /> Print / Save PDF
+                            <Printer className="mr-2 h-4 w-4" /> Print
                         </Button>
                     </DialogFooter>
                 </DialogContent>
@@ -904,4 +906,5 @@ export default function AddPaymentPage() {
   );
 }
 
+    
     

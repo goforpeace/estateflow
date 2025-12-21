@@ -47,7 +47,8 @@ import {
   Eye,
   Search,
   FileDown,
-  Printer
+  Printer,
+  Save,
 } from 'lucide-react';
 import { notFound, useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
@@ -260,9 +261,9 @@ export default function CustomerDetailPage({
     const paymentRef = doc(firestore, 'projects', selectedPayment.projectId, 'inflowTransactions', selectedPayment.id);
     deleteDocumentNonBlocking(paymentRef, () => {
         setIsDataDirty(true); // Mark data as dirty to trigger re-fetch
+        setIsDeleteAlertOpen(false);
+        setSelectedPayment(null);
     });
-    setIsDeleteAlertOpen(false);
-    setSelectedPayment(null);
   };
 
   const handleViewClick = async (payment: InflowTransaction) => {
@@ -566,7 +567,7 @@ export default function CustomerDetailPage({
             </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel onClick={() => setIsDeleteAlertOpen(false)}>Cancel</AlertDialogCancel>
             <AlertDialogAction
                 onClick={confirmDeletePayment}
                 className="bg-destructive hover:bg-destructive/90"
@@ -611,8 +612,11 @@ export default function CustomerDetailPage({
                     </ScrollArea>
                      <DialogFooter className="p-4 border-t bg-muted print:hidden">
                         <Button type="button" variant="outline" onClick={() => setIsViewDialogOpen(false)}>Close</Button>
+                        <Button type="button" variant="outline" onClick={handlePrint}>
+                            <Save className="mr-2 h-4 w-4" /> Save as PDF
+                        </Button>
                         <Button type="button" onClick={handlePrint}>
-                            <Printer className="mr-2 h-4 w-4" /> Print / Save PDF
+                            <Printer className="mr-2 h-4 w-4" /> Print
                         </Button>
                     </DialogFooter>
                 </DialogContent>
@@ -621,3 +625,5 @@ export default function CustomerDetailPage({
     </div>
   );
 }
+
+    
