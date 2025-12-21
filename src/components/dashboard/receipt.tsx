@@ -1,9 +1,8 @@
-
 'use client';
 
 import React from 'react';
 import type { Customer, InflowTransaction, Project } from '@/lib/types';
-import { Logo } from '../icons';
+import Image from 'next/image';
 
 interface ReceiptProps {
     payment: InflowTransaction & { customerName: string; projectName: string; flatNumber: string };
@@ -64,7 +63,7 @@ const numberToWords = (num: number): string => {
 export const Receipt: React.FC<ReceiptProps> = ({ payment, customer, project }) => {
     const company = {
         name: 'Landmark New Homes Ltd.',
-        logo: 'https://res.cloudinary.com/dj4lirc0d/image/upload/v1718794838/Artboard_1_pabijh.png',
+        logo: 'https://res.cloudinary.com/dj4lirc0d/image/upload/Artboard_1_pabijh.png',
         phone: '+8809649-699499',
         website: 'www.landmarkltd.net',
         email: 'info@landmarkltd.net',
@@ -99,7 +98,7 @@ export const Receipt: React.FC<ReceiptProps> = ({ payment, customer, project }) 
             {/* Header */}
             <header className="flex justify-between items-start pb-6 mb-8 border-b-2 border-primary">
                  <div className="w-48">
-                    <Logo className="h-24 w-24" />
+                    <Image src={company.logo} alt={`${company.name} Logo`} width={96} height={96} />
                 </div>
                 <div className="text-right">
                     <h1 className="text-3xl font-bold text-primary">{company.name}</h1>
@@ -183,5 +182,3 @@ export const Receipt: React.FC<ReceiptProps> = ({ payment, customer, project }) 
         </div>
     );
 };
-
-    
