@@ -16,7 +16,7 @@ import { Button } from '@/components/ui/button';
 import { Logo } from '@/components/icons';
 import { useToast } from "@/hooks/use-toast";
 import { useAuth, useFirestore, setDocumentNonBlocking } from '@/firebase';
-import { signInWithEmailAndPassword } from 'firebase/auth';
+import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
 
 export default function LoginPage() {
@@ -31,16 +31,18 @@ export default function LoginPage() {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
+    
     try {
+      // First, try to sign in
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
 
-      // After successful login, check if the user document exists.
+      // After successful login, check if the user document exists in Firestore.
       const userDocRef = doc(firestore, 'users', user.uid);
       const userDoc = await getDoc(userDocRef);
 
       if (!userDoc.exists()) {
-        // If the document doesn't exist, create it with a default role.
+        // If the document doesn't exist, create it.
         const [firstName, lastName] = user.displayName?.split(' ') || [user.email?.split('@')[0] || 'New', 'User'];
         const newUser = {
           id: user.uid,
@@ -49,18 +51,50 @@ export default function LoginPage() {
           lastName: lastName || '',
           role: 'Viewer', // Assign a default role
         };
-        // Using non-blocking update
-        setDocumentNonBlocking(userDocRef, newUser, { merge: false });
+        setDocumentNonBlocking(userDocRef, newUser, { merge: true });
       }
-
+      
       router.push('/dashboard');
+
     } catch (error: any) {
-      toast({
-        variant: "destructive",
-        title: "Login Failed",
-        description: error.message,
-      });
-      setIsLoading(false);
+      if (error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential') {
+        // If user does not exist, create a new user
+        try {
+          const newUserCredential = await createUserWithEmailAndPassword(auth, email, password);
+          const newUser = newUserCredential.user;
+          const userDocRef = doc(firestore, 'users', newUser.uid);
+          
+          const [firstName, lastName] = newUser.email?.split('@')[0].split('.') || ['New', 'User'];
+          
+          const userProfile = {
+            id: newUser.uid,
+            email: newUser.email,
+            firstName: firstName,
+            lastName: lastName || '',
+            role: 'Viewer',
+          };
+          
+          // Use non-blocking set to create the profile, then navigate
+          setDocumentNonBlocking(userDocRef, userProfile, { merge: false });
+          router.push('/dashboard');
+          
+        } catch (creationError: any) {
+          toast({
+            variant: "destructive",
+            title: "Account Creation Failed",
+            description: creationError.message,
+          });
+          setIsLoading(false);
+        }
+      } else {
+        // Handle other errors (like wrong password)
+        toast({
+          variant: "destructive",
+          title: "Login Failed",
+          description: error.message,
+        });
+        setIsLoading(false);
+      }
     }
   };
 
