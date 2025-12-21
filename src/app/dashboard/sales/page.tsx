@@ -88,7 +88,7 @@ export default function SalesPage() {
   };
 
   useEffect(() => {
-    if (!isDataDirty) return;
+    if (!isDataDirty || !firestore) return;
 
     const fetchAndEnrichSales = async () => {
       setIsLoading(true);
@@ -160,8 +160,7 @@ export default function SalesPage() {
         
         await batch.commit();
 
-        // Optimistically update UI
-        setEnrichedSales(prev => prev.filter(s => s.id !== sale.id));
+        setIsDataDirty(true); // Trigger a re-fetch
 
         toast({
             title: "Sale Deleted",
@@ -382,3 +381,5 @@ export default function SalesPage() {
     </div>
   );
 }
+
+  

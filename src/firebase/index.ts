@@ -5,23 +5,8 @@ import { initializeApp, getApps, getApp, type FirebaseApp } from 'firebase/app';
 import { getAuth, type Auth } from 'firebase/auth';
 import { getFirestore, type Firestore } from 'firebase/firestore';
 
-let firebaseApp: FirebaseApp;
-let auth: Auth;
-let firestore: Firestore;
-
-// IMPORTANT: DO NOT MODIFY THIS FUNCTION
-export function initializeFirebase() {
-  if (!firebaseApp) {
-    if (getApps().length > 0) {
-      firebaseApp = getApp();
-    } else {
-      firebaseApp = initializeApp(firebaseConfig);
-    }
-    auth = getAuth(firebaseApp);
-    firestore = getFirestore(firebaseApp);
-  }
-  return { firebaseApp, auth, firestore };
-}
+// IMPORTANT: This file is a "barrel" file. It re-exports modules from other files.
+// Do not add any new code to this file, except for re-exporting.
 
 export * from './provider';
 export * from './client-provider';

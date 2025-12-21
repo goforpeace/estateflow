@@ -114,10 +114,10 @@ export default function CustomerDetailPage({
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [viewingPayment, setViewingPayment] = useState<{payment: EnrichedTransaction, customer: Customer, project: Project} | null>(null);
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
-  const [isDataDirty, setIsDataDirty] = useState(false);
+  const [isDataDirty, setIsDataDirty] = useState(true);
 
   useEffect(() => {
-    if (!customerId || !firestore) return;
+    if (!customerId || !firestore || !isDataDirty) return;
 
     const fetchData = async () => {
       setIsLoading(true);
@@ -610,3 +610,5 @@ export default function CustomerDetailPage({
     </div>
   );
 }
+
+  

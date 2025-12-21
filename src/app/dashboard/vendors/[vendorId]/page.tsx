@@ -14,6 +14,7 @@ import {
   writeBatch,
   runTransaction,
   limit,
+  deleteDoc,
 } from 'firebase/firestore';
 import type {
   Vendor,
@@ -640,3 +641,5 @@ export default function VendorDetailPage({
     </div>
   );
 }
+
+  
