@@ -31,10 +31,13 @@ export function PaymentLogReport() {
     setIsLoading(true);
     try {
       const inflowsQuery = query(collectionGroup(firestore, 'inflowTransactions'));
+      const projectsQuery = query(collection(firestore, 'projects'));
+      const customersQuery = query(collection(firestore, 'customers'));
+      
       const [inflowsSnap, projectsSnap, customersSnap] = await Promise.all([
         getDocs(inflowsQuery),
-        getDocs(query(collection(firestore, 'projects'))),
-        getDocs(query(collection(firestore, 'customers'))),
+        getDocs(projectsQuery),
+        getDocs(customersQuery),
       ]);
 
       const inflows = inflowsSnap.docs.map(doc => doc.data() as InflowTransaction);

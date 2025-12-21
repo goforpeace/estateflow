@@ -28,8 +28,8 @@ export function SalesReport() {
       
       const [salesSnap, projectsSnap, customersSnap] = await Promise.all([
         getDocs(salesQuery),
-        getDocs(projectsSnap),
-        getDocs(customersSnap),
+        getDocs(projectsQuery),
+        getDocs(customersQuery),
       ]);
 
       const sales = salesSnap.docs.map(doc => doc.data() as Sale);

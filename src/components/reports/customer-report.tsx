@@ -30,7 +30,7 @@ export function CustomerReport() {
       const [customersSnap, salesSnap, projectsSnap, inflowsSnap] = await Promise.all([
         getDocs(customersQuery),
         getDocs(salesQuery),
-        getDocs(projectsSnap),
+        getDocs(projectsQuery),
         getDocs(inflowsQuery),
       ]);
 
