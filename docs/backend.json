@@ -286,6 +286,20 @@
         "allocationAmount",
         "allocationMethod"
       ]
+    },
+    "User": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "User",
+      "description": "Represents an application user profile.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "User's unique ID, same as Firebase Auth UID." },
+        "email": { "type": "string", "format": "email", "description": "User's email address." },
+        "firstName": { "type": "string", "description": "User's first name." },
+        "lastName": { "type": "string", "description": "User's last name." },
+        "role": { "type": "string", "description": "User's role.", "enum": ["Viewer", "Admin"] }
+      },
+      "required": ["id", "email"]
     }
   },
   "auth": {
@@ -344,6 +358,20 @@
             {
               "name": "customerId",
               "description": "Unique identifier for the customer."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/users/{userId}",
+        "definition": {
+          "entityName": "User",
+          "schema": { "$ref": "#/backend/entities/User" },
+          "description": "Collection for storing user profile data.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "Unique identifier for the user, matching Firebase Auth UID."
             }
           ]
         }
@@ -444,3 +472,4 @@
     "reasoning": "The Firestore data structure is designed to support the real estate project management and cash flow system, EstateFlow. The structure prioritizes authorization independence through denormalization, enabling secure and scalable access control using Firebase security rules. It also addresses the need for secure and efficient listing of data (QAPs). Here’s a breakdown:\n\n*   **Authorization Independence**: The key is the `projects/{projectId}` path. Subcollections, like `/flats`, denormalize project-level authorization data (e.g., ownership) into each document within the subcollection. This avoids the need for `get()` calls in security rules, simplifying rule logic and allowing for atomic operations (transactions/batches) involving both parent and child documents. The use of membership maps in collaborative data scenarios further supports this independence.\n*   **Structural Segregation:** The structure ensures that each collection has a homogeneous security posture. Data with different access requirements (e.g., public vs. private) are stored in separate collections or subcollections. For example, project-related data is segregated under the `/projects/{projectId}` path, while user-specific data (if any) would be under `/users/{userId}`.\n*   **Access Modeling:** Consistent access modeling is employed throughout the structure:\n    *   **Path-Based Ownership:** User-owned data (if applicable, such as user profiles or settings) would be stored under `/users/{userId}`.\n    *   **Hierarchical Paths for User-Owned Data:** The structure `/projects/{projectId}/flats/{flatId}` exemplifies the use of hierarchical paths to represent `Project 1:N Flat` relationships. This approach ensures clear ownership and facilitates efficient and secure security rules.\n    *   **Global Roles (DBAC):** Global admin roles are managed via the `/roles_admin/{uid}` collection. This existence-based approach simplifies checking for admin privileges in security rules.\n*   **QAPs (Rules are not Filters):** The structure enables secure `list` operations. For instance, listing flats within a project can be secured by verifying that the requesting user has access to the project. Segregation into subcollections ensures that listing operations don't require filtering based on document content, maintaining security and performance.\n*   **Data Clarity and Predictability:** The structure promotes data clarity through explicit state modeling using `status` fields in entities like `Project` and `Flat`. It enforces strict naming conventions, such as `projectId` and `flatId`, for consistency. The schema is designed to avoid dynamic keys and encourages the use of arrays of objects with static keys where applicable.\n\nThe structure is designed to be highly scalable, secure, and easily debuggable, aligning with the core design principles and strategy mandates."
   }
 }
+    

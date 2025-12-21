@@ -67,6 +67,18 @@ service cloud.firestore {
     // --------------------------------------------------------------------------
 
     /**
+     * @description Manages user profile information.
+     * @path /users/{userId}
+     * @allow (read, create, update) A user can manage their own profile.
+     * @deny (list, delete) No one can list or delete user profiles directly.
+     * @principle Enforces user-specific ownership for personal data.
+     */
+    match /users/{userId} {
+      allow read, create, update: if isSignedIn() && request.auth.uid == userId;
+      allow list, delete: if false;
+    }
+
+    /**
      * @description Manages real estate projects. Only admins can read or write project data.
      * @path /projects/{projectId}
      * @allow (get) An admin reads a project document: `get /projects/proj_123` (auth: admin)
@@ -188,3 +200,4 @@ service cloud.firestore {
     }
   }
 }
+    
