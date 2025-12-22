@@ -130,7 +130,7 @@ export const Receipt: React.FC<ReceiptProps> = ({ payment, customer, project }) 
                     {/* Body */}
                     <main className="space-y-5 text-base leading-relaxed mb-10">
                         <div className="flex items-baseline">
-                            <p className="w-48 font-semibold shrink-0"><span>Received with thanks</span> <span>from</span></p>
+                             <p className="w-48 font-semibold shrink-0"><span>Received with thanks</span> <span>from</span></p>
                             <p className="border-b border-dotted border-gray-400 flex-grow font-semibold text-primary pb-1">{customer.fullName}</p>
                         </div>
                         <div className="flex items-baseline">
@@ -157,7 +157,7 @@ export const Receipt: React.FC<ReceiptProps> = ({ payment, customer, project }) 
                     
                     {/* Amount Box */}
                     <section className="my-12 flex justify-start">
-                        <div className="border border-primary text-primary px-6 py-3 rounded-lg shadow-sm flex justify-center items-center">
+                         <div className="border border-primary text-primary px-6 py-3 rounded-lg shadow-sm flex justify-center items-center">
                             <span className="text-lg font-bold">TK. {payment.amount.toLocaleString('en-IN')}/=</span>
                         </div>
                     </section>
