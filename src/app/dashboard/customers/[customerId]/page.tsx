@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -76,8 +75,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { EditPaymentForm } from '@/components/dashboard/payments/edit-payment-form';
 import { Receipt } from '@/components/dashboard/receipt';
 import type { EnrichedTransaction } from '@/app/dashboard/add-payment/page';
-import jsPDF from 'jspdf';
-import html2canvas from 'html2canvas';
+import { PrintReceiptDialog } from '@/components/dashboard/payments/PrintReceiptDialog';
 
 
 type EnrichedSale = Sale & {
@@ -291,46 +289,6 @@ export default function CustomerDetailPage({
     });
     setIsViewDialogOpen(true);
   };
-
-  const handlePrint = () => {
-    window.print();
-  };
-
-    const handleSavePdf = async () => {
-        const receiptElement = document.getElementById('receipt-printable-area');
-        if (!receiptElement || !selectedPaymentForView) {
-            return;
-        }
-    
-        const canvas = await html2canvas(receiptElement, {
-            scale: 2,
-            useCORS: true,
-        });
-        const imgData = canvas.toDataURL('image/png');
-    
-        const pdf = new jsPDF({
-            orientation: 'portrait',
-            unit: 'mm',
-            format: 'a4',
-        });
-    
-        const pdfWidth = pdf.internal.pageSize.getWidth();
-        const pdfHeight = pdf.internal.pageSize.getHeight();
-        const ratio = canvas.width / canvas.height;
-        let imgWidth = pdfWidth - 20; // 10mm margin on each side
-        let imgHeight = imgWidth / ratio;
-
-        if (imgHeight > pdfHeight - 20) {
-            imgHeight = pdfHeight - 20; // 10mm margin on top/bottom
-            imgWidth = imgHeight * ratio;
-        }
-    
-        const x = (pdfWidth - imgWidth) / 2;
-        const y = 10;
-    
-        pdf.addImage(imgData, 'PNG', x, y, imgWidth, imgHeight);
-        pdf.save(`Receipt_${selectedPaymentForView.payment.receiptId}.pdf`);
-    };
 
   const formatCurrency = (value: number) => {
     if (Math.abs(value) >= 10000000) {
@@ -633,37 +591,14 @@ export default function CustomerDetailPage({
         )}
 
         {selectedPaymentForView && (
-            <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
-                <DialogContent className="max-w-4xl p-0 print:p-0 print:border-0 print:max-w-none">
-                    <DialogHeader className="p-6 pb-0 print:hidden">
-                      <DialogTitle>Payment Receipt</DialogTitle>
-                      <DialogDescription>
-                          A copy of the payment receipt for your records. You can print it or save it as a PDF.
-                      </DialogDescription>
-                    </DialogHeader>
-                    <ScrollArea className="max-h-[80vh]">
-                        <Receipt 
-                            payment={selectedPaymentForView.payment} 
-                            customer={selectedPaymentForView.customer} 
-                            project={selectedPaymentForView.project}
-                        />
-                    </ScrollArea>
-                     <DialogFooter className="p-4 border-t bg-muted print:hidden">
-                        <Button type="button" variant="outline" onClick={() => setIsViewDialogOpen(false)}>Close</Button>
-                        <Button type="button" variant="outline" onClick={handleSavePdf}>
-                            <Save className="mr-2 h-4 w-4" /> Save as PDF
-                        </Button>
-                        <Button type="button" onClick={handlePrint}>
-                            <Printer className="mr-2 h-4 w-4" /> Print
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
+            <PrintReceiptDialog
+                isOpen={isViewDialogOpen}
+                onClose={() => setIsViewDialogOpen(false)}
+                payment={selectedPaymentForView.payment}
+                customer={selectedPaymentForView.customer}
+                project={selectedPaymentForView.project}
+            />
         )}
     </div>
   );
 }
-
-    
-
-    

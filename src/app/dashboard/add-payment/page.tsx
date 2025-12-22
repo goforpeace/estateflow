@@ -1,4 +1,3 @@
-
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -102,8 +101,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { DateRangePicker } from '@/components/ui/date-range-picker';
 import { DateRange } from 'react-day-picker';
 import { exportToCsv } from '@/lib/csv';
-import jsPDF from 'jspdf';
-import html2canvas from 'html2canvas';
+import { PrintReceiptDialog } from '@/components/dashboard/payments/PrintReceiptDialog';
 
 
 const addPaymentFormSchema = z.object({
@@ -150,7 +148,6 @@ export default function AddPaymentPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
   const [isLogLoading, setIsLogLoading] = useState(true);
-  const [lastPayment, setLastPayment] = useState<EnrichedTransaction | null>(null);
   
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
@@ -205,7 +202,7 @@ export default function AddPaymentPage() {
             });
         }
 
-      // 2. Fetch last 5 inflow transactions
+      // 2. Fetch last 10 inflow transactions
       const inflowsQuery = query(
         collectionGroup(firestore, 'inflowTransactions'),
         limit(10) // Fetch more to allow for filtering
@@ -372,24 +369,25 @@ export default function AddPaymentPage() {
         
         const customer = customers?.find(c => c.id === data.customerId);
         const project = projectsForCustomer?.find(p => p.id === data.projectId);
-
-        const enrichedPayment = {
-            ...newPayment,
-            customerName: customer?.fullName || 'N/A',
-            projectName: project?.projectName || 'N/A',
-            flatNumber: flatsForProject?.find(f => f.id === data.flatId)?.flatNumber || 'N/A',
-        };
-
-        setLastPayment(enrichedPayment);
+        const flat = flatsForProject?.find(f => f.id === data.flatId);
         
-        if (customer && project) {
-            handleViewClick(enrichedPayment);
-        }
-
         toast({
             title: 'Payment Recorded',
             description: `Payment of ৳${data.amount} has been successfully recorded with Receipt ID: ${receiptId}.`,
         });
+
+        if (customer && project && flat) {
+            const enrichedPayment = {
+                ...newPayment,
+                customerName: customer.fullName,
+                projectName: project.projectName,
+                flatNumber: flat.flatNumber,
+                customer,
+                project,
+            };
+            setSelectedPayment(enrichedPayment);
+            setIsViewDialogOpen(true);
+        }
         
         form.reset({
             ...form.getValues(),
@@ -399,7 +397,6 @@ export default function AddPaymentPage() {
             date: new Date().toISOString().split('T')[0],
         });
         
-        // Refresh the log
         fetchRecentTransactions();
 
     } catch (error: any) {
@@ -414,7 +411,6 @@ export default function AddPaymentPage() {
   const filteredTransactions = useMemo(() => {
     if (!recentTransactions) return [];
     return recentTransactions.filter(tx => {
-        // Search term filter
         const searchTerm = searchQuery.toLowerCase();
         const searchMatch = !searchTerm || (
             tx.customerName.toLowerCase().includes(searchTerm) ||
@@ -425,7 +421,6 @@ export default function AddPaymentPage() {
             new Date(tx.date).toLocaleDateString().includes(searchTerm)
         );
 
-        // Date range filter
         const txDate = new Date(tx.date);
         const fromDate = dateRange?.from;
         const toDate = dateRange?.to;
@@ -500,66 +495,7 @@ export default function AddPaymentPage() {
         setIsViewDialogOpen(true);
     };
 
-    const handlePrint = () => {
-        window.print();
-    };
-    
-    const handleSavePdf = async () => {
-        const receiptElement = document.getElementById('receipt-printable-area');
-        if (!receiptElement) {
-            toast({
-                variant: 'destructive',
-                title: 'Error',
-                description: 'Could not find receipt element to save.',
-            });
-            return;
-        }
-    
-        try {
-            const canvas = await html2canvas(receiptElement, {
-                scale: 2, // Increase scale for better resolution
-                useCORS: true, // Allow cross-origin images
-            });
-            const imgData = canvas.toDataURL('image/png');
-    
-            // A4 dimensions in mm: 210 x 297
-            const pdf = new jsPDF({
-                orientation: 'portrait',
-                unit: 'mm',
-                format: 'a4',
-            });
-    
-            const pdfWidth = pdf.internal.pageSize.getWidth();
-            const pdfHeight = pdf.internal.pageSize.getHeight();
-            const canvasWidth = canvas.width;
-            const canvasHeight = canvas.height;
-            const ratio = canvasWidth / canvasHeight;
-    
-            let imgWidth = pdfWidth - 20; // A4 width in mm with 10mm margin on each side
-            let imgHeight = imgWidth / ratio;
-    
-            // If the image height is still too large, adjust based on height
-            if (imgHeight > pdfHeight - 20) { // with 10mm margin
-                imgHeight = pdfHeight - 20;
-                imgWidth = imgHeight * ratio;
-            }
-    
-            const x = (pdfWidth - imgWidth) / 2;
-            const y = 10; // 10mm top margin
-    
-            pdf.addImage(imgData, 'PNG', x, y, imgWidth, imgHeight);
-            pdf.save(`Receipt_${selectedPayment?.receiptId || 'download'}.pdf`);
-        } catch (error) {
-            console.error('Error generating PDF:', error);
-            toast({
-                variant: 'destructive',
-                title: 'PDF Generation Failed',
-                description: 'An unexpected error occurred while creating the PDF.',
-            });
-        }
-    };
-
-  const formatCurrency = (value: number) => `৳${value.toLocaleString('en-IN')}`;
+    const formatCurrency = (value: number) => `৳${value.toLocaleString('en-IN')}`;
 
   return (
     <div className="space-y-6">
@@ -916,7 +852,6 @@ export default function AddPaymentPage() {
       </AlertDialog>
 
         {selectedPayment && (
-            <>
             <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
                 <DialogContent className="sm:max-w-xl">
                     <DialogHeader>
@@ -930,41 +865,17 @@ export default function AddPaymentPage() {
                     />
                 </DialogContent>
             </Dialog>
-            
-            <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
-                <DialogContent className="max-w-4xl p-0 print:p-0 print:border-0 print:max-w-none">
-                    <div className="print:hidden">
-                        <DialogHeader className="p-6 pb-2">
-                        <DialogTitle>Payment Receipt</DialogTitle>
-                        <DialogDescription>
-                            Review the receipt below. You can print it or save it as a PDF.
-                        </DialogDescription>
-                        </DialogHeader>
-                    </div>
-                    <ScrollArea className="max-h-[80vh]">
-                        <Receipt 
-                            payment={selectedPayment} 
-                            customer={selectedPayment.customer!} 
-                            project={selectedPayment.project!}
-                        />
-                    </ScrollArea>
-                     <DialogFooter className="p-4 border-t bg-muted print:hidden">
-                        <Button type="button" variant="outline" onClick={() => setIsViewDialogOpen(false)}>Close</Button>
-                         <Button type="button" variant="outline" onClick={handleSavePdf}>
-                            <Save className="mr-2 h-4 w-4" /> Save as PDF
-                        </Button>
-                        <Button type="button" onClick={handlePrint}>
-                            <Printer className="mr-2 h-4 w-4" /> Print
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
-            </>
+        )}
+        
+        {selectedPayment && (
+          <PrintReceiptDialog
+            isOpen={isViewDialogOpen}
+            onClose={() => setIsViewDialogOpen(false)}
+            payment={selectedPayment}
+            customer={selectedPayment.customer!}
+            project={selectedPayment.project!}
+          />
         )}
     </div>
   );
 }
-
-    
-    
-    
