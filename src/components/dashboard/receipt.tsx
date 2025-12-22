@@ -102,7 +102,7 @@ export const Receipt: React.FC<ReceiptProps> = ({ payment, customer, project }) 
                         <img src={company.logo} alt={`${company.name} Logo`} style={{ width: '96px', height: 'auto' }} />
                     </div>
                     <div className="text-right">
-                        <h1 className="text-3xl font-bold text-primary">{company.name}</h1>
+                        <h1 className="text-3xl font-bold text-primary"><span>Landmark</span> <span>New Homes Ltd.</span></h1>
                         <p className="text-sm text-gray-500">{company.address}</p>
                     </div>
                 </header>
@@ -130,7 +130,7 @@ export const Receipt: React.FC<ReceiptProps> = ({ payment, customer, project }) 
                     {/* Body */}
                     <main className="space-y-5 text-base leading-relaxed mb-10">
                         <div className="flex items-baseline">
-                            <p className="w-48 font-semibold shrink-0">Received with thanks from</p>
+                            <p className="w-48 font-semibold shrink-0"><span>Received with thanks</span> <span>from</span></p>
                             <p className="border-b border-dotted border-gray-400 flex-grow font-semibold text-primary pb-1">{customer.fullName}</p>
                         </div>
                         <div className="flex items-baseline">
@@ -164,7 +164,7 @@ export const Receipt: React.FC<ReceiptProps> = ({ payment, customer, project }) 
                 </div>
 
                 {/* Footer */}
-                <footer className="pt-8 mt-8 text-sm text-center">
+                <footer className="pt-8 mt-auto text-sm text-center">
                     <div className="flex justify-between items-end">
                         <div className="w-1/3">
                             <p className="border-t-2 border-gray-400 pt-2 font-bold">Received By</p>
