@@ -108,7 +108,7 @@ export const Receipt: React.FC<ReceiptProps> = ({ payment, customer, project }) 
                 </header>
 
                 <div className="flex-grow">
-                    {/* Title & Info */}
+                     {/* Title & Info */}
                      <section className="flex items-start mb-10 w-full">
                         <div className="w-1/2">
                             <h2 className="text-2xl font-semibold text-gray-700 uppercase tracking-widest bg-gray-100 px-4 py-1 inline-block">
@@ -173,7 +173,7 @@ export const Receipt: React.FC<ReceiptProps> = ({ payment, customer, project }) 
                             <p className="text-xs text-gray-400">This is a computer-generated receipt.</p>
                         </div>
                         <div className="w-1/3">
-                            <p className="border-t-2 border-gray-400 pt-2 font-bold">For {company.name}</p>
+                            <p className="border-t-2 border-gray-400 pt-2 font-bold">For <span>{company.name}</span></p>
                             <p>Authorized Signature</p>
                         </div>
                     </div>
