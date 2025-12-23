@@ -74,27 +74,6 @@ export const Receipt: React.FC<ReceiptProps> = ({ payment, customer, project }) 
 
     return (
         <div id="receipt-printable-area" className="bg-white text-gray-800 font-sans p-4 print:p-0">
-             <style jsx global>{`
-                @media print {
-                  body * {
-                    visibility: hidden;
-                  }
-                  #receipt-printable-area, #receipt-printable-area * {
-                    visibility: visible;
-                  }
-                  #receipt-printable-area {
-                    position: absolute;
-                    left: 0;
-                    top: 0;
-                    width: 100%;
-                  }
-                  @page {
-                    size: A4;
-                    margin: 20mm;
-                  }
-                }
-            `}</style>
-            
             <div className="max-w-4xl mx-auto p-8 min-h-screen flex flex-col">
                 {/* Header */}
                 <header className="flex justify-between items-start pb-6 mb-8 border-b-2 border-primary">
@@ -109,7 +88,7 @@ export const Receipt: React.FC<ReceiptProps> = ({ payment, customer, project }) 
 
                 <div className="flex-grow">
                      {/* Title & Info */}
-                     <section className="flex items-start mb-10 w-full">
+                     <section className="flex items-start justify-between mb-10 w-full">
                         <div className="w-1/2">
                             <h2 className="text-2xl font-semibold text-gray-700 uppercase tracking-widest bg-gray-100 px-4 py-1 inline-block">
                                 Money Receipt
@@ -173,7 +152,7 @@ export const Receipt: React.FC<ReceiptProps> = ({ payment, customer, project }) 
                             <p className="text-xs text-gray-400">This is a computer-generated receipt.</p>
                         </div>
                         <div className="w-1/3">
-                            <p className="border-t-2 border-gray-400 pt-2 font-bold">For <span>{company.name}</span></p>
+                            <p className="border-t-2 border-gray-400 pt-2 font-bold">For <span>Landmark New Homes Ltd.</span></p>
                             <p>Authorized Signature</p>
                         </div>
                     </div>
