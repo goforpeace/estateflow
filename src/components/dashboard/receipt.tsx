@@ -73,85 +73,86 @@ export const Receipt: React.FC<ReceiptProps> = ({ payment, customer, project }) 
 
     return (
         <div id="receipt-printable-area" className="bg-white text-gray-800 font-sans">
-            <div className="p-8 w-[210mm] min-h-[297mm] mx-auto">
-                <header className="flex justify-between items-start mb-8">
-                    {/* Left side: Receipt Title and Customer Info */}
-                    <div className="w-1/2">
-                        <h2 className="text-3xl font-semibold mb-4">RECEIPT</h2>
-                        <div className="text-sm">
-                            <p className="font-bold">{customer.fullName}</p>
-                            <p>{customer.address}</p>
+            <div className="p-8 w-[210mm] min-h-[297mm] mx-auto flex flex-col">
+                <header className="mb-10">
+                    <div className="flex justify-center items-center mb-6">
+                        <img src={company.logo} alt={`${company.name} Logo`} className="h-24" />
+                    </div>
+                    <div className="flex justify-between items-start">
+                        {/* Left side: Receipt Title and Customer Info */}
+                        <div className="w-1/2">
+                            <h2 className="text-3xl font-semibold text-primary uppercase tracking-widest">Receipt</h2>
+                        </div>
+
+                        {/* Right side: Company Info and Payment Details */}
+                        <div className="w-1/2 text-right">
+                            <div className="text-sm mb-4">
+                                <p className="font-bold text-lg">{company.name}</p>
+                                <p>{company.address}</p>
+                                <p>Email: {company.email}</p>
+                                <p>Tel: {company.phone}</p>
+                            </div>
                         </div>
                     </div>
-
-                    {/* Right side: Logo, Company Info, and Payment Details */}
-                    <div className="w-1/2 text-right">
-                        <div className="flex justify-end mb-4">
-                            <img src={company.logo} alt={`${company.name} Logo`} className="h-16" />
-                        </div>
-                        <div className="text-xs mb-4">
-                            <p className="font-bold">{company.name}</p>
-                            <p>{company.address}</p>
-                            <p>Email: {company.email}</p>
-                            <p>Tel: {company.phone}</p>
-                        </div>
-                        <table className="w-full text-sm">
-                            <tbody>
-                                <tr>
-                                    <td className="font-semibold pr-4">Payment Date</td>
-                                    <td>{new Date(payment.date).toLocaleDateString('en-GB')}</td>
-                                </tr>
-                                <tr>
-                                    <td className="font-semibold pr-4">Receipt No</td>
-                                    <td>{payment.receiptId}</td>
-                                </tr>
-                            </tbody>
-                        </table>
+                     <div className="flex justify-end mt-4">
+                        <table className="w-48 text-sm">
+                                <tbody>
+                                    <tr>
+                                        <td className="font-semibold pr-4">Date</td>
+                                        <td>: {new Date(payment.date).toLocaleDateString('en-GB')}</td>
+                                    </tr>
+                                    <tr>
+                                        <td className="font-semibold pr-4">Receipt No</td>
+                                        <td>: {payment.receiptId}</td>
+                                    </tr>
+                                </tbody>
+                            </table>
                     </div>
                 </header>
 
-                <div className="border-t-2 border-black pt-2 mb-8">
-                    <div className="flex justify-between font-bold text-lg">
-                        <span>Total Amount paid</span>
-                        <span>৳{payment.amount.toLocaleString('en-IN')}</span>
-                    </div>
-                </div>
-
-                <main>
-                    <table className="w-full text-sm text-left">
-                        <thead>
-                            <tr className="border-b-2 border-black">
-                                <th className="pb-2 w-[20%]">Payment Date</th>
-                                <th className="pb-2 w-[40%]">Description</th>
-                                <th className="pb-2 w-[20%] text-right">Payment Method</th>
-                                <th className="pb-2 w-[20%] text-right">Amount Paid</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr>
-                                <td className="pt-2">{new Date(payment.date).toLocaleDateString('en-GB')}</td>
-                                <td className="pt-2">
-                                    {payment.paymentPurpose === 'Other' ? payment.otherPurpose : payment.paymentPurpose}
-                                    {' for Flat '}{payment.flatNumber}
-                                    {' in project '}{payment.projectName}
-                                </td>
-                                <td className="pt-2 text-right">{payment.paymentMethod}</td>
-                                <td className="pt-2 text-right">৳{payment.amount.toLocaleString('en-IN')}</td>
-                            </tr>
-                        </tbody>
-                    </table>
-
-                    <div className="flex justify-end mt-4">
-                        <table className="w-2/5 text-sm">
-                            <tbody>
-                                <tr className="border-t-2 border-black">
-                                    <td className="pt-2 font-bold">Total</td>
-                                    <td className="pt-2 text-right font-bold">৳{payment.amount.toLocaleString('en-IN')}</td>
-                                </tr>
-                            </tbody>
-                        </table>
+                <main className="flex-grow">
+                    <div className="space-y-5">
+                        <div className="flex items-baseline">
+                            <span className="w-48 shrink-0 font-medium">Received with thanks from</span>
+                            <p className="w-full border-b border-dotted border-gray-400 pb-1">{customer.fullName}</p>
+                        </div>
+                        <div className="flex items-baseline">
+                            <span className="w-48 shrink-0 font-medium">The sum of Taka</span>
+                            <p className="w-full border-b border-dotted border-gray-400 pb-1 capitalize">{amountInWordsText}</p>
+                        </div>
+                         <div className="flex items-baseline">
+                            <span className="w-48 shrink-0 font-medium">By</span>
+                            <p className="w-full border-b border-dotted border-gray-400 pb-1">{payment.paymentMethod} {payment.reference && `(${payment.reference})`}</p>
+                        </div>
+                        <div className="flex items-baseline">
+                            <span className="w-48 shrink-0 font-medium">On account of</span>
+                            <p className="w-full border-b border-dotted border-gray-400 pb-1">{payment.paymentPurpose === 'Other' ? payment.otherPurpose : payment.paymentPurpose}</p>
+                        </div>
+                         <div className="flex items-baseline">
+                            <span className="w-28 shrink-0 font-medium">Project</span>
+                             <p className="w-full border-b border-dotted border-gray-400 pb-1">{payment.projectName}</p>
+                             <span className="w-28 shrink-0 font-medium text-center">Flat No.</span>
+                             <p className="w-full border-b border-dotted border-gray-400 pb-1">{payment.flatNumber}</p>
+                        </div>
+                         <div className="flex items-baseline">
+                             <p className="w-full font-bold text-lg text-center bg-gray-100 p-2 rounded-lg shadow-sm">৳{payment.amount.toLocaleString('en-IN')}/-</p>
+                        </div>
                     </div>
                 </main>
+
+                <footer className="mt-auto pt-8">
+                     <div className="flex justify-between items-end">
+                        <div className="w-1/3 text-center">
+                            <p className="border-t border-black pt-2 font-medium">Received By</p>
+                        </div>
+                         <div className="w-1/3 text-center text-xs text-gray-500">
+                             <p>This is a computer-generated receipt and does not require a physical signature.</p>
+                        </div>
+                        <div className="w-1/3 text-center">
+                            <p className="border-t border-black pt-2 font-medium">For, {company.name}</p>
+                        </div>
+                    </div>
+                </footer>
             </div>
         </div>
     );
