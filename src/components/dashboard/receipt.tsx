@@ -72,7 +72,7 @@ export const Receipt: React.FC<ReceiptProps> = ({ payment, customer, project }) 
     const amountInWordsText = amountInWords(payment.amount) + ' Taka Only';
 
     return (
-        <div id="receipt-printable-area" className="bg-white text-gray-800 font-sans">
+        <div id="receipt-printable-area" className="bg-white text-gray-800" style={{ fontFamily: "'Times New Roman', Times, serif" }}>
             <div className="p-8 w-[210mm] min-h-[297mm] mx-auto flex flex-col">
                 <header className="mb-10">
                     <div className="flex justify-center items-center mb-6">
